@@ -1,0 +1,7 @@
+{
+  "target": "u-warboss::attachment:leader|Nobz",
+  "source": "mfm",
+  "patch": { "__add": true },
+  "reason": "Le codex permet au Warboss de mener des Nobz",
+  "upstreamPr": "https://github.com/BSData/wh40k-11e-mfm/pull/1"
+}

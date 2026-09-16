@@ -1,0 +1,9 @@
+# Sortie de la compilation incrémentale de TypeScript.
+tsconfig.tsbuildinfo
+node_modules/
+
+# Instantané des Upstream Sources, jamais versionné.
+.snapshot/
+
+# Dossier de travail de l'interface : Dataset cloné et instantané des sources.
+.workspace/

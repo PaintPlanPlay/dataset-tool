@@ -1,0 +1,7 @@
+{
+  "target": "u-mekgunz::weapon:ranged|Kustom mega-kannon",
+  "source": "bsdata",
+  "patch": { "A": "D6+1" },
+  "upstream": { "A": "2D6" },
+  "reason": "Attaques du kustom mega-kannon en retard sur le codex"
+}

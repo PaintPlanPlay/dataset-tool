@@ -1,0 +1,10 @@
+{
+  "catalogue": {
+    "name": "Orks - Freebooterz",
+    "id": "cat-freebooterz",
+    "library": false,
+    "catalogueLinks": [
+      { "name": "Orks", "targetId": "cat-orks", "importRootEntries": true }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "target": "u-warboss",
+  "source": "mfm",
+  "patch": { "points": 80 },
+  "upstream": { "points": 70 },
+  "reason": "Coût relevé par une Dataslate que le MFM n'a pas encore intégrée"
+}

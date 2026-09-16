@@ -1,0 +1,61 @@
+{
+  "catalogue": {
+    "name": "Imperium - Adeptus Custodes",
+    "id": "cat-custodes",
+    "library": false,
+    "entryLinks": [
+      { "id": "l-guard", "name": "Custodian Guard", "targetId": "u-guard", "type": "selectionEntry" }
+    ],
+    "sharedSelectionEntries": [
+      {
+        "id": "u-guard",
+        "name": "Custodian Guard",
+        "type": "unit",
+        "costs": [{ "name": "pts", "typeId": "pts", "value": 200 }],
+        "categoryLinks": [{ "name": "Infantry" }, { "name": "Battleline" }, { "name": "Custodian Guard" }, { "name": "Faction: Adeptus Custodes" }],
+        "profiles": [
+          {
+            "name": "Stand Vigil Fixture",
+            "typeName": "Abilities",
+            "characteristics": [{ "name": "Description", "$text": "FIXTURE-RULES-TEXT-VIGIL each time a model in this unit makes an attack, re-roll a Wound roll of 1." }]
+          }
+        ],
+        "selectionEntryGroups": [
+          {
+            "id": "g-guard",
+            "name": "4-5 Custodian Guard",
+            "constraints": [
+              { "type": "min", "field": "selections", "scope": "parent", "value": 4 },
+              { "type": "max", "field": "selections", "scope": "parent", "value": 5 }
+            ],
+            "selectionEntries": [
+              {
+                "id": "m-guard",
+                "name": "Custodian Guard",
+                "type": "model",
+                "profiles": [
+                  {
+                    "name": "Custodian Guard",
+                    "typeName": "Unit",
+                    "characteristics": [
+                      { "name": "M", "$text": "6\"" }, { "name": "T", "$text": "6" }, { "name": "Sv", "$text": "2+" },
+                      { "name": "InSv", "$text": "4+" }, { "name": "W", "$text": "3" }, { "name": "LD", "$text": "6+" }, { "name": "OC", "$text": "2" }
+                    ]
+                  },
+                  {
+                    "name": "Guardian spear",
+                    "typeName": "Melee Weapons",
+                    "characteristics": [
+                      { "name": "Range", "$text": "Melee" }, { "name": "A", "$text": "5" }, { "name": "WS", "$text": "2+" },
+                      { "name": "S", "$text": "7" }, { "name": "AP", "$text": "-2" }, { "name": "D", "$text": "2" }, { "name": "Keywords", "$text": "-" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

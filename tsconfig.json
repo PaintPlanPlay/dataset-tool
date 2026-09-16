@@ -1,0 +1,23 @@
+{
+  // Le Dataset Tool est un paquet autonome : il ne voit que ses propres sources
+  // et son paquet de schéma, jamais le code de l'application (issue #56).
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "skipLibCheck": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src", "test", "schema/src"]
+}

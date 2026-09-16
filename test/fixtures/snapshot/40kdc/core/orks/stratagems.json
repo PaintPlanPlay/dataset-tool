@@ -1,0 +1,42 @@
+[
+  {
+    "id": "ere-we-go-war-horde",
+    "name": "'ERE WE GO",
+    "category": "detachment",
+    "type": "strategic-ploy",
+    "detachment_id": "war-horde",
+    "cp_cost": 1,
+    "phases": ["charge", "movement"],
+    "player_turn": "your-turn",
+    "timing": "once-per-phase",
+    "target_restrictions": null,
+    "ability_id": "ere-we-go-war-horde"
+  },
+  {
+    "id": "unbridled-carnage-war-horde",
+    "name": "UNBRIDLED CARNAGE",
+    "category": "detachment",
+    "type": "battle-tactic",
+    "detachment_id": "war-horde",
+    "cp_cost": 2,
+    "phases": ["fight"],
+    "player_turn": "either",
+    "timing": "once-per-phase",
+    "target_restrictions": {
+      "required_keywords": ["Orks"],
+      "required_keywords_any": ["Infantry", "Walker"],
+      "notes": "Has not been selected to fight this phase; within 6\" of one or more friendly ORKS units."
+    },
+    "ability_id": null
+  },
+  {
+    "id": "full-throttle-kult-of-speed",
+    "name": "FULL THROTTLE",
+    "category": "detachment",
+    "detachment_id": "kult-of-speed",
+    "cp_cost": 1,
+    "phases": ["movement"],
+    "player_turn": "your-turn",
+    "timing": "once-per-phase"
+  }
+]

@@ -1,0 +1,15 @@
+[
+  {
+    "ability_id": "command-re-roll",
+    "name": "Command Re-roll",
+    "ability_type": "core",
+    "effect": {
+      "type": "re-roll",
+      "target": "unit",
+      "modifier": {
+        "roll": "any",
+        "result_scope": "any-result"
+      }
+    }
+  }
+]

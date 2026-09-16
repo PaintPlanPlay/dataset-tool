@@ -1,0 +1,27 @@
+[
+  {
+    "id": "follow-me-ladz-war-horde",
+    "name": "Follow Me Ladz",
+    "detachment_id": "war-horde",
+    "cost": 20,
+    "keyword_restrictions": ["Warboss"],
+    "ability_id": "follow-me-ladz-war-horde",
+    "upgrade_tag": false,
+    "max_targets": 1
+  },
+  {
+    "id": "kunnin-but-brutal-war-horde",
+    "name": "Kunnin’ But Brutal",
+    "detachment_id": "war-horde",
+    "cost": 15,
+    "keyword_restriction_groups": [["Orks", "Infantry"], ["Orks", "Mounted"]],
+    "exclusion_keywords": ["Epic Hero"],
+    "ability_id": "kunnin-but-brutal-war-horde"
+  },
+  {
+    "id": "bosspole-war-horde",
+    "name": "Bosspole",
+    "detachment_id": "war-horde",
+    "cost": 10
+  }
+]

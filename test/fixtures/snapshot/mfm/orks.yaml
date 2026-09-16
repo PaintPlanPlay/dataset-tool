@@ -1,0 +1,49 @@
+name: Orks
+slug: orks
+version: "1.4"
+firstSeen: 2026-09-02
+detachments:
+  - name: Da Big Hunt
+    dp: 1
+    objectives:
+      - PURGE THE FOE
+    enhancements:
+      - { name: Glory Hog, points: 25 }
+  - name: War Horde
+    dp: 1
+    objectives:
+      - TAKE AND HOLD
+    enhancements:
+      - { name: Follow Me Ladz, points: 25 }
+      - { name: Kunnin’ But Brutal, points: 15 }
+units:
+  - name: Boyz
+    pricing:
+      - range: "[1,3]"
+        label: Your 1st To 3rd Units Cost
+        costs:
+          - { models: 10, points: 75 }
+          - { models: 20, points: 160 }
+      - range: "[4,)"
+        label: Your 4th + Unit Costs
+        costs:
+          - { models: 10, points: 85 }
+          - { models: 20, points: 170 }
+  - name: Mek Gunz
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 1, points: 45 }
+          - { models: 2, points: 90 }
+          - { models: 3, points: 135 }
+  - name: Warboss
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 1, points: 70 }
+    leaderTo:
+      - Boyz
+    wargear:
+      - { item: Attack squig, points: 5 }

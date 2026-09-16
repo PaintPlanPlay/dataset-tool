@@ -1,0 +1,7 @@
+{
+  "target": "u-boyz::weapon:melee|Choppa",
+  "source": "bsdata",
+  "patch": { "S": 4 },
+  "upstream": { "S": 3 },
+  "reason": "Force du choppa erronée dans BSData"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "id": "warboss",
+    "name": "Warboss",
+    "faction_id": "orks",
+    "ability_ids": [
+      "da-boss-fixture"
+    ],
+    "external_refs": [
+      {
+        "namespace": "bsdata",
+        "id": "u-warboss"
+      },
+      {
+        "namespace": "mfm",
+        "id": "mfm-warboss"
+      }
+    ]
+  },
+  {
+    "id": "boyz",
+    "name": "Boyz",
+    "faction_id": "orks",
+    "ability_ids": [
+      "mob-fixture"
+    ],
+    "external_refs": [
+      {
+        "namespace": "bsdata",
+        "id": "u-boyz"
+      }
+    ]
+  },
+  {
+    "id": "gretchin",
+    "name": "Gretchin",
+    "faction_id": "orks",
+    "ability_ids": [],
+    "external_refs": [
+      {
+        "namespace": "bsdata",
+        "id": "u-not-in-bsdata"
+      }
+    ]
+  }
+]

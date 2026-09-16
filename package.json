@@ -1,0 +1,29 @@
+{
+  "name": "@paintplanplay/dataset-tool",
+  "version": "0.1.0",
+  "description": "Builds the Paint Plan Play Dataset from its Upstream Sources and Corrections, without any rules text.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "schema"
+  ],
+  "bin": {
+    "dataset-tool": "./src/cli.ts"
+  },
+  "scripts": {
+    "dev": "tsx src/cli.ts gui",
+    "tool": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx test/all.ts"
+  },
+  "dependencies": {
+    "@paintplanplay/dataset-schema": "0.7.0",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "tsx": "^4.20.3",
+    "typescript": "~6.0.2"
+  }
+}

@@ -1,0 +1,150 @@
+[
+  {
+    "ability_id": "get-stuck-in-war-horde",
+    "name": "Get Stuck In",
+    "ability_type": "detachment",
+    "faction_id": "orks",
+    "effect": {
+      "type": "keyword-grant",
+      "target": "unit",
+      "modifier": {
+        "keyword": "Sustained Hits 1",
+        "weapon_type": "melee"
+      }
+    },
+    "scope": {
+      "range": "any-on-battlefield",
+      "duration": "permanent"
+    }
+  },
+  {
+    "ability_id": "follow-me-ladz-war-horde",
+    "name": "Follow Me Ladz",
+    "ability_type": "enhancement",
+    "faction_id": "orks",
+    "effect": {
+      "type": "roll-modifier",
+      "target": "unit",
+      "modifier": {
+        "roll": "hit",
+        "operation": "add",
+        "value": 1
+      }
+    }
+  },
+  {
+    "ability_id": "kunnin-but-brutal-war-horde",
+    "name": "Kunnin’ But Brutal",
+    "ability_type": "enhancement",
+    "faction_id": "orks",
+    "effect": {
+      "type": "choice",
+      "choice_prompt": "Select one weapon ability to apply until the end of the phase",
+      "options": [
+        {
+          "type": "keyword-grant",
+          "target": "unit",
+          "modifier": {
+            "keyword": "Lethal Hits"
+          }
+        },
+        {
+          "type": "keyword-grant",
+          "target": "unit",
+          "modifier": {
+            "keyword": "Sustained Hits 1"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "ability_id": "ere-we-go-war-horde",
+    "name": "Ere We Go",
+    "ability_type": "stratagem",
+    "faction_id": "orks",
+    "effect": {
+      "type": "charge-roll-modifier",
+      "target": "unit",
+      "modifier": {
+        "operation": "add",
+        "value": 2
+      }
+    },
+    "applies_to": {
+      "required_keywords": [
+        "Orks"
+      ],
+      "excluded_keywords": [
+        "Vehicle"
+      ]
+    }
+  },
+  {
+    "ability_id": "da-boss-fixture",
+    "name": "Da Boss Fixture",
+    "authored_by": "40kdc-community",
+    "game_version": {
+      "edition": "11th",
+      "dataslate": "launch"
+    },
+    "source_digest": "fixture",
+    "version": "2025-q3",
+    "ability_type": "unit",
+    "behavior": "passive",
+    "faction_id": "orks",
+    "unit_ids": [
+      "warboss"
+    ],
+    "effect": {
+      "type": "sequence",
+      "steps": [
+        {
+          "type": "roll-modifier",
+          "target": "unit",
+          "modifier": {
+            "roll": "wound",
+            "operation": "add",
+            "value": 1,
+            "weapon_type": "melee"
+          }
+        },
+        {
+          "type": "keyword-grant",
+          "target": "unit",
+          "modifier": {
+            "keywords": [
+              "Lethal Hits"
+            ],
+            "weapon_type": "melee"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "ability_id": "mob-fixture",
+    "name": "Mob Fixture",
+    "authored_by": "40kdc-community",
+    "game_version": {
+      "edition": "11th",
+      "dataslate": "launch"
+    },
+    "source_digest": "fixture",
+    "version": "2025-q3",
+    "ability_type": "unit",
+    "behavior": "passive",
+    "faction_id": "orks",
+    "unit_ids": [
+      "boyz"
+    ],
+    "effect": {
+      "type": "roll-modifier",
+      "modifier": {
+        "roll": "hit",
+        "operation": "add",
+        "value": 1
+      }
+    }
+  }
+]

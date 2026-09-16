@@ -1,0 +1,18 @@
+[
+  {
+    "id": "war-horde",
+    "name": "War Horde",
+    "faction_id": "orks",
+    "detachment_rule_ids": ["get-stuck-in-war-horde"],
+    "detachment_points": 2,
+    "force_dispositions": ["purge-the-foe"]
+  },
+  {
+    "id": "kult-of-speed",
+    "name": "Kult of Speed",
+    "faction_id": "orks",
+    "detachment_rule_ids": [],
+    "detachment_points": 1,
+    "force_dispositions": ["reconnaissance"]
+  }
+]

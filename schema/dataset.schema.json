@@ -1,0 +1,1358 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paint-plan-play.github.io/schemas/dataset.schema.json",
+  "title": "Paint Plan Play Dataset",
+  "description": "Files of the Paint Plan Play Dataset. No rules text anywhere: a rule is carried by its name, its structured fields and, when it exists, its Effect.",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:~-]*$",
+      "maxLength": 120
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "keyword": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "keywords": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/keyword"
+      }
+    },
+    "target": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 7
+    },
+    "dice": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16
+    },
+    "gameSystem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "edition": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "edition"
+      ],
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "enum": [
+            "bsdata",
+            "mfm",
+            "40kdc"
+          ]
+        },
+        "repository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$"
+        },
+        "version": {
+          "type": "string",
+          "maxLength": 32
+        }
+      },
+      "required": [
+        "id",
+        "repository",
+        "commit"
+      ],
+      "additionalProperties": false
+    },
+    "armySummary": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "faction": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "units": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "refs": {
+          "type": "object",
+          "properties": {
+            "bsdata": {
+              "$ref": "#/$defs/name"
+            },
+            "mfm": {
+              "$ref": "#/$defs/id"
+            },
+            "kdc": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "required": [
+            "bsdata"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "faction",
+        "units",
+        "refs"
+      ],
+      "additionalProperties": false
+    },
+    "profile": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "M": {
+          "type": "string",
+          "maxLength": 16
+        },
+        "T": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "Sv": {
+          "$ref": "#/$defs/target"
+        },
+        "Inv": {
+          "$ref": "#/$defs/target"
+        },
+        "W": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "LD": {
+          "type": "string",
+          "maxLength": 16
+        },
+        "OC": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "name",
+        "M",
+        "T",
+        "Sv",
+        "Inv",
+        "W",
+        "LD",
+        "OC"
+      ],
+      "additionalProperties": false
+    },
+    "weapon": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "kind": {
+          "enum": [
+            "ranged",
+            "melee"
+          ]
+        },
+        "range": {
+          "type": "string",
+          "maxLength": 16
+        },
+        "rangeInches": {
+          "type": "number",
+          "minimum": 0
+        },
+        "A": {
+          "$ref": "#/$defs/dice"
+        },
+        "skill": {
+          "$ref": "#/$defs/target"
+        },
+        "S": {
+          "type": "integer"
+        },
+        "AP": {
+          "type": "integer",
+          "maximum": 0
+        },
+        "D": {
+          "$ref": "#/$defs/dice"
+        },
+        "keywords": {
+          "$ref": "#/$defs/keywords"
+        },
+        "maxCarriers": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "range",
+        "rangeInches",
+        "A",
+        "skill",
+        "S",
+        "AP",
+        "D",
+        "keywords"
+      ],
+      "additionalProperties": false
+    },
+    "weaponOption": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "weapons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 140
+          }
+        },
+        "maxCarriers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "perModels": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "isDefault": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "weapons",
+        "maxCarriers",
+        "isDefault"
+      ],
+      "additionalProperties": false
+    },
+    "optionGroup": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "tree": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "parent": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "slot": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "pool": {
+          "type": "boolean"
+        },
+        "minPicks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxPicks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pickBrackets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "atModels": {
+                "type": "integer"
+              },
+              "maxPicks": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "atModels",
+              "maxPicks"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/weaponOption"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "tree",
+        "parent",
+        "slot",
+        "pool",
+        "minPicks",
+        "maxPicks",
+        "pickBrackets",
+        "options"
+      ],
+      "additionalProperties": false
+    },
+    "priceBand": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "to": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "costs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "models": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "points": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "desc": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "addon": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "models",
+              "points"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "costs"
+      ],
+      "additionalProperties": false
+    },
+    "unitAbility": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "effect": {
+          "$ref": "#/$defs/effect"
+        },
+        "scope": {
+          "$ref": "#/$defs/effectScope"
+        },
+        "summary": {
+          "$ref": "#/$defs/summary"
+        },
+        "effectSource": {
+          "enum": [
+            "40kdc",
+            "analysis",
+            "project"
+          ]
+        },
+        "conditional": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "unit": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "source": {
+          "$ref": "#/$defs/name"
+        },
+        "ally": {
+          "type": "boolean"
+        },
+        "isLegends": {
+          "type": "boolean"
+        },
+        "keywords": {
+          "$ref": "#/$defs/keywords"
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/profile"
+          }
+        },
+        "weapons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/weapon"
+          }
+        },
+        "abilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/unitAbility"
+          }
+        },
+        "points": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "costBrackets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "overModels": {
+                "type": "integer"
+              },
+              "points": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "overModels",
+              "points"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "pricing": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/priceBand"
+          }
+        },
+        "wargear": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "$ref": "#/$defs/name"
+              },
+              "points": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "item",
+              "points"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "leaderTargets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
+        },
+        "supportTargets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
+        },
+        "minModels": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxModels": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "defaultModels": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "composition": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "$ref": "#/$defs/name"
+              },
+              "min": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "max": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "name",
+              "min",
+              "max"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "defaultLoadout": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "weapon": {
+                "$ref": "#/$defs/name"
+              },
+              "kind": {
+                "enum": [
+                  "ranged",
+                  "melee"
+                ]
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "weapon",
+              "kind",
+              "count"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "optionGroups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/optionGroup"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "source",
+        "isLegends",
+        "keywords",
+        "models",
+        "weapons",
+        "abilities",
+        "points",
+        "costBrackets",
+        "leaderTargets",
+        "supportTargets",
+        "minModels",
+        "maxModels"
+      ],
+      "additionalProperties": false
+    },
+    "correctionFile": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "source": {
+          "enum": [
+            "bsdata",
+            "mfm",
+            "40kdc"
+          ]
+        },
+        "patch": {
+          "type": "object",
+          "minProperties": 1
+        },
+        "upstream": {
+          "type": "object"
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "upstreamPr": {
+          "type": "string",
+          "pattern": "^https://github\\.com/[^/]+/[^/]+/pull/\\d+$"
+        }
+      },
+      "required": [
+        "target",
+        "source",
+        "patch",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "indexFile": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "gameSystem": {
+          "$ref": "#/$defs/gameSystem"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source"
+          }
+        },
+        "armies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/armySummary"
+          }
+        },
+        "effectFormat": {
+          "$ref": "#/$defs/effectFormat"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "gameSystem",
+        "sources",
+        "armies",
+        "effectFormat"
+      ],
+      "additionalProperties": false
+    },
+    "armyFile": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "gameSystem": {
+          "$ref": "#/$defs/id"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "faction": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "units": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/unit"
+          }
+        },
+        "detachments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/detachment"
+          }
+        },
+        "stratagems": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stratagem"
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "gameSystem",
+        "id",
+        "name",
+        "faction",
+        "units",
+        "detachments",
+        "stratagems"
+      ],
+      "additionalProperties": false
+    },
+    "effectFormat": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$"
+        }
+      },
+      "required": [
+        "repository",
+        "commit"
+      ],
+      "additionalProperties": false
+    },
+    "effect": {
+      "$ref": "https://40kdc.dev/schemas/enrichment/ability-dsl/effect.schema.json"
+    },
+    "effectScope": {
+      "$ref": "https://40kdc.dev/schemas/enrichment/ability-dsl/scope.schema.json"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "keywordGroups": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "$ref": "#/$defs/keyword"
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "effect": {
+          "$ref": "#/$defs/effect"
+        },
+        "scope": {
+          "$ref": "#/$defs/effectScope"
+        },
+        "summary": {
+          "$ref": "#/$defs/summary"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "enhancement": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "points": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "appliesTo": {
+          "enum": [
+            "character",
+            "unit"
+          ]
+        },
+        "aura": {
+          "type": "boolean"
+        },
+        "maxTargets": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requires": {
+          "$ref": "#/$defs/keywordGroups"
+        },
+        "excludes": {
+          "$ref": "#/$defs/keywords"
+        },
+        "leaderTo": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
+        },
+        "supportTo": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
+        },
+        "effect": {
+          "$ref": "#/$defs/effect"
+        },
+        "scope": {
+          "$ref": "#/$defs/effectScope"
+        },
+        "summary": {
+          "$ref": "#/$defs/summary"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "points",
+        "appliesTo",
+        "aura",
+        "maxTargets",
+        "requires",
+        "excludes"
+      ],
+      "additionalProperties": false
+    },
+    "detachment": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "dp": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "forceDispositions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          }
+        },
+        "uniqueTag": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rule"
+          }
+        },
+        "enhancements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/enhancement"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "dp",
+        "forceDispositions",
+        "rules",
+        "enhancements"
+      ],
+      "additionalProperties": false
+    },
+    "stratagemTarget": {
+      "type": "object",
+      "properties": {
+        "allOf": {
+          "$ref": "#/$defs/keywords"
+        },
+        "anyOf": {
+          "$ref": "#/$defs/keywords"
+        },
+        "noneOf": {
+          "$ref": "#/$defs/keywords"
+        }
+      },
+      "required": [
+        "allOf",
+        "anyOf",
+        "noneOf"
+      ],
+      "additionalProperties": false
+    },
+    "stratagem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "detachmentId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cp": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "phases": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "command",
+              "movement",
+              "shooting",
+              "charge",
+              "fight"
+            ]
+          }
+        },
+        "playerTurn": {
+          "enum": [
+            "your-turn",
+            "opponent-turn",
+            "either"
+          ]
+        },
+        "timing": {
+          "enum": [
+            "once-per-phase",
+            "once-per-turn",
+            "once-per-battle",
+            "unlimited"
+          ]
+        },
+        "category": {
+          "enum": [
+            "battle-tactic",
+            "strategic-ploy",
+            "epic-deed",
+            "wargear"
+          ]
+        },
+        "target": {
+          "$ref": "#/$defs/stratagemTarget"
+        },
+        "effect": {
+          "$ref": "#/$defs/effect"
+        },
+        "scope": {
+          "$ref": "#/$defs/effectScope"
+        },
+        "summary": {
+          "$ref": "#/$defs/summary"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "detachmentId",
+        "cp",
+        "phases",
+        "playerTurn",
+        "timing"
+      ],
+      "additionalProperties": false
+    },
+    "coreFile": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "gameSystem": {
+          "$ref": "#/$defs/id"
+        },
+        "stratagems": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stratagem"
+          }
+        },
+        "battleSizes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/battleSize"
+          }
+        },
+        "referenceTargets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/referenceTarget"
+          }
+        },
+        "sampleList": {
+          "$ref": "#/$defs/sampleList"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "gameSystem",
+        "stratagems",
+        "battleSizes",
+        "referenceTargets"
+      ],
+      "additionalProperties": false
+    },
+    "battleSize": {
+      "type": "object",
+      "properties": {
+        "points": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "detachmentPoints": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "enhancementLimit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unitLimit": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "points",
+        "name",
+        "detachmentPoints",
+        "enhancementLimit",
+        "unitLimit"
+      ],
+      "additionalProperties": false
+    },
+    "referenceTarget": {
+      "type": "object",
+      "properties": {
+        "armyId": {
+          "$ref": "#/$defs/id"
+        },
+        "unitId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "models": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "armyId",
+        "unitId",
+        "name",
+        "models"
+      ],
+      "additionalProperties": false
+    },
+    "wargearCount": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "name",
+        "count"
+      ],
+      "additionalProperties": false
+    },
+    "sampleUnit": {
+      "type": "object",
+      "properties": {
+        "unitId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "section": {
+          "enum": [
+            "CHARACTERS",
+            "BATTLELINE",
+            "DEDICATED TRANSPORTS",
+            "OTHER DATASHEETS"
+          ]
+        },
+        "points": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warlord": {
+          "type": "boolean"
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "$ref": "#/$defs/name"
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "wargear": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/wargearCount"
+                }
+              }
+            },
+            "required": [
+              "name",
+              "count",
+              "wargear"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "wargear": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/wargearCount"
+          }
+        }
+      },
+      "required": [
+        "unitId",
+        "name",
+        "section",
+        "points"
+      ],
+      "additionalProperties": false
+    },
+    "sampleList": {
+      "type": "object",
+      "properties": {
+        "armyId": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "detachment": {
+          "$ref": "#/$defs/name"
+        },
+        "battleSize": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "points": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "units": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sampleUnit"
+          }
+        }
+      },
+      "required": [
+        "armyId",
+        "name",
+        "detachment",
+        "battleSize",
+        "points",
+        "units"
+      ],
+      "additionalProperties": false
+    },
+    "releaseRef": {
+      "type": "object",
+      "properties": {
+        "tag": {
+          "type": "string",
+          "minLength": 1
+        },
+        "number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "publishedAt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schemaVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        }
+      },
+      "required": [
+        "tag",
+        "number",
+        "publishedAt",
+        "schemaVersion"
+      ],
+      "additionalProperties": false
+    },
+    "dataslate": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "mfmVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "frozen": {
+          "type": "boolean"
+        },
+        "releases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/releaseRef"
+          }
+        },
+        "latest": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "mfmVersion",
+        "frozen",
+        "releases",
+        "latest"
+      ],
+      "additionalProperties": false
+    },
+    "manifest": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "gameSystem": {
+          "$ref": "#/$defs/id"
+        },
+        "releaseUrl": {
+          "type": "string",
+          "pattern": "\\{tag\\}"
+        },
+        "current": {
+          "$ref": "#/$defs/id"
+        },
+        "offered": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "dataslates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dataslate"
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "gameSystem",
+        "releaseUrl",
+        "current",
+        "offered",
+        "dataslates"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,225 @@
+{
+  "catalogue": {
+    "name": "Orks",
+    "id": "cat-orks",
+    "library": false,
+    "entryLinks": [
+      { "id": "l-boyz", "name": "Boyz", "targetId": "u-boyz", "type": "selectionEntry" },
+      { "id": "l-warboss", "name": "Warboss", "targetId": "u-warboss", "type": "selectionEntry" },
+      { "id": "l-mekgunz", "name": "Mek Gunz", "targetId": "u-mekgunz", "type": "selectionEntry" }
+    ],
+    "sharedSelectionEntries": [
+      {
+        "id": "u-boyz",
+        "name": "Boyz",
+        "type": "unit",
+        "costs": [{ "name": "pts", "typeId": "pts", "value": 90 }],
+        "modifiers": [
+          { "type": "set", "field": "pts", "value": 170, "conditions": [{ "type": "greaterThan", "field": "selections", "value": 10 }] }
+        ],
+        "categoryLinks": [{ "name": "Infantry" }, { "name": "Battleline" }, { "name": "Boyz" }, { "name": "Faction: Orks" }],
+        "profiles": [
+          {
+            "name": "Mob Fixture",
+            "typeName": "Abilities",
+            "characteristics": [{ "name": "Description", "$text": "FIXTURE-RULES-TEXT-MOB each time a model in this unit makes a melee attack, add 1 to the Hit roll." }]
+          }
+        ],
+        "selectionEntryGroups": [
+          {
+            "id": "g-boyz",
+            "name": "9-19 Boyz",
+            "constraints": [
+              { "type": "min", "field": "selections", "scope": "parent", "value": 9 },
+              { "type": "max", "field": "selections", "scope": "parent", "value": 19 }
+            ],
+            "selectionEntryGroups": [
+              {
+                "id": "g-special",
+                "name": "Special Weapons",
+                "constraints": [{ "type": "max", "field": "selections", "scope": "parent", "value": 2 }],
+                "selectionEntries": [
+                  {
+                    "id": "m-boy-shoota",
+                    "name": "Boy w/ Big shoota",
+                    "type": "model",
+                    "constraints": [{ "type": "max", "field": "selections", "scope": "parent", "value": 2 }],
+                    "profiles": [
+                      {
+                        "name": "Big shoota",
+                        "typeName": "Ranged Weapons",
+                        "characteristics": [
+                          { "name": "Range", "$text": "36\"" }, { "name": "A", "$text": "3" }, { "name": "BS", "$text": "5+" },
+                          { "name": "S", "$text": "5" }, { "name": "AP", "$text": "0" }, { "name": "D", "$text": "1" }, { "name": "Keywords", "$text": "Rapid Fire 2" }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "m-boy-burna",
+                    "name": "Boy w/ Burna",
+                    "type": "model",
+                    "constraints": [{ "type": "max", "field": "selections", "scope": "parent", "value": 2 }],
+                    "profiles": [
+                      {
+                        "name": "Burna",
+                        "typeName": "Ranged Weapons",
+                        "characteristics": [
+                          { "name": "Range", "$text": "12\"" }, { "name": "A", "$text": "D6" }, { "name": "BS", "$text": "N/A" },
+                          { "name": "S", "$text": "4" }, { "name": "AP", "$text": "0" }, { "name": "D", "$text": "1" }, { "name": "Keywords", "$text": "Torrent" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "selectionEntries": [
+              {
+                "id": "m-boy",
+                "name": "Boy",
+                "type": "model",
+                "profiles": [
+                  {
+                    "name": "Boy",
+                    "typeName": "Unit",
+                    "characteristics": [
+                      { "name": "M", "$text": "6\"" }, { "name": "T", "$text": "5" }, { "name": "Sv", "$text": "5+" },
+                      { "name": "W", "$text": "1" }, { "name": "LD", "$text": "7+" }, { "name": "OC", "$text": "2" }
+                    ]
+                  },
+                  {
+                    "name": "Choppa",
+                    "typeName": "Melee Weapons",
+                    "characteristics": [
+                      { "name": "Range", "$text": "Melee" }, { "name": "A", "$text": "3" }, { "name": "WS", "$text": "3+" },
+                      { "name": "S", "$text": "4" }, { "name": "AP", "$text": "-1" }, { "name": "D", "$text": "1" }, { "name": "Keywords", "$text": "-" }
+                    ]
+                  },
+                  {
+                    "name": "Slugga",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      { "name": "Range", "$text": "12\"" }, { "name": "A", "$text": "1" }, { "name": "BS", "$text": "5+" },
+                      { "name": "S", "$text": "4" }, { "name": "AP", "$text": "0" }, { "name": "D", "$text": "1" }, { "name": "Keywords", "$text": "Pistol" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "g-nob",
+            "name": "1-2 Nobz",
+            "selectionEntries": [
+              {
+                "id": "m-nob",
+                "name": "Boss Nob",
+                "type": "model",
+                "constraints": [
+                  { "type": "min", "field": "selections", "scope": "parent", "value": 1 },
+                  { "type": "max", "field": "selections", "scope": "parent", "value": 2 }
+                ],
+                "profiles": [
+                  {
+                    "name": "Boss Nob",
+                    "typeName": "Unit",
+                    "characteristics": [
+                      { "name": "M", "$text": "6\"" }, { "name": "T", "$text": "5" }, { "name": "Sv", "$text": "5+" },
+                      { "name": "W", "$text": "2" }, { "name": "LD", "$text": "7+" }, { "name": "OC", "$text": "2" }
+                    ]
+                  },
+                  {
+                    "name": "Big choppa",
+                    "typeName": "Melee Weapons",
+                    "characteristics": [
+                      { "name": "Range", "$text": "Melee" }, { "name": "A", "$text": "3" }, { "name": "WS", "$text": "3+" },
+                      { "name": "S", "$text": "7" }, { "name": "AP", "$text": "-1" }, { "name": "D", "$text": "2" }, { "name": "Keywords", "$text": "-" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "u-warboss",
+        "name": "Warboss",
+        "type": "model",
+        "costs": [{ "name": "pts", "typeId": "pts", "value": 65 }],
+        "categoryLinks": [{ "name": "Character" }, { "name": "Infantry" }, { "name": "Warboss" }, { "name": "Faction: Orks" }],
+        "profiles": [
+          {
+            "name": "Warboss",
+            "typeName": "Unit",
+            "characteristics": [
+              { "name": "M", "$text": "6\"" }, { "name": "T", "$text": "5" }, { "name": "Sv", "$text": "4+" },
+              { "name": "InSv", "$text": "5+" }, { "name": "W", "$text": "6" }, { "name": "LD", "$text": "6+" }, { "name": "OC", "$text": "1" }
+            ]
+          },
+          {
+            "name": "Big choppa",
+            "typeName": "Melee Weapons",
+            "characteristics": [
+              { "name": "Range", "$text": "Melee" }, { "name": "A", "$text": "5" }, { "name": "WS", "$text": "2+" },
+              { "name": "S", "$text": "7" }, { "name": "AP", "$text": "-1" }, { "name": "D", "$text": "2" }, { "name": "Keywords", "$text": "-" }
+            ]
+          },
+          {
+            "name": "Leader",
+            "typeName": "Abilities",
+            "characteristics": [{ "name": "Description", "$text": "FIXTURE-RULES-TEXT-LEADER This model can be attached to the following units:\n■ Boyz\n■ Nobz" }]
+          },
+          {
+            "name": "Da Boss Fixture",
+            "typeName": "Abilities",
+            "characteristics": [{ "name": "Description", "$text": "FIXTURE-RULES-TEXT-BOSS While this model is leading a unit, add 1 to the Wound roll." }]
+          }
+        ]
+      },
+      {
+        "id": "u-mekgunz",
+        "name": "Mek Gunz",
+        "type": "unit",
+        "costs": [{ "name": "pts", "typeId": "pts", "value": 45 }],
+        "categoryLinks": [{ "name": "Artillery" }, { "name": "Mek Gunz" }, { "name": "Faction: Orks" }],
+        "selectionEntryGroups": [
+          {
+            "id": "g-gun",
+            "name": "1-3 Mek Gunz",
+            "constraints": [
+              { "type": "min", "field": "selections", "scope": "parent", "value": 1 },
+              { "type": "max", "field": "selections", "scope": "parent", "value": 3 }
+            ],
+            "selectionEntries": [
+              {
+                "id": "m-gun",
+                "name": "Mek Gun",
+                "type": "model",
+                "profiles": [
+                  {
+                    "name": "Mek Gun",
+                    "typeName": "Unit",
+                    "characteristics": [
+                      { "name": "M", "$text": "3\"" }, { "name": "T", "$text": "5" }, { "name": "Sv", "$text": "4+" },
+                      { "name": "W", "$text": "6" }, { "name": "LD", "$text": "7+" }, { "name": "OC", "$text": "0" }
+                    ]
+                  },
+                  {
+                    "name": "Kustom mega-kannon",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      { "name": "Range", "$text": "36\"" }, { "name": "A", "$text": "D6" }, { "name": "BS", "$text": "5+" },
+                      { "name": "S", "$text": "12" }, { "name": "AP", "$text": "-2" }, { "name": "D", "$text": "D6" }, { "name": "Keywords", "$text": "Blast, Hazardous" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
