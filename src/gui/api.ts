@@ -53,6 +53,21 @@ const arg = (s: string) => (/^[A-Za-z0-9_@:,./=+-]+$/.test(s) ? s : quote(s));
 const PR_BODY = 'Proposed from the Dataset Tool local interface.';
 
 /**
+ * Pousser depuis l'interface, sans jamais rien demander au terminal.
+ *
+ * GitHub n'accepte plus de mot de passe pour git en HTTPS depuis août 2021 :
+ * l'invite que git ouvre alors ne mène nulle part, et elle s'affiche dans le
+ * terminal du serveur — invisible depuis la page, où le bouton paraît mort.
+ *
+ * On la coupe donc (`GIT_TERMINAL_PROMPT=0` : git échoue au lieu d'attendre), et
+ * on prête à git le porte-clés de `gh`, déjà authentifié puisque c'est lui qui
+ * ouvre la PR juste après. Le helper vide d'abord remet la liste à zéro : celui
+ * que la machine a configuré (souvent `store`, vide ou périmé) passerait avant.
+ */
+const GIT_ASKS_NOTHING = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+const GH_KEYRING = ['-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential'];
+
+/**
  * Les commandes qui font une PR d'un fichier écrit ici : une seule liste, qu'on
  * affiche ou qu'on exécute, pour que les deux ne divergent jamais.
  */
@@ -73,7 +88,10 @@ export function prCommands(files: string[], title: string, branch = `dataset/${s
 function openPullRequest(dir: string, files: string[], title: string): string {
   const steps = prSteps(files, title, `dataset/${slug(title)}-${Date.now().toString(36)}`);
   let out = '';
-  for (const { cmd, args } of steps) out = execFileSync(cmd, args, { cwd: dir, encoding: 'utf8' }).trim();
+  for (const { cmd, args } of steps) {
+    const full = cmd === 'git' && args[0] === 'push' ? [...GH_KEYRING, ...args] : args;
+    out = execFileSync(cmd, full, { cwd: dir, encoding: 'utf8', env: GIT_ASKS_NOTHING }).trim();
+  }
   // La dernière commande est `gh pr create` : elle rend l'adresse de la PR.
   return out;
 }
@@ -291,15 +309,18 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
       cmd: 'sh',
       args: [
         '-c',
-        [
+        `export GIT_TERMINAL_PROMPT=0; ${[
           `git checkout -b ${arg(branch)} 2>/dev/null || git checkout ${arg(branch)}`,
           'git add -A',
           // Rien de neuf à committer n'est pas une erreur : le commit précédent
           // existe peut-être déjà, et c'est le push qui avait échoué.
           `git diff --cached --quiet || git commit -m ${quote(title)}`,
-          `git push -u origin ${arg(branch)}`,
+          // Le porte-clés de `gh` plutôt qu'une invite que la page ne verrait pas.
+          `git ${GH_KEYRING.map(arg).join(' ')} push -u origin ${arg(branch)} || { echo ${quote(
+            'push refused. GitHub has not accepted a password here since 2021 — run `gh auth login` in a terminal, then click again.',
+          )}; exit 1; }`,
           `gh pr create --title ${quote(title)} --body ${quote(PR_BODY)} || true`,
-        ].join(' && '),
+        ].join(' && ')}`,
       ],
     },
   ];

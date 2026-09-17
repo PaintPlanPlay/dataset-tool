@@ -14,7 +14,7 @@ import { request } from 'node:http';
 import { Script } from 'node:vm';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { defaultReleaseUrl } from '../src/gui/api.ts';
+import { defaultReleaseUrl, jobSpecs } from '../src/gui/api.ts';
 import { allowedHost, allowedOrigin, privateAddress, startGui } from '../src/gui/server.ts';
 import type { Inspection } from '../src/gui/provenance.ts';
 import { openWorkspace } from '../src/gui/workspace.ts';
@@ -191,6 +191,19 @@ try {
       state.body.jobs.map((j) => `${j.name}:${j.blocked ?? 'ok'}`).join(' · '),
     );
     check("l'écriture distante est refusée sans --allow-push", !state.body.allowPush && Boolean(job('propose')?.blocked));
+
+    /*
+     * GitHub n'accepte plus de mot de passe pour git depuis 2021. L'invite que
+     * git ouvre alors ne mène nulle part, et elle s'affiche dans le terminal du
+     * serveur — invisible depuis la page, où le bouton paraît simplement mort.
+     * Proposer doit donc couper l'invite et emprunter le porte-clés de `gh`.
+     */
+    const propose = jobSpecs(wsVide).find((j) => j.name === 'propose')!.args.join(' ');
+    check(
+      'proposer ne demande jamais rien au terminal : invite coupée, porte-clés de gh',
+      propose.includes('GIT_TERMINAL_PROMPT=0') && propose.includes('gh auth git-credential'),
+      propose.slice(0, 140),
+    );
 
     /*
      * L'adresse des Releases est celle du CDN qui sert le dépôt du Dataset :

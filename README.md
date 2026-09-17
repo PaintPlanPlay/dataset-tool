@@ -20,6 +20,10 @@ every value comes from and to fix the ones that are wrong.
 - [Node.js](https://nodejs.org) 24 or newer
 - [git](https://git-scm.com)
 - a GitHub account, if you want to propose your changes
+- the [GitHub CLI](https://cli.github.com), if you want the interface to push
+  and open the pull request for you. Run `gh auth login` once and you are set:
+  GitHub has not accepted a password for git since 2021, and the interface
+  borrows that login rather than asking you for one
 
 ## Quick start
 
