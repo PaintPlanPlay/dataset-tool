@@ -43,23 +43,22 @@ folder resets you to a clean slate.
 
 | Button | What happens |
 |---|---|
-| **Fetch the Dataset** | downloads the dataset repository (or updates it if it is already there) |
-| **Snapshot the sources** | downloads BSData, the Munitorum Field Manual and 40kdc-data at a fixed point in time. Takes a few minutes and is **optional** — see below |
-| **Build the Dataset** | rebuilds the dataset from that snapshot, applying every correction |
-| **Check** | verifies the files against the schema and the no-rules-text rule |
-| **Publish a Release** | freezes the dataset under a tag and updates the manifest the apps read |
+| **Update data** | brings everything up to date: the dataset as published, and a fresh snapshot of BSData, the Munitorum Field Manual and 40kdc-data. Takes a few minutes, and means you never work on something that is already fixed |
+| **Save and build** | writes your corrections into the dataset files, from that snapshot |
 | **Propose my changes** | opens a pull request with what you wrote |
+| **Publish a Release** | maintainers only: takes in the merged pull request, freezes the dataset under a tag, and pushes it |
+| **Check** | verifies the files against the schema and the no-rules-text rule. It already runs before a release and on every pull request; the button is only there to see it now |
 
 Each task streams its log as it runs, and only one runs at a time.
 
-**The snapshot is optional.** Without it you can still read and correct the
-published dataset; the *Origin* column then just says `published` instead of
-naming the source a value comes from. That is the quick path when you need to
-fix a number and do not want to download all of BSData.
+**If you only have the dataset and no snapshot** — you cloned this repository by
+hand, say — the interface still lets you read and correct it. The *Origin*
+column then just says `published`, because without the sources there is no way
+to tell which one a value came from.
 
 ## Fixing a value, step by step
 
-1. Click **Fetch the Dataset**.
+1. Click **Update data**.
 2. Type a name in the search box — a unit, a detachment, a stratagem — and click
    the result.
 3. The sheet lists every field with its **origin**: `bsdata`, `mfm`, `40kdc`,
@@ -70,8 +69,13 @@ fix a number and do not want to download all of BSData.
    one-sentence reason.
 5. Click **Write the Correction**. The file is created, checked, and the sheet
    reloads so you can see your change applied.
-6. Click **Propose my changes** to open a pull request — or copy the git
+6. Click **Save and build**, so the dataset files carry your correction.
+7. Click **Propose my changes** to open a pull request — or copy the git
    commands it prints and run them yourself.
+
+A maintainer reviews it and merges. Publishing what was merged is one button,
+**Publish a Release**, and it is open only to someone with write access to the
+dataset repository: it updates the folder, tags the release, and pushes it.
 
 You can also review the suggestions this tool computes for abilities that have
 no structured effect yet, and accept the ones that look right.

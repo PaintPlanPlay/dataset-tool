@@ -186,11 +186,26 @@ try {
       JSON.stringify(state.body.state),
     );
     check(
-      'récupérer le Dataset et prendre un instantané sont proposés ; construire et contrôler attendent leur tour',
-      job('dataset')?.blocked === null && job('snapshot')?.blocked === null && Boolean(job('build')?.blocked) && Boolean(job('check')?.blocked),
+      'un seul bouton pour se mettre à jour ; construire et contrôler attendent leur tour',
+      job('update')?.blocked === null && Boolean(job('build')?.blocked) && Boolean(job('check')?.blocked),
       state.body.jobs.map((j) => `${j.name}:${j.blocked ?? 'ok'}`).join(' · '),
     );
-    check("l'écriture distante est refusée sans --allow-push", !state.body.allowPush && Boolean(job('propose')?.blocked));
+    check("l'écriture distante est refusée sans --allow-push", !state.body.allowPush && Boolean(job('propose')?.blocked) && Boolean(job('release')?.blocked));
+
+    /*
+     * Publier écrit dans le dépôt : le bouton se ferme à qui n'en a pas le droit,
+     * plutôt que d'échouer au push devant quelqu'un qui n'y pouvait rien.
+     */
+    const release = jobSpecs(wsVide).find((j) => j.name === 'release')!.args.join(' ');
+    check(
+      'publier fait tout : retour sur main, mise à jour, tag, puis push',
+      release.includes('checkout main') && release.includes('pull --ff-only') && release.includes('release --dataset') && release.includes('push --follow-tags'),
+      release.slice(0, 140),
+    );
+    check(
+      'se mettre à jour revient sur main : on ne publie jamais depuis une branche en attente',
+      jobSpecs(wsVide).find((j) => j.name === 'update')!.args.join(' ').includes('checkout main'),
+    );
 
     /*
      * GitHub n'accepte plus de mot de passe pour git depuis 2021. L'invite que
@@ -240,8 +255,8 @@ try {
     check('une tâche inconnue est refusée', (await at('/api/jobs/effacer-tout', {})).status === 404);
     check("une tâche dont le prérequis manque est refusée", (await at<{ error: string }>('/api/jobs/build', {})).status === 409);
 
-    const first = await at<{ job: { name: string } }>('/api/jobs/dataset', {});
-    const second = await at<{ error: string }>('/api/jobs/dataset', {});
+    const first = await at<{ job: { name: string } }>('/api/jobs/update', {});
+    const second = await at<{ error: string }>('/api/jobs/update', {});
     check(
       'une seule tâche à la fois : la seconde est refusée pendant la première',
       first.status === 202 && second.status === 409 && second.body.error.includes('already running'),

@@ -94,7 +94,7 @@ async function main(): Promise<void> {
     console.log(`Local interface: ${gui.url} — Ctrl+C to stop`);
     if (host) console.log(`Open at ${host}: no authentication, any machine on that network can write.`);
     else console.log('Listening on this machine only. --host <address> opens it to a private network.');
-    console.log(`Dataset: ${ws.datasetDir}${ws.state.dataset ? '' : ' (missing — use the "Fetch the Dataset" button)'}`);
+    console.log(`Dataset: ${ws.datasetDir}${ws.state.dataset ? '' : ' (missing — use the "Update data" button)'}`);
     console.log(`Snapshot: ${ws.snapshotDir}${ws.state.snapshot ? '' : ' (missing — optional, needed to show where values come from)'}`);
     if (!ws.allowPush) console.log('Remote writes refused: --allow-push lets the interface push and open pull requests.');
     return;

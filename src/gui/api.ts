@@ -215,14 +215,46 @@ const TOOL_DIR = fileURLToPath(new URL('../..', import.meta.url));
  * dépôt du Dataset. Déduit de son remote, pour que le mainteneur n'ait pas à
  * connaître cette adresse.
  */
-export function defaultReleaseUrl(datasetDir: string): string | null {
+/** Le dépôt du Dataset, « owner/repo », lu sur son remote. */
+function repoOf(datasetDir: string): string | null {
   try {
     const remote = execFileSync('git', ['-C', datasetDir, 'remote', 'get-url', 'origin'], { encoding: 'utf8' }).trim();
     const repo = /github\.com[:/]([^/]+)\/(.+?)(?:\.git)?$/.exec(remote);
-    return repo ? `https://cdn.jsdelivr.net/gh/${repo[1]}/${repo[2]}@{tag}/` : null;
+    return repo ? `${repo[1]}/${repo[2]}` : null;
   } catch {
     return null;
   }
+}
+
+export function defaultReleaseUrl(datasetDir: string): string | null {
+  const repo = repoOf(datasetDir);
+  return repo ? `https://cdn.jsdelivr.net/gh/${repo}@{tag}/` : null;
+}
+
+/**
+ * Publier une Release écrit dans le dépôt : le bouton ne s'ouvre qu'à qui en a
+ * le droit, plutôt que d'échouer au push devant quelqu'un qui n'y pouvait rien.
+ * GitHub le dit — ADMIN, MAINTAIN ou WRITE —, et `gh` le lui demande.
+ *
+ * La réponse est gardée une fois obtenue : c'est un appel réseau, et l'état de
+ * la page le redemanderait à chaque rafraîchissement. Un échec, lui, n'est pas
+ * gardé : on se sera peut-être authentifié entre-temps.
+ */
+const WRITERS = new Set(['ADMIN', 'MAINTAIN', 'WRITE']);
+let droitConnu: string | undefined;
+
+export function publishRight(datasetDir: string): string | null {
+  if (droitConnu === undefined) {
+    const repo = repoOf(datasetDir);
+    try {
+      const out = execFileSync('gh', ['repo', 'view', repo ?? '', '--json', 'viewerPermission'], { encoding: 'utf8', env: GIT_ASKS_NOTHING });
+      droitConnu = (JSON.parse(out) as { viewerPermission?: string }).viewerPermission || undefined;
+    } catch {
+      droitConnu = undefined;
+    }
+  }
+  if (!droitConnu) return 'cannot tell who you are on GitHub — run `gh auth login` in a terminal, then reload';
+  return WRITERS.has(droitConnu) ? null : 'only a maintainer of the Dataset repository can publish a Release';
 }
 
 export interface JobSpec {
@@ -239,14 +271,17 @@ export interface JobSpec {
 
 const tool = (...args: string[]) => ({ cmd: 'npx', args: ['tsx', CLI, ...args], cwd: TOOL_DIR });
 
-const needsDataset = (ws: Workspace) => (ws.state.dataset ? null : 'fetch the Dataset first');
-const needsSnapshot = (ws: Workspace) => (ws.state.snapshot ? null : 'take a snapshot of the sources first');
+const needsDataset = (ws: Workspace) => (ws.state.dataset ? null : 'click Update data first');
+const needsSnapshot = (ws: Workspace) => (ws.state.snapshot ? null : 'click Update data first, so the sources are here');
+const needsPush = (ws: Workspace) => (ws.allowPush ? null : 'restart the interface with: npm run dev -- --allow-push');
 
 /**
  * Les tâches offertes par l'interface. `release` et `propose` touchent au dépôt :
  * elles ne sont proposées que si l'interface a le droit d'écrire au loin.
  */
 export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): JobSpec[] {
+  /** Le dossier du Dataset dans une commande shell, protégé une fois pour toutes. */
+  const ds = (sub?: string) => quote(sub ? join(ws.datasetDir, sub) : ws.datasetDir);
   const dataslate = typeof body.dataslate === 'string' ? body.dataslate : '';
   const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Dataset changes';
   const branch = `dataset/${slug(title)}`;
@@ -254,57 +289,36 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
 
   return [
     {
-      name: 'dataset',
-      label: 'Fetch the Dataset',
-      hint: 'clones the Dataset repository, or updates it if it is already there',
+      name: 'update',
+      label: 'Update data',
+      hint: 'brings everything up to date: the Dataset as published, and a fresh snapshot of the three sources. A few minutes',
       cwd: TOOL_DIR,
       cmd: 'sh',
       args: [
         '-c',
-        // Un clone la première fois, une mise à jour ensuite : le même bouton dans les deux cas.
-        `if [ -d ${quote(join(ws.datasetDir, '.git'))} ]; then git -C ${quote(ws.datasetDir)} pull --ff-only; else git clone ${quote(ws.repository)} ${quote(ws.datasetDir)}; fi`,
+        `export GIT_TERMINAL_PROMPT=0; ${[
+          // Un clone la première fois. Ensuite retour sur main, parce que proposer
+          // laisse le dossier sur sa branche : on ne construit pas, et surtout on
+          // ne publie pas, depuis une branche qui attend sa relecture.
+          `{ if [ -d ${ds('.git')} ]; then git -C ${ds()} checkout main && git -C ${ds()} pull --ff-only; else git clone ${quote(ws.repository)} ${ds()}; fi; } || { echo ${quote(
+            'the Dataset folder could not be updated — it probably holds changes that are neither proposed nor discarded.',
+          )}; exit 1; }`,
+          `npx tsx ${quote(CLI)} fetch --out ${quote(ws.snapshotDir)}`,
+        ].join(' && ')}`,
       ],
     },
     {
-      name: 'snapshot',
-      label: 'Snapshot the sources',
-      hint: 'downloads BSData, the MFM and 40kdc-data at one fixed commit (slow)',
-      ...tool('fetch', '--out', ws.snapshotDir),
-    },
-    {
       name: 'build',
-      label: 'Build the Dataset',
-      hint: 'rebuilds from the snapshot, Corrections included',
+      label: 'Save and build',
+      hint: 'writes your corrections into the Dataset files, from the snapshot',
       needs: (w) => needsDataset(w) ?? needsSnapshot(w),
       ...tool('build', '--snapshot', ws.snapshotDir, '--dataset', ws.datasetDir, '--game-system', ws.gameSystem),
     },
     {
-      name: 'check',
-      label: 'Check',
-      hint: 'schema, and the no-rules-text rule',
-      needs: needsDataset,
-      ...tool('check', '--dataset', ws.datasetDir, '--game-system', ws.gameSystem),
-    },
-    {
-      name: 'release',
-      label: 'Publish a Release',
-      hint: 'freezes the Dataset under an immutable tag and updates the manifest; without a confirmed Dataslate, the command only proposes one',
-      needs: needsDataset,
-      ...tool(
-        'release',
-        '--dataset',
-        ws.datasetDir,
-        '--game-system',
-        ws.gameSystem,
-        ...(dataslate ? ['--dataslate', dataslate] : []),
-        ...(releaseUrl || defaultReleaseUrl(ws.datasetDir) ? ['--release-url', releaseUrl || defaultReleaseUrl(ws.datasetDir)!] : []),
-      ),
-    },
-    {
       name: 'propose',
       label: 'Propose my changes',
-      hint: ws.allowPush ? 'opens a pull request on the Dataset repository with what you wrote' : 'refused: the interface was started without --allow-push',
-      needs: (w) => (w.allowPush ? needsDataset(w) : 'the interface was started without --allow-push'),
+      hint: 'opens a pull request on the Dataset repository with what you wrote',
+      needs: (w) => needsPush(w) ?? needsDataset(w),
       cwd: ws.datasetDir,
       cmd: 'sh',
       args: [
@@ -322,6 +336,38 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
           `gh pr create --title ${quote(title)} --body ${quote(PR_BODY)} || true`,
         ].join(' && ')}`,
       ],
+    },
+    {
+      name: 'release',
+      label: 'Publish a Release',
+      hint: 'once the pull request is merged: takes in what was merged, freezes it under an immutable tag, and pushes it. Name the Dataslate above, or click once to be told which one to confirm',
+      needs: (w) => needsPush(w) ?? needsDataset(w) ?? publishRight(w.datasetDir),
+      cwd: TOOL_DIR,
+      cmd: 'sh',
+      args: [
+        '-c',
+        `export GIT_TERMINAL_PROMPT=0; ${[
+          // Ce qui vient d'être fusionné, d'abord : une Release tague le dépôt tel
+          // qu'il est ici, et taguer une branche en retard ne se rattrape pas.
+          `{ git -C ${ds()} checkout main && git -C ${ds()} pull --ff-only; } || { echo ${quote(
+            'the Dataset folder could not be updated — it probably holds changes that are neither proposed nor discarded.',
+          )}; exit 1; }`,
+          `npx tsx ${quote(CLI)} release --dataset ${ds()} --game-system ${arg(ws.gameSystem)}${dataslate ? ` --dataslate ${arg(dataslate)}` : ''}${
+            releaseUrl || defaultReleaseUrl(ws.datasetDir) ? ` --release-url ${arg(releaseUrl || defaultReleaseUrl(ws.datasetDir)!)}` : ''
+          }`,
+          // Le tag ne vaut que poussé : sans ça la Release n'existe que sur cette machine.
+          `git -C ${ds()} ${GH_KEYRING.map(arg).join(' ')} push --follow-tags || { echo ${quote(
+            'the Release was made here but could not be pushed — run `gh auth login` in a terminal, then click again.',
+          )}; exit 1; }`,
+        ].join(' && ')}`,
+      ],
+    },
+    {
+      name: 'check',
+      label: 'Check',
+      hint: 'schema, and the no-rules-text rule. This runs on its own before a Release and on every pull request — the button is only to see it now',
+      needs: needsDataset,
+      ...tool('check', '--dataset', ws.datasetDir, '--game-system', ws.gameSystem),
     },
   ];
 }
