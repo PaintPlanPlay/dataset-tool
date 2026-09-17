@@ -78,10 +78,29 @@ function openPullRequest(dir: string, files: string[], title: string): string {
   return out;
 }
 
+/**
+ * Relire le Dataset après une écriture demande deux reconstructions — une
+ * vingtaine de secondes sur le vrai Dataset. On ne fait pas attendre l'appelant
+ * pour ça : il reçoit son résultat tout de suite, la relecture se fait derrière,
+ * et `/api/refresh` attend celle qui est déjà en cours plutôt que d'en lancer
+ * une seconde.
+ */
+let enCours: Promise<void> | null = null;
+
+export function refreshing(ws: Workspace): Promise<void> {
+  enCours ??= ws
+    .refresh()
+    .catch(() => undefined)
+    .finally(() => {
+      enCours = null;
+    });
+  return enCours;
+}
+
 async function finish(ws: Workspace, path: string, title: string, openPr: boolean | undefined): Promise<WriteResult> {
-  await ws.refresh();
   const result: WriteResult = { path, prCommands: prCommands([path], title) };
   if (openPr) result.pullRequest = openPullRequest(ws.datasetDir, [path], title);
+  void refreshing(ws);
   return result;
 }
 
@@ -173,6 +192,21 @@ export function upstreamDraft(ws: Workspace, path: string): { repository: string
 const CLI = fileURLToPath(new URL('../cli.ts', import.meta.url));
 const TOOL_DIR = fileURLToPath(new URL('../..', import.meta.url));
 
+/**
+ * Où l'application ira chercher les fichiers d'une Release : le CDN qui sert le
+ * dépôt du Dataset. Déduit de son remote, pour que le mainteneur n'ait pas à
+ * connaître cette adresse.
+ */
+export function defaultReleaseUrl(datasetDir: string): string | null {
+  try {
+    const remote = execFileSync('git', ['-C', datasetDir, 'remote', 'get-url', 'origin'], { encoding: 'utf8' }).trim();
+    const repo = /github\.com[:/]([^/]+)\/(.+?)(?:\.git)?$/.exec(remote);
+    return repo ? `https://cdn.jsdelivr.net/gh/${repo[1]}/${repo[2]}@{tag}/` : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface JobSpec {
   name: string;
   label: string;
@@ -236,7 +270,7 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
     {
       name: 'release',
       label: 'Publier une Release',
-      hint: 'sans Dataslate confirmée, la commande se contente de la proposer',
+      hint: 'fige le Dataset sous un tag immuable et met à jour le manifeste ; sans Dataslate confirmée, la commande se contente de la proposer',
       needs: needsDataset,
       ...tool(
         'release',
@@ -245,13 +279,13 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
         '--game-system',
         ws.gameSystem,
         ...(dataslate ? ['--dataslate', dataslate] : []),
-        ...(releaseUrl ? ['--release-url', releaseUrl] : []),
+        ...(releaseUrl || defaultReleaseUrl(ws.datasetDir) ? ['--release-url', releaseUrl || defaultReleaseUrl(ws.datasetDir)!] : []),
       ),
     },
     {
       name: 'propose',
       label: 'Proposer mes changements',
-      hint: ws.allowPush ? 'branche, commit et PR sur le dépôt du Dataset' : 'refusé : interface lancée sans --allow-push',
+      hint: ws.allowPush ? 'ouvre une PR sur le dépôt du Dataset avec ce que vous avez écrit' : 'refusé : interface lancée sans --allow-push',
       needs: (w) => (w.allowPush ? needsDataset(w) : "l'interface a été lancée sans --allow-push"),
       cwd: ws.datasetDir,
       cmd: 'sh',
@@ -260,7 +294,9 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
         [
           `git checkout -b ${arg(branch)} 2>/dev/null || git checkout ${arg(branch)}`,
           'git add -A',
-          `git commit -m ${quote(title)}`,
+          // Rien de neuf à committer n'est pas une erreur : le commit précédent
+          // existe peut-être déjà, et c'est le push qui avait échoué.
+          `git diff --cached --quiet || git commit -m ${quote(title)}`,
           `git push -u origin ${arg(branch)}`,
           `gh pr create --title ${quote(title)} --body ${quote(PR_BODY)} || true`,
         ].join(' && '),

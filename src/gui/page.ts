@@ -90,8 +90,15 @@ async function api(path, body) {
   if (!res.ok) throw new Error(data.error + (data.findings && data.findings.length ? ' — ' + data.findings.join(' ; ') : ''));
   return data;
 }
-const report = (out, promise) => promise.then((r) => { out.className = 'ok'; out.textContent = (r.pullRequest || r.path || 'ok') + (r.prCommands ? '  ·  PR : ' + r.prCommands.join(' && ') : ''); })
-  .catch((e) => { out.className = 'error'; out.textContent = e.message; });
+let lastTarget = null;
+let lastValue = null;
+const report = (out, promise) => { out.className = ''; out.textContent = 'écriture…'; return promise.then(async (r) => { out.className = 'ok'; const base = (r.pullRequest || r.path || 'ok') + (r.prCommands ? '  ·  PR : ' + r.prCommands.join(' && ') : ''); out.textContent = base + '  ·  relecture du Dataset…';
+    // La fiche ouverte doit montrer ce qu'on vient d'écrire, sans rien recharger à la main.
+    await api('/api/refresh', {});
+    await refreshState();
+    if (lastTarget) await show(lastTarget);
+    out.textContent = base; })
+  .catch((e) => { out.className = 'error'; out.textContent = e.message; }); };
 // ------------------------------------------------------------ administration
 let jobTimer = null;
 let logCursor = 0;
@@ -100,6 +107,7 @@ async function refreshState() {
   const d = await api('/api/state');
   const s = d.state;
   const mark = (ok, label) => '<span><b>' + (ok ? '✔' : '—') + '</b> ' + label + '</span>';
+  if (d.releaseUrl && !$('j-url').value) $('j-url').value = d.releaseUrl;
   $('state').innerHTML =
     mark(s.dataset, 'Dataset') +
     mark(s.snapshot, 'instantané') +
@@ -160,6 +168,7 @@ $('q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout
   for (const h of hits) { const li = el('li'); const b = el('button'); b.append(el('div', h.name), el('div', h.kind + ' · ' + h.army, 'kind')); b.onclick = () => show(h.target); li.append(b); list.append(li); }
 }, 200); });
 async function show(target) {
+  lastTarget = target;
   const view = $('view');
   try {
     const d = await api('/api/inspect?target=' + encodeURIComponent(target));
@@ -174,9 +183,15 @@ async function show(target) {
     }
     view.append(el('h3', 'Valeur publiée'), el('pre', JSON.stringify(d.value, null, 2)));
     $('c-army').value = d.army; $('c-target').value = d.target; $('e-target').value = d.target;
+    lastValue = d.value;
+    $('c-patch').value = '{}';
+    $('c-upstream').value = '{}';
   } catch (e) { view.replaceChildren(el('p', e.message, 'error')); }
 }
 $('c-send').onclick = () => { let patch, upstream; try { patch = JSON.parse($('c-patch').value || '{}'); upstream = JSON.parse($('c-upstream').value || '{}'); } catch { $('c-out').textContent = 'JSON invalide'; return; }
+  // Sans valeur amont, la Correction naît « en conflit » : on la remplit avec ce
+  // que la fiche affiche aujourd'hui, champ par champ, quand elle est laissée vide.
+  if (lastValue && !Object.keys(upstream).length) { upstream = {}; for (const k of Object.keys(patch)) if (k in lastValue) upstream[k] = lastValue[k]; }
   report($('c-out'), api('/api/corrections', { army: $('c-army').value, name: $('c-name').value, correction: { target: $('c-target').value, source: $('c-source').value, patch, upstream, reason: $('c-reason').value } })); };
 $('e-send').onclick = () => { const body = { target: $('e-target').value, reason: $('e-reason').value };
   if ($('e-effect').value.trim()) { try { body.effect = JSON.parse($('e-effect').value); } catch { $('e-out').textContent = 'JSON invalide'; return; } }

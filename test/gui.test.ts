@@ -8,11 +8,13 @@
  *
  *   npx tsx test/gui.test.ts
  */
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { request } from 'node:http';
 import { Script } from 'node:vm';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { defaultReleaseUrl } from '../src/gui/api.ts';
 import { allowedHost, allowedOrigin, privateAddress, startGui } from '../src/gui/server.ts';
 import type { Inspection } from '../src/gui/provenance.ts';
 import { openWorkspace } from '../src/gui/workspace.ts';
@@ -126,6 +128,20 @@ try {
     JSON.stringify(written.body),
   );
 
+  /*
+   * Relire le Dataset après une écriture demande deux reconstructions — une
+   * vingtaine de secondes sur le vrai Dataset. L'écriture ne doit pas attendre
+   * ça : sinon le bouton paraît mort, et le message n'arrive jamais.
+   */
+  const debut = Date.now();
+  await post('/api/corrections', {
+    army: 'orks',
+    name: 'duree-ecriture',
+    correction: { target: 'u-boyz', source: 'mfm', patch: { points: 123 }, upstream: { points: (boyz.value as { points: number }).points }, reason: "Durée d'écriture." },
+  });
+  const duree = Date.now() - debut;
+  check("une écriture répond sans attendre la relecture du Dataset", duree < 3000, `${duree} ms`);
+
   const longSummary = await post<{ error: string }>('/api/effects', { target: 'u-warboss::ability:Da Boss Fixture', summary: 'x '.repeat(100), reason: 'Test.' });
   const summary = await post<{ path: string }>('/api/effects', { target: 'u-warboss::ability:Da Boss Fixture', summary: '+1 to wound in melee.', reason: 'Résumé de test.' });
   const bossAfter = (await get<Inspection>('/api/inspect?target=u-warboss')).body;
@@ -175,6 +191,32 @@ try {
       state.body.jobs.map((j) => `${j.name}:${j.blocked ?? 'ok'}`).join(' · '),
     );
     check("l'écriture distante est refusée sans --allow-push", !state.body.allowPush && Boolean(job('propose')?.blocked));
+
+    /*
+     * L'adresse des Releases est celle du CDN qui sert le dépôt du Dataset :
+     * elle se déduit du remote, sinon publier échoue sur un message que
+     * personne ne sait interpréter.
+     */
+    const distant = mkdtempSync(join(tmpdir(), 'dataset-remote-'));
+    const git = (...a: string[]) => execFileSync('git', ['-C', distant, ...a], { encoding: 'utf8' });
+    git('init', '--quiet');
+    check("sans remote, aucune adresse de Releases n'est devinée", defaultReleaseUrl(distant) === null);
+    git('remote', 'add', 'origin', 'git@github.com:PaintPlanPlay/dataset.git');
+    check(
+      "l'adresse des Releases se déduit du dépôt (SSH)",
+      defaultReleaseUrl(distant) === 'https://cdn.jsdelivr.net/gh/PaintPlanPlay/dataset@{tag}/',
+      String(defaultReleaseUrl(distant)),
+    );
+    git('remote', 'set-url', 'origin', 'https://github.com/PaintPlanPlay/dataset.git');
+    check(
+      "et de la même façon en HTTPS",
+      defaultReleaseUrl(distant) === 'https://cdn.jsdelivr.net/gh/PaintPlanPlay/dataset@{tag}/',
+      String(defaultReleaseUrl(distant)),
+    );
+    rmSync(distant, { recursive: true, force: true });
+
+    const avecDepot = await at<{ releaseUrl: string | null }>('/api/state');
+    check("l'interface annonce cette adresse pour préremplir le champ", 'releaseUrl' in avecDepot.body, JSON.stringify(avecDepot.body.releaseUrl));
 
     const search = await at<{ error: string }>('/api/search?q=boyz');
     check(

@@ -17,8 +17,10 @@ import {
   ApiError,
   createCorrection,
   datasetOf,
+  defaultReleaseUrl,
   jobSpecs,
   recordUpstreamPr,
+  refreshing,
   startJob,
   upstreamDraft,
   writeAuthoredEffect,
@@ -120,6 +122,10 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
     switch (route) {
       case 'GET /':
         return send(res, 200, PAGE, 'text/html; charset=utf-8');
+      case 'GET /favicon.ico':
+        // Réclamé par tout navigateur : on répond, plutôt que de laisser une erreur en console.
+        res.writeHead(204);
+        return res.end();
       case 'GET /api/state':
         // Ce que la page affiche avant tout : ce qu'on a sous la main, et ce qu'on peut lancer.
         return send(res, 200, {
@@ -129,6 +135,7 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
           repository: ws.repository,
           allowPush: ws.allowPush,
           gameSystem: ws.gameSystem,
+          releaseUrl: defaultReleaseUrl(ws.datasetDir),
           jobs: jobSpecs(ws).map(({ name, label, hint, needs }) => ({ name, label, hint, blocked: needs?.(ws) ?? null })),
         });
       case 'GET /api/jobs':
@@ -143,8 +150,9 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
       case 'GET /api/upstream-draft':
         return send(res, 200, upstreamDraft(ws, param('path')));
       case 'POST /api/refresh':
-        // Après une tâche : on relit le dossier sans redémarrer l'interface.
-        await ws.refresh();
+        // Après une tâche ou une écriture : on attend la relecture en cours, ou
+        // on en lance une, mais jamais deux en parallèle.
+        await refreshing(ws);
         return send(res, 200, { state: ws.state });
       case 'POST /api/corrections':
         return send(res, 201, await createCorrection(ws, (await readBody(req)) as never));
