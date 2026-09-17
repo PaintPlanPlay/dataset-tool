@@ -1,10 +1,10 @@
 /** La page de l'interface locale : du HTML et un peu de JavaScript, rien à installer. */
 export const PAGE = `<!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dataset Tool — interface locale</title>
+<title>Dataset Tool — local interface</title>
 <style>
   :root { color-scheme: light dark; font: 14px/1.45 system-ui, sans-serif; }
   body { margin: 0; display: grid; grid-template-columns: 320px 1fr; min-height: 100vh; }
@@ -37,7 +37,7 @@ export const PAGE = `<!doctype html>
 </head>
 <body>
 <aside>
-  <strong>Dataset Tool</strong> <span class="kind">interface locale</span>
+  <strong>Dataset Tool</strong> <span class="kind">local interface</span>
   <input type="search" id="q" placeholder="Unit, Detachment, Stratagem…" autofocus>
   <ul class="hits" id="hits"></ul>
 </aside>
@@ -48,37 +48,37 @@ export const PAGE = `<!doctype html>
     <div class="row" id="jobs"></div>
     <div class="row">
       <label>Dataslate <input id="j-dataslate" size="10" placeholder="mfm-1-4"></label>
-      <label>Adresse des Releases <input id="j-url" size="38" placeholder="https://cdn.jsdelivr.net/gh/…@{tag}/"></label>
-      <label>Titre de PR <input id="j-title" size="22" placeholder="Modifications du Dataset"></label>
+      <label>Release URL <input id="j-url" size="38" placeholder="https://cdn.jsdelivr.net/gh/…@{tag}/"></label>
+      <label>PR title <input id="j-title" size="22" placeholder="Dataset changes"></label>
     </div>
-    <pre class="log" id="log">Aucune tâche lancée.</pre>
+    <pre class="log" id="log">No task started yet.</pre>
   </section>
-  <div id="view"><p>Cherchez un élément pour voir d'où vient chaque valeur.</p></div>
+  <div id="view"><p>Search for something to see where each of its values comes from.</p></div>
   <fieldset>
-    <legend>Nouvelle Correction</legend>
+    <legend>New Correction</legend>
     <label>Army <input id="c-army"></label>
-    <label>Nom du fichier <input id="c-name" placeholder="boyz-points"></label>
-    <label>Cible <input id="c-target" size="50"></label>
+    <label>File name <input id="c-name" placeholder="boyz-points"></label>
+    <label>Target <input id="c-target" size="50"></label>
     <label>Source <select id="c-source"><option>bsdata</option><option>mfm</option><option>40kdc</option></select></label>
     <label>Patch (JSON) <textarea id="c-patch">{}</textarea></label>
-    <label>Valeur amont (JSON) <textarea id="c-upstream">{}</textarea></label>
-    <label>Raison <input id="c-reason" size="60"></label>
-    <button id="c-send">Écrire la Correction</button> <span id="c-out"></span>
+    <label>Upstream value (JSON) <textarea id="c-upstream">{}</textarea></label>
+    <label>Reason <input id="c-reason" size="60"></label>
+    <button id="c-send">Write the Correction</button> <span id="c-out"></span>
   </fieldset>
   <fieldset>
-    <legend>Effect ou résumé écrit par le projet</legend>
-    <label>Cible <input id="e-target" size="50" placeholder="&lt;unitId&gt;::ability:&lt;nom&gt;"></label>
-    <label>Effect (JSON, format 40kdc-data) <textarea id="e-effect"></textarea></label>
-    <label>Résumé (une ligne, jamais recopiée) <input id="e-summary" size="60"></label>
-    <label>Raison <input id="e-reason" size="60"></label>
-    <button id="e-send">Écrire</button> <span id="e-out"></span>
+    <legend>Effect or summary written by the project</legend>
+    <label>Target <input id="e-target" size="50" placeholder="&lt;unitId&gt;::ability:&lt;name&gt;"></label>
+    <label>Effect (JSON, 40kdc-data format) <textarea id="e-effect"></textarea></label>
+    <label>Summary (one line, never copied) <input id="e-summary" size="60"></label>
+    <label>Reason <input id="e-reason" size="60"></label>
+    <button id="e-send">Write</button> <span id="e-out"></span>
   </fieldset>
   <fieldset>
-    <legend>Retour à l'Upstream Source</legend>
+    <legend>Back to the Upstream Source</legend>
     <label>Correction <input id="u-path" size="60" placeholder="corrections/wh40k-11e/orks/…json"></label>
-    <button id="u-draft">Préparer une issue</button>
-    <label>PR ou issue ouverte <input id="u-url" size="60"></label>
-    <button id="u-send">Enregistrer sur la Correction</button> <span id="u-out"></span>
+    <button id="u-draft">Draft an issue</button>
+    <label>PR or issue you opened <input id="u-url" size="60"></label>
+    <button id="u-send">Save it on the Correction</button> <span id="u-out"></span>
   </fieldset>
 </main>
 <script>
@@ -92,7 +92,7 @@ async function api(path, body) {
 }
 let lastTarget = null;
 let lastValue = null;
-const report = (out, promise) => { out.className = ''; out.textContent = 'écriture…'; return promise.then(async (r) => { out.className = 'ok'; const base = (r.pullRequest || r.path || 'ok') + (r.prCommands ? '  ·  PR : ' + r.prCommands.join(' && ') : ''); out.textContent = base + '  ·  relecture du Dataset…';
+const report = (out, promise) => { out.className = ''; out.textContent = 'writing…'; return promise.then(async (r) => { out.className = 'ok'; const base = (r.pullRequest || r.path || 'ok') + (r.prCommands ? '  ·  PR: ' + r.prCommands.join(' && ') : ''); out.textContent = base + '  ·  re-reading the Dataset…';
     // La fiche ouverte doit montrer ce qu'on vient d'écrire, sans rien recharger à la main.
     await api('/api/refresh', {});
     await refreshState();
@@ -110,10 +110,10 @@ async function refreshState() {
   if (d.releaseUrl && !$('j-url').value) $('j-url').value = d.releaseUrl;
   $('state').innerHTML =
     mark(s.dataset, 'Dataset') +
-    mark(s.snapshot, 'instantané') +
-    mark(s.published, s.armies ? s.armies + ' Armies' : 'construit') +
-    mark(s.provenance, 'origine des valeurs') +
-    mark(d.allowPush, 'écriture distante');
+    mark(s.snapshot, 'snapshot') +
+    mark(s.published, s.armies ? s.armies + ' Armies' : 'built') +
+    mark(s.provenance, 'value origins') +
+    mark(d.allowPush, 'remote writes');
   const jobs = $('jobs');
   jobs.replaceChildren();
   for (const j of d.jobs) {
@@ -173,28 +173,28 @@ async function show(target) {
   try {
     const d = await api('/api/inspect?target=' + encodeURIComponent(target));
     view.replaceChildren(el('h2', d.name), el('div', d.kind + ' · ' + d.army + ' · ' + d.target, 'kind'));
-    const table = el('table'); table.append((() => { const tr = el('tr'); tr.append(el('th', 'Champ'), el('th', 'Origine'), el('th', 'Détail')); return tr; })());
+    const table = el('table'); table.append((() => { const tr = el('tr'); tr.append(el('th', 'Field'), el('th', 'Origin'), el('th', 'Detail')); return tr; })());
     for (const o of d.origins) { const tr = el('tr'); tr.append(el('td', o.field), el('td', o.origin, 'origin origin-' + o.origin), el('td', o.detail || '')); table.append(tr); }
     view.append(table);
     if (d.corrections.length) { view.append(el('h3', 'Corrections')); for (const c of d.corrections) view.append(el('div', c.state + ' · ' + c.path + ' — ' + c.note)); }
     if (d.proposals.length) {
-      view.append(el('h3', "Propositions de l'analyse d'aptitudes"));
-      for (const p of d.proposals) { const box = el('div'); const b = el('button', 'Accepter'); const out = el('span'); b.onclick = () => report(out, api('/api/proposals/accept', { target: p.target })); box.append(el('strong', p.ability + ' '), b, out, el('pre', JSON.stringify(p.effect, null, 2))); view.append(box); }
+      view.append(el('h3', 'Suggestions from the ability analysis'));
+      for (const p of d.proposals) { const box = el('div'); const b = el('button', 'Accept'); const out = el('span'); b.onclick = () => report(out, api('/api/proposals/accept', { target: p.target })); box.append(el('strong', p.ability + ' '), b, out, el('pre', JSON.stringify(p.effect, null, 2))); view.append(box); }
     }
-    view.append(el('h3', 'Valeur publiée'), el('pre', JSON.stringify(d.value, null, 2)));
+    view.append(el('h3', 'Published value'), el('pre', JSON.stringify(d.value, null, 2)));
     $('c-army').value = d.army; $('c-target').value = d.target; $('e-target').value = d.target;
     lastValue = d.value;
     $('c-patch').value = '{}';
     $('c-upstream').value = '{}';
   } catch (e) { view.replaceChildren(el('p', e.message, 'error')); }
 }
-$('c-send').onclick = () => { let patch, upstream; try { patch = JSON.parse($('c-patch').value || '{}'); upstream = JSON.parse($('c-upstream').value || '{}'); } catch { $('c-out').textContent = 'JSON invalide'; return; }
+$('c-send').onclick = () => { let patch, upstream; try { patch = JSON.parse($('c-patch').value || '{}'); upstream = JSON.parse($('c-upstream').value || '{}'); } catch { $('c-out').textContent = 'Invalid JSON'; return; }
   // Sans valeur amont, la Correction naît « en conflit » : on la remplit avec ce
   // que la fiche affiche aujourd'hui, champ par champ, quand elle est laissée vide.
   if (lastValue && !Object.keys(upstream).length) { upstream = {}; for (const k of Object.keys(patch)) if (k in lastValue) upstream[k] = lastValue[k]; }
   report($('c-out'), api('/api/corrections', { army: $('c-army').value, name: $('c-name').value, correction: { target: $('c-target').value, source: $('c-source').value, patch, upstream, reason: $('c-reason').value } })); };
 $('e-send').onclick = () => { const body = { target: $('e-target').value, reason: $('e-reason').value };
-  if ($('e-effect').value.trim()) { try { body.effect = JSON.parse($('e-effect').value); } catch { $('e-out').textContent = 'JSON invalide'; return; } }
+  if ($('e-effect').value.trim()) { try { body.effect = JSON.parse($('e-effect').value); } catch { $('e-out').textContent = 'Invalid JSON'; return; } }
   if ($('e-summary').value.trim()) body.summary = $('e-summary').value;
   report($('e-out'), api('/api/effects', body)); };
 $('u-draft').onclick = async () => { try { const d = await api('/api/upstream-draft?path=' + encodeURIComponent($('u-path').value)); window.open(d.url, '_blank', 'noopener'); } catch (e) { $('u-out').className = 'error'; $('u-out').textContent = e.message; } };

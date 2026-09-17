@@ -31,7 +31,7 @@ import { openSnapshot } from './snapshot.ts';
 function arg(name: string, fallback?: string): string {
   const i = process.argv.indexOf(`--${name}`);
   const value = i >= 0 ? process.argv[i + 1] : fallback;
-  if (value === undefined) throw new Error(`--${name} manquant`);
+  if (value === undefined) throw new Error(`--${name} missing`);
   return value;
 }
 
@@ -61,20 +61,20 @@ async function main(): Promise<void> {
     });
     // Une construction qui ferait entrer du texte de règles n'écrit rien.
     if (out.textCheck.length) {
-      for (const f of out.textCheck) console.error(`✘ texte de règles — ${f.where} : ${f.reason} — « ${f.excerpt} »`);
-      throw new Error(`${out.textCheck.length} constat(s) de texte de règles : rien n'est écrit`);
+      for (const f of out.textCheck) console.error(`✘ rules text — ${f.where}: ${f.reason} — "${f.excerpt}"`);
+      throw new Error(`${out.textCheck.length} rules-text finding(s): nothing is written`);
     }
     writeDataset(datasetDir, gameSystem, out.files, out.ids);
     const report = makeReport(out, previous);
     const reportFile = optional('report');
     if (reportFile) writeFileSync(reportFile, `${renderReport(report)}\n`);
-    console.log(`${out.files.size} fichiers écrits dans ${datasetDir}`);
+    console.log(`${out.files.size} files written to ${datasetDir}`);
     console.log(
-      `${report.diff.changes.length} chiffre(s) modifié(s), ${out.conflicts.length} désaccord(s) entre sources, ` +
-        `${out.unmatched.length} Unit(s) absente(s) du MFM, ${out.corrections.length} Correction(s), ${out.orphans.length} orpheline(s)`,
+      `${report.diff.changes.length} number(s) changed, ${out.conflicts.length} disagreement(s) between sources, ` +
+        `${out.unmatched.length} Unit(s) missing from the MFM, ${out.corrections.length} Correction(s), ${out.orphans.length} orphaned`,
     );
-    if (out.unresolvedAuthored.length) console.log(`Units introuvables pour authored/ : ${out.unresolvedAuthored.join(', ')}`);
-    if (out.armiesWithoutMfm.length) console.log(`Armies sans faction MFM : ${out.armiesWithoutMfm.join(', ')}`);
+    if (out.unresolvedAuthored.length) console.log(`Units not found for authored/: ${out.unresolvedAuthored.join(', ')}`);
+    if (out.armiesWithoutMfm.length) console.log(`Armies with no MFM faction: ${out.armiesWithoutMfm.join(', ')}`);
     return;
   }
 
@@ -91,12 +91,12 @@ async function main(): Promise<void> {
     const asked = optional('host');
     const host = asked === 'tailscale' ? tailscaleAddress() : asked;
     const gui = await startGui(ws, { port: Number(optional('port') ?? 4173), ...(host ? { host } : {}) });
-    console.log(`Interface locale : ${gui.url} — Ctrl+C pour arrêter`);
-    if (host) console.log(`Ouverte à ${host} : aucune authentification, toute machine de ce réseau peut écrire.`);
-    else console.log('N\'écoute que sur cette machine. --host <adresse> pour l\'ouvrir à un réseau privé.');
-    console.log(`Dataset : ${ws.datasetDir}${ws.state.dataset ? '' : ' (absent — bouton « Récupérer le Dataset »)'}`);
-    console.log(`Instantané : ${ws.snapshotDir}${ws.state.snapshot ? '' : ' (absent — facultatif, pour l\'origine des valeurs)'}`);
-    if (!ws.allowPush) console.log('Écriture distante refusée : --allow-push pour pousser et ouvrir des PR depuis l\'interface.');
+    console.log(`Local interface: ${gui.url} — Ctrl+C to stop`);
+    if (host) console.log(`Open at ${host}: no authentication, any machine on that network can write.`);
+    else console.log('Listening on this machine only. --host <address> opens it to a private network.');
+    console.log(`Dataset: ${ws.datasetDir}${ws.state.dataset ? '' : ' (missing — use the "Fetch the Dataset" button)'}`);
+    console.log(`Snapshot: ${ws.snapshotDir}${ws.state.snapshot ? '' : ' (missing — optional, needed to show where values come from)'}`);
+    if (!ws.allowPush) console.log('Remote writes refused: --allow-push lets the interface push and open pull requests.');
     return;
   }
 
@@ -111,14 +111,14 @@ async function main(): Promise<void> {
     });
     if (out.status === 'proposal') {
       const p = out.proposal;
-      console.log(`Dataslate proposée : ${p.id} (« ${p.name} », MFM ${p.mfmVersion}) — ${p.isNew ? 'nouvelle' : 'existante'}`);
-      console.log(`Confirmer : --dataslate ${p.id}`);
+      console.log(`Dataslate proposed: ${p.id} ("${p.name}", MFM ${p.mfmVersion}) — ${p.isNew ? 'new' : 'existing'}`);
+      console.log(`Confirm with: --dataslate ${p.id}`);
       process.exitCode = 1;
       return;
     }
-    console.log(`Release ${out.release.tag} publiée dans la Dataslate ${out.manifest.current}`);
-    if (out.frozen) console.log(`Dataslate gelée : ${out.frozen}`);
-    console.log(`Proposées : ${out.manifest.offered.join(', ')} — à pousser : git push --follow-tags`);
+    console.log(`Release ${out.release.tag} published in Dataslate ${out.manifest.current}`);
+    if (out.frozen) console.log(`Dataslate frozen: ${out.frozen}`);
+    console.log(`Offered: ${out.manifest.offered.join(', ')} — to push: git push --follow-tags`);
     return;
   }
 
@@ -129,7 +129,7 @@ async function main(): Promise<void> {
       ...(optional('dataslate') ? { dataslate: optional('dataslate')! } : {}),
     });
     const current = manifest.dataslates.find((d) => d.id === manifest.current)!;
-    console.log(`Courante : ${manifest.current} → ${current.latest} · proposées : ${manifest.offered.join(', ')}`);
+    console.log(`Current: ${manifest.current} → ${current.latest} · offered: ${manifest.offered.join(', ')}`);
     return;
   }
 
@@ -140,7 +140,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.error('usage : dataset-tool fetch --out <dir> | build --snapshot <dir> --dataset <dir> [--report <md>] | check --dataset <dir> | release --dataset <dir> [--dataslate <id>] | repoint --dataset <dir> | gui --snapshot <dir> --dataset <dir>');
+  console.error('usage: dataset-tool fetch --out <dir> | build --snapshot <dir> --dataset <dir> [--report <md>] | check --dataset <dir> | release --dataset <dir> [--dataslate <id>] | repoint --dataset <dir> | gui --snapshot <dir> --dataset <dir>');
   process.exitCode = 2;
 }
 

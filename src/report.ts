@@ -47,14 +47,14 @@ const armiesOf = (files: Map<string, unknown>) =>
 /** Les champs comparés, et comment les rendre lisibles. */
 const FIELDS: { label: string; show: (u: Unit) => string }[] = [
   { label: 'points', show: (u) => String(u.points) },
-  { label: 'tarif MFM', show: (u) => JSON.stringify(u.pricing ?? []) },
-  { label: 'équipement payant', show: (u) => JSON.stringify(u.wargear ?? []) },
-  { label: 'effectif', show: (u) => `${u.minModels}-${u.maxModels}` },
-  { label: 'profils', show: (u) => JSON.stringify(u.models) },
-  { label: 'mots-clés', show: (u) => u.keywords.join(', ') },
-  { label: 'unités menées', show: (u) => u.leaderTargets.join(', ') || '—' },
-  { label: 'unités soutenues', show: (u) => u.supportTargets.join(', ') || '—' },
-  { label: 'aptitudes', show: (u) => u.abilities.map((a) => a.name).join(', ') },
+  { label: 'MFM pricing', show: (u) => JSON.stringify(u.pricing ?? []) },
+  { label: 'paid wargear', show: (u) => JSON.stringify(u.wargear ?? []) },
+  { label: 'model count', show: (u) => `${u.minModels}-${u.maxModels}` },
+  { label: 'profiles', show: (u) => JSON.stringify(u.models) },
+  { label: 'keywords', show: (u) => u.keywords.join(', ') },
+  { label: 'units led', show: (u) => u.leaderTargets.join(', ') || '—' },
+  { label: 'units supported', show: (u) => u.supportTargets.join(', ') || '—' },
+  { label: 'abilities', show: (u) => u.abilities.map((a) => a.name).join(', ') },
 ];
 
 const weaponSignature = (w: Unit['weapons'][number]) =>
@@ -95,12 +95,12 @@ export function diffDatasets(previous: Map<string, unknown> | undefined, next: M
       const nw = new Map(u.weapons.map((w) => [`${w.kind}|${w.name}`, w]));
       for (const [k, w] of pw) {
         const now = nw.get(k);
-        if (!now) d.changes.push({ army: armyId, id, name: u.name, field: `arme retirée « ${w.name} »`, before: weaponSignature(w), after: '—' });
+        if (!now) d.changes.push({ army: armyId, id, name: u.name, field: `weapon removed "${w.name}"`, before: weaponSignature(w), after: '—' });
         else if (weaponSignature(now) !== weaponSignature(w))
-          d.changes.push({ army: armyId, id, name: u.name, field: `arme « ${w.name} »`, before: weaponSignature(w), after: weaponSignature(now) });
+          d.changes.push({ army: armyId, id, name: u.name, field: `weapon "${w.name}"`, before: weaponSignature(w), after: weaponSignature(now) });
       }
       for (const [k, w] of nw)
-        if (!pw.has(k)) d.changes.push({ army: armyId, id, name: u.name, field: `arme ajoutée « ${w.name} »`, before: '—', after: weaponSignature(w) });
+        if (!pw.has(k)) d.changes.push({ army: armyId, id, name: u.name, field: `weapon added "${w.name}"`, before: '—', after: weaponSignature(w) });
     }
     for (const [id, u] of prevUnits) if (!nextUnits.has(id)) d.unitsRemoved.push({ army: armyId, id, name: u.name });
 
@@ -108,9 +108,9 @@ export function diffDatasets(previous: Map<string, unknown> | undefined, next: M
     const prevDets = new Map((was.detachments ?? []).map((x) => [x.id, x]));
     for (const det of army.detachments ?? []) {
       const p = prevDets.get(det.id);
-      const label = `Detachment « ${det.name} »`;
+      const label = `Detachment "${det.name}"`;
       if (!p) {
-        d.changes.push({ army: armyId, id: det.id, name: label, field: 'ajouté', before: '—', after: `${det.dp ?? '?'} DP` });
+        d.changes.push({ army: armyId, id: det.id, name: label, field: 'added', before: '—', after: `${det.dp ?? '?'} DP` });
         continue;
       }
       if (p.dp !== det.dp) d.changes.push({ army: armyId, id: det.id, name: label, field: 'DP', before: String(p.dp), after: String(det.dp) });
@@ -124,7 +124,7 @@ export function diffDatasets(previous: Map<string, unknown> | undefined, next: M
     }
     for (const p of was.detachments ?? [])
       if (!(army.detachments ?? []).some((x) => x.id === p.id))
-        d.changes.push({ army: armyId, id: p.id, name: `Detachment « ${p.name} »`, field: 'retiré', before: `${p.dp ?? '?'} DP`, after: '—' });
+        d.changes.push({ army: armyId, id: p.id, name: `Detachment "${p.name}"`, field: 'removed', before: `${p.dp ?? '?'} DP`, after: '—' });
   }
   return d;
 }
@@ -147,7 +147,7 @@ export function makeReport(out: BuildOutput, previous: Map<string, unknown> | un
 
 function bounded<T>(items: T[], max: number, render: (item: T) => string): string[] {
   const lines = items.slice(0, max).map(render);
-  if (items.length > max) lines.push(`- …et ${items.length - max} de plus.`);
+  if (items.length > max) lines.push(`- …and ${items.length - max} more.`);
   return lines;
 }
 
@@ -157,8 +157,8 @@ export function renderReport(r: DriftReport): string {
   const L: string[] = [];
   const { diff: d } = r;
 
-  L.push('# Rapport de dérive', '');
-  L.push('| Source | Avant | Après |', '|---|---|---|');
+  L.push('# Drift report', '');
+  L.push('| Source | Before | After |', '|---|---|---|');
   for (const s of r.sources) {
     const was = r.previousSources.find((p) => p.id === s.id);
     const label = (x?: { commit: string; version?: string }) => (x ? `\`${short(x.commit)}\`${x.version ? ` (${x.version})` : ''}` : '—');
@@ -170,30 +170,30 @@ export function renderReport(r: DriftReport): string {
   const conflicting = r.corrections.filter((c) => c.state === 'conflict');
   L.push(
     d.initial
-      ? '**Première construction** : rien à comparer.'
-      : `**${d.changes.length}** chiffre(s) modifié(s) · **${d.unitsAdded.length}** Unit(s) ajoutée(s) · **${d.unitsRemoved.length}** retirée(s) · ` +
-          `**${r.conflicts.length}** désaccord(s) entre sources · Corrections : ${r.corrections.length - stale.length - conflicting.length} active(s), ` +
-          `${stale.length} périmée(s), ${conflicting.length} en conflit`,
+      ? '**First build**: nothing to compare.'
+      : `**${d.changes.length}** number(s) changed · **${d.unitsAdded.length}** Unit(s) added · **${d.unitsRemoved.length}** removed · ` +
+          `**${r.conflicts.length}** disagreement(s) between sources · Corrections: ${r.corrections.length - stale.length - conflicting.length} active, ` +
+          `${stale.length} stale, ${conflicting.length} in conflict`,
     '',
   );
 
   if (d.changes.length) {
-    L.push(`## Chiffres modifiés (${d.changes.length})`, '');
+    L.push(`## Numbers changed (${d.changes.length})`, '');
     L.push(...bounded(d.changes, 60, (c) => `- **${c.name}** · ${c.army} — ${c.field} : \`${c.before}\` → \`${c.after}\``), '');
   }
-  if (d.unitsRemoved.length) L.push(`## Units retirées (${d.unitsRemoved.length})`, '', ...bounded(d.unitsRemoved, 40, (u) => `- ${u.name} · ${u.army}`), '');
-  if (d.armiesRemoved.length) L.push(`## Armies disparues (${d.armiesRemoved.length})`, '', ...d.armiesRemoved.map((a) => `- ${a}`), '');
-  if (d.armiesAdded.length) L.push(`## Armies ajoutées (${d.armiesAdded.length})`, '', ...d.armiesAdded.map((a) => `- ${a}`), '');
-  if (d.unitsAdded.length) L.push(`## Units ajoutées (${d.unitsAdded.length})`, '', ...bounded(d.unitsAdded, 40, (u) => `- ${u.name} · ${u.army}`), '');
+  if (d.unitsRemoved.length) L.push(`## Units removed (${d.unitsRemoved.length})`, '', ...bounded(d.unitsRemoved, 40, (u) => `- ${u.name} · ${u.army}`), '');
+  if (d.armiesRemoved.length) L.push(`## Armies gone (${d.armiesRemoved.length})`, '', ...d.armiesRemoved.map((a) => `- ${a}`), '');
+  if (d.armiesAdded.length) L.push(`## Armies added (${d.armiesAdded.length})`, '', ...d.armiesAdded.map((a) => `- ${a}`), '');
+  if (d.unitsAdded.length) L.push(`## Units added (${d.unitsAdded.length})`, '', ...bounded(d.unitsAdded, 40, (u) => `- ${u.name} · ${u.army}`), '');
 
   if (r.conflicts.length) {
-    L.push(`## Désaccords entre sources (${r.conflicts.length})`, '');
-    L.push('La source qui fait autorité l\'emporte ; la valeur écartée est rappelée pour relecture.', '');
+    L.push(`## Disagreements between sources (${r.conflicts.length})`, '');
+    L.push('The source with authority wins; the value set aside is shown for review.', '');
     L.push(
       ...bounded(
         r.conflicts,
         80,
-        (c) => `- **${c.name}** · ${c.army} — ${c.field} : ${c.authority} \`${c.kept}\` retenu, ${c.other.source} \`${c.other.value}\` écarté`,
+        (c) => `- **${c.name}** · ${c.army} — ${c.field}: ${c.authority} \`${c.kept}\` kept, ${c.other.source} \`${c.other.value}\` set aside`,
       ),
       '',
     );
@@ -203,25 +203,25 @@ export function renderReport(r: DriftReport): string {
     L.push(`## Corrections (${r.corrections.length})`, '');
     const order = { conflict: 0, stale: 1, active: 2 };
     for (const c of [...r.corrections].sort((a, b) => order[a.state] - order[b.state] || a.path.localeCompare(b.path)))
-      L.push(`- **${STATE_LABEL[c.state]}** — \`${c.path}\` : ${c.note}${c.upstreamPr ? ` · PR amont : ${c.upstreamPr}` : ''}`);
-    for (const o of r.orphans) L.push(`- **orpheline** — \`${o.target}\` : ${o.why}`);
+      L.push(`- **${STATE_LABEL[c.state]}** — \`${c.path}\`: ${c.note}${c.upstreamPr ? ` · upstream PR: ${c.upstreamPr}` : ''}`);
+    for (const o of r.orphans) L.push(`- **orphaned** — \`${o.target}\`: ${o.why}`);
     L.push('');
   }
 
   if (r.missing.length) {
-    L.push(`## Éléments absents d'une source (${r.missing.length})`, '');
-    L.push('Le MFM décide de ce qui existe ; ce que 40kdc-data seule publie n\'entre pas dans le Dataset.', '');
-    L.push(...bounded(r.missing, 60, (m) => `- ${m.entity} **${m.name}** · ${m.army} — absent de ${m.missingIn}, ${m.published ? 'publié' : 'écarté'}`), '');
+    L.push(`## Elements missing from a source (${r.missing.length})`, '');
+    L.push('The MFM decides what exists; what only 40kdc-data publishes does not enter the Dataset.', '');
+    L.push(...bounded(r.missing, 60, (m) => `- ${m.entity} **${m.name}** · ${m.army} — missing from ${m.missingIn}, ${m.published ? 'published' : 'set aside'}`), '');
   }
 
   if (r.droppedEffects.length) {
-    L.push(`## Effects écartés (${r.droppedEffects.length})`, '');
+    L.push(`## Effects set aside (${r.droppedEffects.length})`, '');
     L.push(...bounded(r.droppedEffects, 40, (e) => `- ${e.where} · ${e.army} — ${e.reason}`), '');
   }
 
   if (r.unmatched.length) {
-    L.push(`## Units absentes du MFM (${r.unmatched.length})`, '');
-    L.push('Leur coût vient de BSData. Le plus souvent des Units Legends ou Crucible.', '');
+    L.push(`## Units missing from the MFM (${r.unmatched.length})`, '');
+    L.push('Their cost comes from BSData. Usually Legends or Crucible Units.', '');
     L.push(...bounded(r.unmatched, 30, (u) => `- ${u.name} · ${u.army}`), '');
   }
 

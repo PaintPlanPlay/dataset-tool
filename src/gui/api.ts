@@ -31,7 +31,7 @@ export class ApiError extends Error {
 
 /** Le Dataset chargé, ou l'erreur qui dit par quel bouton commencer. */
 export function datasetOf(ws: Workspace): DatasetView {
-  if (!ws.current) throw new ApiError(409, "aucun Dataset chargé : récupérer le Dataset, ou en construire un depuis un instantané");
+  if (!ws.current) throw new ApiError(409, 'no Dataset loaded: fetch the Dataset, or build one from a snapshot');
   return ws.current;
 }
 
@@ -50,7 +50,7 @@ const quote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 /** Un argument ne se protège que s'il en a besoin : les commandes restent lisibles. */
 const arg = (s: string) => (/^[A-Za-z0-9_@:,./=+-]+$/.test(s) ? s : quote(s));
 
-const PR_BODY = "Proposée depuis l'interface locale du Dataset Tool.";
+const PR_BODY = 'Proposed from the Dataset Tool local interface.';
 
 /**
  * Les commandes qui font une PR d'un fichier écrit ici : une seule liste, qu'on
@@ -114,14 +114,14 @@ export interface CorrectionInput {
 }
 
 export async function createCorrection(ws: Workspace, input: CorrectionInput): Promise<WriteResult> {
-  if (!SLUG.test(input.army) || !SLUG.test(input.name)) throw new ApiError(400, 'Army et nom de fichier : lettres minuscules, chiffres et tirets');
+  if (!SLUG.test(input.army) || !SLUG.test(input.name)) throw new ApiError(400, 'Army and file name: lower-case letters, digits and hyphens');
   const schema = validateFile('correction', input.correction);
-  if (schema.length) throw new ApiError(400, 'Correction hors schéma', schema);
+  if (schema.length) throw new ApiError(400, 'Correction does not match the schema', schema);
   const path = `${correctionsDir(ws.gameSystem)}/${input.army}/${input.name}.json`;
   const text = findRulesText(input.correction, path);
-  if (text.length) throw new ApiError(400, 'Texte de règles refusé', text.map((f) => `${f.where} : ${f.reason}`));
+  if (text.length) throw new ApiError(400, 'Rules text refused', text.map((f) => `${f.where} : ${f.reason}`));
   const abs = join(ws.datasetDir, path);
-  if (existsSync(abs) && !input.overwrite) throw new ApiError(409, `${path} existe déjà`);
+  if (existsSync(abs) && !input.overwrite) throw new ApiError(409, `${path} already exists`);
   mkdirSync(dirname(abs), { recursive: true });
   writeFileSync(abs, toJson(input.correction));
   return finish(ws, path, `Correction ${input.correction.target}`, input.openPr);
@@ -130,8 +130,8 @@ export async function createCorrection(ws: Workspace, input: CorrectionInput): P
 export async function writeAuthoredEffect(ws: Workspace, input: AuthoredEffect & { openPr?: boolean }): Promise<WriteResult> {
   const { openPr, ...entry } = input;
   const problems = [...authoredEffectProblems(entry), ...findRulesText(entry).map((f) => `${f.where} : ${f.reason}`)];
-  if (problems.length) throw new ApiError(400, 'Effect ou résumé refusé', problems);
-  if (!inspect(datasetOf(ws), ws.bare, entry.target)) throw new ApiError(404, `cible introuvable : ${entry.target}`);
+  if (problems.length) throw new ApiError(400, 'Effect or summary refused', problems);
+  if (!inspect(datasetOf(ws), ws.bare, entry.target)) throw new ApiError(404, `target not found: ${entry.target}`);
   const path = `${authoredDir(ws.gameSystem)}/${EFFECTS_FILE}`;
   const abs = join(ws.datasetDir, path);
   const existing = existsSync(abs) ? (JSON.parse(readFileSync(abs, 'utf8')) as AuthoredEffect[]) : [];
@@ -145,23 +145,23 @@ export async function writeAuthoredEffect(ws: Workspace, input: AuthoredEffect &
 export async function acceptProposal(ws: Workspace, target: string, openPr?: boolean): Promise<WriteResult> {
   const unitId = target.split('::')[0];
   const proposal = inspect(datasetOf(ws), ws.bare, unitId)?.proposals.find((p) => p.target === target);
-  if (!proposal) throw new ApiError(404, `aucune proposition pour ${target}`);
-  return writeAuthoredEffect(ws, { target, effect: proposal.effect, reason: "Proposition de l'analyse d'aptitudes, relue et acceptée.", openPr });
+  if (!proposal) throw new ApiError(404, `no suggestion for ${target}`);
+  return writeAuthoredEffect(ws, { target, effect: proposal.effect, reason: 'Suggestion from the ability analysis, reviewed and accepted.', openPr });
 }
 
 const readCorrection = (ws: Workspace, path: string) => {
-  if (!path.startsWith(`${correctionsDir(ws.gameSystem)}/`) || path.includes('..')) throw new ApiError(400, 'chemin de Correction invalide');
+  if (!path.startsWith(`${correctionsDir(ws.gameSystem)}/`) || path.includes('..')) throw new ApiError(400, 'invalid Correction path');
   const abs = join(ws.datasetDir, path);
-  if (!existsSync(abs)) throw new ApiError(404, `${path} introuvable`);
+  if (!existsSync(abs)) throw new ApiError(404, `${path} not found`);
   return { abs, correction: JSON.parse(readFileSync(abs, 'utf8')) as Correction };
 };
 
 /** Enregistrer la PR proposée en retour à l'Upstream Source. */
 export async function recordUpstreamPr(ws: Workspace, path: string, url: string): Promise<WriteResult> {
-  if (!/^https:\/\/github\.com\/[^/]+\/[^/]+\/(pull|issues)\/\d+$/.test(url)) throw new ApiError(400, 'adresse de PR ou d\'issue GitHub attendue');
+  if (!/^https:\/\/github\.com\/[^/]+\/[^/]+\/(pull|issues)\/\d+$/.test(url)) throw new ApiError(400, 'a GitHub pull request or issue URL is expected');
   const { abs, correction } = readCorrection(ws, path);
   writeFileSync(abs, toJson({ ...correction, upstreamPr: url }));
-  return finish(ws, path, `Correction ${correction.target} : retour amont`, false);
+  return finish(ws, path, `Correction ${correction.target}: upstream feedback`, false);
 }
 
 const UPSTREAM_REPOSITORY: Record<Correction['source'], string> = {
@@ -221,8 +221,8 @@ export interface JobSpec {
 
 const tool = (...args: string[]) => ({ cmd: 'npx', args: ['tsx', CLI, ...args], cwd: TOOL_DIR });
 
-const needsDataset = (ws: Workspace) => (ws.state.dataset ? null : "récupérer le Dataset d'abord");
-const needsSnapshot = (ws: Workspace) => (ws.state.snapshot ? null : "prendre un instantané des sources d'abord");
+const needsDataset = (ws: Workspace) => (ws.state.dataset ? null : 'fetch the Dataset first');
+const needsSnapshot = (ws: Workspace) => (ws.state.snapshot ? null : 'take a snapshot of the sources first');
 
 /**
  * Les tâches offertes par l'interface. `release` et `propose` touchent au dépôt :
@@ -230,15 +230,15 @@ const needsSnapshot = (ws: Workspace) => (ws.state.snapshot ? null : "prendre un
  */
 export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): JobSpec[] {
   const dataslate = typeof body.dataslate === 'string' ? body.dataslate : '';
-  const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Modifications du Dataset';
+  const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Dataset changes';
   const branch = `dataset/${slug(title)}`;
   const releaseUrl = typeof body.releaseUrl === 'string' ? body.releaseUrl : '';
 
   return [
     {
       name: 'dataset',
-      label: 'Récupérer le Dataset',
-      hint: "clone le dépôt du Dataset, ou le met à jour s'il est déjà là",
+      label: 'Fetch the Dataset',
+      hint: 'clones the Dataset repository, or updates it if it is already there',
       cwd: TOOL_DIR,
       cmd: 'sh',
       args: [
@@ -249,28 +249,28 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
     },
     {
       name: 'snapshot',
-      label: 'Instantané des sources',
-      hint: 'télécharge BSData, le MFM et 40kdc-data à un commit précis (long)',
+      label: 'Snapshot the sources',
+      hint: 'downloads BSData, the MFM and 40kdc-data at one fixed commit (slow)',
       ...tool('fetch', '--out', ws.snapshotDir),
     },
     {
       name: 'build',
-      label: 'Construire le Dataset',
-      hint: 'reconstruit depuis l\'instantané, Corrections comprises',
+      label: 'Build the Dataset',
+      hint: 'rebuilds from the snapshot, Corrections included',
       needs: (w) => needsDataset(w) ?? needsSnapshot(w),
       ...tool('build', '--snapshot', ws.snapshotDir, '--dataset', ws.datasetDir, '--game-system', ws.gameSystem),
     },
     {
       name: 'check',
-      label: 'Contrôler',
-      hint: 'schéma et « aucun texte de règles »',
+      label: 'Check',
+      hint: 'schema, and the no-rules-text rule',
       needs: needsDataset,
       ...tool('check', '--dataset', ws.datasetDir, '--game-system', ws.gameSystem),
     },
     {
       name: 'release',
-      label: 'Publier une Release',
-      hint: 'fige le Dataset sous un tag immuable et met à jour le manifeste ; sans Dataslate confirmée, la commande se contente de la proposer',
+      label: 'Publish a Release',
+      hint: 'freezes the Dataset under an immutable tag and updates the manifest; without a confirmed Dataslate, the command only proposes one',
       needs: needsDataset,
       ...tool(
         'release',
@@ -284,9 +284,9 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
     },
     {
       name: 'propose',
-      label: 'Proposer mes changements',
-      hint: ws.allowPush ? 'ouvre une PR sur le dépôt du Dataset avec ce que vous avez écrit' : 'refusé : interface lancée sans --allow-push',
-      needs: (w) => (w.allowPush ? needsDataset(w) : "l'interface a été lancée sans --allow-push"),
+      label: 'Propose my changes',
+      hint: ws.allowPush ? 'opens a pull request on the Dataset repository with what you wrote' : 'refused: the interface was started without --allow-push',
+      needs: (w) => (w.allowPush ? needsDataset(w) : 'the interface was started without --allow-push'),
       cwd: ws.datasetDir,
       cmd: 'sh',
       args: [
@@ -308,9 +308,9 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
 /** Lance une tâche par son nom, après avoir vérifié ce qu'elle exige. */
 export function startJob(ws: Workspace, runner: JobRunner, name: string, body: Record<string, unknown> = {}) {
   const spec = jobSpecs(ws, body).find((j) => j.name === name);
-  if (!spec) throw new ApiError(404, `tâche inconnue : ${name}`);
+  if (!spec) throw new ApiError(404, `unknown task: ${name}`);
   const missing = spec.needs?.(ws);
   if (missing) throw new ApiError(409, missing);
-  if (runner.busy) throw new ApiError(409, `une tâche est déjà en cours : ${runner.current?.name}`);
+  if (runner.busy) throw new ApiError(409, `a task is already running: ${runner.current?.name}`);
   return runner.start(spec.name, spec.cmd, spec.args, spec.cwd);
 }

@@ -29,7 +29,7 @@ export const dataslateIdFor = (mfmVersion: string) =>
 
 export function proposeDataslate(sources: SourceRef[], manifest?: Manifest): DataslateProposal {
   const mfmVersion = sources.find((s) => s.id === 'mfm')?.version;
-  if (!mfmVersion) throw new Error('le Dataset ne déclare aucune version du MFM : aucune Dataslate à proposer');
+  if (!mfmVersion) throw new Error('the Dataset declares no MFM version: no Dataslate to propose');
   const known = manifest?.dataslates.find((d) => d.mfmVersion === mfmVersion);
   return known
     ? { id: known.id, name: known.name, mfmVersion, isNew: false }
@@ -62,16 +62,16 @@ export interface ReleasePlan {
 
 export function planRelease(previous: Manifest | undefined, input: ReleaseInput): ReleasePlan {
   if (previous && previous.gameSystem !== input.gameSystem)
-    throw new Error(`le manifeste décrit ${previous.gameSystem}, pas ${input.gameSystem}`);
+    throw new Error(`the manifest describes ${previous.gameSystem}, not ${input.gameSystem}`);
   const releaseUrl = input.releaseUrl ?? previous?.releaseUrl;
-  if (!releaseUrl?.includes('{tag}')) throw new Error('adresse des Releases absente ou sans « {tag} » (--release-url)');
+  if (!releaseUrl?.includes('{tag}')) throw new Error('release URL missing, or without "{tag}" in it (--release-url)');
 
   const dataslates = structuredClone(previous?.dataslates ?? []);
   let slate = dataslates.find((d) => d.id === input.dataslate.id);
   let frozen: string | undefined;
-  if (slate?.frozen) throw new Error(`la Dataslate ${slate.id} est gelée : une Dataslate plus récente est sortie`);
+  if (slate?.frozen) throw new Error(`Dataslate ${slate.id} is frozen: a newer Dataslate has been published`);
   if (slate && slate.mfmVersion !== input.dataslate.mfmVersion)
-    throw new Error(`la Dataslate ${slate.id} correspond au MFM ${slate.mfmVersion}, pas ${input.dataslate.mfmVersion}`);
+    throw new Error(`Dataslate ${slate.id} matches MFM ${slate.mfmVersion}, not ${input.dataslate.mfmVersion}`);
   if (!slate) {
     // Une nouvelle Dataslate gèle celle qu'elle remplace.
     const replaced = dataslates.find((d) => !d.frozen);
@@ -116,14 +116,14 @@ export interface RepointInput {
 export function repoint(previous: Manifest, to: RepointInput): Manifest {
   const manifest = structuredClone(previous);
   if (to.current !== undefined) {
-    if (!manifest.dataslates.some((d) => d.id === to.current)) throw new Error(`Dataslate inconnue : ${to.current}`);
+    if (!manifest.dataslates.some((d) => d.id === to.current)) throw new Error(`unknown Dataslate: ${to.current}`);
     manifest.current = to.current;
   }
   if (to.release !== undefined) {
     const id = to.dataslate ?? manifest.current;
     const slate = manifest.dataslates.find((d) => d.id === id);
-    if (!slate) throw new Error(`Dataslate inconnue : ${id}`);
-    if (!slate.releases.some((r) => r.tag === to.release)) throw new Error(`Release ${to.release} inconnue dans la Dataslate ${id}`);
+    if (!slate) throw new Error(`unknown Dataslate: ${id}`);
+    if (!slate.releases.some((r) => r.tag === to.release)) throw new Error(`Release ${to.release} unknown in Dataslate ${id}`);
     slate.latest = to.release;
   }
   manifest.offered = offeredOf(manifest.dataslates, manifest.current);
@@ -170,10 +170,10 @@ export type PublishResult =
 export function publishRelease(options: PublishOptions): PublishResult {
   const { dir, gameSystem } = options;
   const git = gitIn(dir);
-  if (!existsSync(join(dir, '.git'))) throw new Error(`${dir} n'est pas un dépôt git : une Release est un tag`);
+  if (!existsSync(join(dir, '.git'))) throw new Error(`${dir} is not a git repository: a Release is a tag`);
 
   const check = checkDataset(dir, gameSystem);
-  if (!check.ok) throw new Error('Dataset non conforme (schéma ou texte de règles) : aucune Release');
+  if (!check.ok) throw new Error('Dataset not compliant (schema or rules text): no Release');
 
   const index = JSON.parse(readFileSync(join(dir, indexPath(gameSystem)), 'utf8')) as DatasetIndex;
   const previous = readManifest(dir);
@@ -192,7 +192,7 @@ export function publishRelease(options: PublishOptions): PublishResult {
     schemaVersion: index.schemaVersion,
     ...(options.releaseUrl ? { releaseUrl: options.releaseUrl } : {}),
   });
-  if (tagExists(git, plan.release.tag)) throw new Error(`le tag ${plan.release.tag} existe déjà : une Release publiée ne se réécrit pas`);
+  if (tagExists(git, plan.release.tag)) throw new Error(`tag ${plan.release.tag} already exists: a published Release is never rewritten`);
 
   writeFileSync(join(dir, manifestPath), toJson(plan.manifest));
   git(['add', '-A']);
@@ -204,13 +204,13 @@ export function publishRelease(options: PublishOptions): PublishResult {
 /** Repointer le manifeste et le commiter ; aucun tag, aucune Release touchée. */
 export function repointManifest(dir: string, to: RepointInput): Manifest {
   const previous = readManifest(dir);
-  if (!previous) throw new Error('aucun manifeste à repointer');
+  if (!previous) throw new Error('no manifest to repoint');
   const manifest = repoint(previous, to);
   writeFileSync(join(dir, manifestPath), toJson(manifest));
   if (existsSync(join(dir, '.git'))) {
     const git = gitIn(dir);
     git(['add', manifestPath]);
-    git(['commit', '--quiet', '-m', `Manifeste repointé : ${manifest.current}`]);
+    git(['commit', '--quiet', '-m', `Manifest repointed to ${manifest.current}`]);
   }
   return manifest;
 }

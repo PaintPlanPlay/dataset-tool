@@ -34,22 +34,22 @@ export const MAX_SUMMARY_CHARS = 160;
 
 /** Formulations des règles de Warhammer 40,000, en anglais. Une seule suffit. */
 const RULES_PHRASES: [RegExp, string][] = [
-  [/\beach time\b/i, '« each time »'],
-  [/\b(?:until|at) the (?:end|start) of (?:the|your|a|this|that|each)\b/i, '« until the end of… »'],
-  [/\b(?:add|subtract) \d+ (?:to|from) (?:the|its|that|this|their|your)\b/i, '« add N to the… »'],
-  [/\bre-?roll (?:a|the|one|that|any)\b/i, '« re-roll the… »'],
-  [/\broll (?:one|a|two|three|\d) d(?:3|6)\b/i, '« roll one D6 »'],
-  [/\b(?:this|that|the bearer'?s?) (?:unit|model|weapon)(?:'s)? (?:can|must|has|have|gains?|is|makes?)\b/i, '« this unit can… »'],
-  [/\byou can (?:use|select|re-?roll|target|choose)\b/i, '« you can select… »'],
-  [/\b(?:select|target) one (?:unit|model|enemy|friendly)\b/i, '« select one unit »'],
-  [/\bwhile this (?:unit|model)\b/i, '« while this unit »'],
-  [/\bin (?:your|the|your opponent'?s) (?:command|movement|shooting|charge|fight) phase\b/i, '« in your Shooting phase »'],
-  [/\bmortal wounds?\b.*\b(?:suffers?|inflicts?|allocate)/i, '« suffers mortal wounds »'],
+  [/\beach time\b/i, '"each time"'],
+  [/\b(?:until|at) the (?:end|start) of (?:the|your|a|this|that|each)\b/i, '"until the end of…"'],
+  [/\b(?:add|subtract) \d+ (?:to|from) (?:the|its|that|this|their|your)\b/i, '"add N to the…"'],
+  [/\bre-?roll (?:a|the|one|that|any)\b/i, '"re-roll the…"'],
+  [/\broll (?:one|a|two|three|\d) d(?:3|6)\b/i, '"roll one D6"'],
+  [/\b(?:this|that|the bearer'?s?) (?:unit|model|weapon)(?:'s)? (?:can|must|has|have|gains?|is|makes?)\b/i, '"this unit can…"'],
+  [/\byou can (?:use|select|re-?roll|target|choose)\b/i, '"you can select…"'],
+  [/\b(?:select|target) one (?:unit|model|enemy|friendly)\b/i, '"select one unit"'],
+  [/\bwhile this (?:unit|model)\b/i, '"while this unit"'],
+  [/\bin (?:your|the|your opponent'?s) (?:command|movement|shooting|charge|fight) phase\b/i, '"in your Shooting phase"'],
+  [/\bmortal wounds?\b.*\b(?:suffers?|inflicts?|allocate)/i, '"suffers mortal wounds"'],
   // « once per battle » n'y figure pas : BSData l'accole au nom d'une aptitude
   // (« Fix Dat Armour Up (Once per battle, per unit) »), ce qui reste un nom.
-  [/\b(?:characteristic|characteristics) of\b/i, '« characteristic of »'],
-  [/\bwithin (?:engagement range|\d+" of)\b/i, '« within 6" of »'],
-  [/\b(?:hit|wound|saving|damage) rolls? of \d\+?/i, '« Hit roll of 6 »'],
+  [/\b(?:characteristic|characteristics) of\b/i, '"characteristic of"'],
+  [/\bwithin (?:engagement range|\d+" of)\b/i, '\'within 6" of\''],
+  [/\b(?:hit|wound|saving|damage) rolls? of \d\+?/i, '"Hit roll of 6"'],
 ];
 
 const words = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
@@ -59,10 +59,10 @@ const excerpt = (s: string) => (s.length > 90 ? `${s.slice(0, 87)}…` : s);
 /** Constats sur une seule chaîne ; `summary` durcit la limite de longueur. */
 export function inspectString(value: string, options: { summary?: boolean } = {}): string[] {
   const reasons: string[] = [];
-  if (words(value) > MAX_WORDS) reasons.push(`prose longue (${words(value)} mots)`);
-  else if (value.length > MAX_CHARS) reasons.push(`texte long (${value.length} caractères)`);
-  if (options.summary && value.length > MAX_SUMMARY_CHARS) reasons.push(`résumé trop long (${value.length} > ${MAX_SUMMARY_CHARS})`);
-  for (const [re, label] of RULES_PHRASES) if (re.test(value)) reasons.push(`formulation de règle ${label}`);
+  if (words(value) > MAX_WORDS) reasons.push(`long prose (${words(value)} words)`);
+  else if (value.length > MAX_CHARS) reasons.push(`long text (${value.length} characters)`);
+  if (options.summary && value.length > MAX_SUMMARY_CHARS) reasons.push(`summary too long (${value.length} > ${MAX_SUMMARY_CHARS})`);
+  for (const [re, label] of RULES_PHRASES) if (re.test(value)) reasons.push(`rules phrasing ${label}`);
   return reasons;
 }
 
@@ -86,7 +86,7 @@ export function findRulesText(data: unknown, where = ''): TextFinding[] {
       for (const [k, v] of Object.entries(node)) {
         const here = `${pointer}/${k}`;
         if (TEXT_KEYS.has(k.toLowerCase()) && v !== '' && v !== null)
-          out.push({ where: `${where}${here}`, reason: `clé de texte « ${k} »`, excerpt: excerpt(typeof v === 'string' ? v : JSON.stringify(v)) });
+          out.push({ where: `${where}${here}`, reason: `text key "${k}"`, excerpt: excerpt(typeof v === 'string' ? v : JSON.stringify(v)) });
         walk(v, here, k);
       }
     }

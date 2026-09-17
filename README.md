@@ -37,17 +37,14 @@ folder resets you to a clean slate.
 
 ## What the buttons do
 
-The interface is currently in French, so the buttons are quoted below as they
-appear on screen.
-
 | Button | What happens |
 |---|---|
-| **Récupérer le Dataset** | downloads the dataset repository (or updates it if it is already there) |
-| **Instantané des sources** | downloads BSData, the Munitorum Field Manual and 40kdc-data at a fixed point in time. Takes a few minutes and is **optional** — see below |
-| **Construire le Dataset** | rebuilds the dataset from that snapshot, applying every correction |
-| **Contrôler** | verifies the files against the schema and the no-rules-text rule |
-| **Publier une Release** | freezes the dataset under a tag and updates the manifest the apps read |
-| **Proposer mes changements** | opens a pull request with what you wrote |
+| **Fetch the Dataset** | downloads the dataset repository (or updates it if it is already there) |
+| **Snapshot the sources** | downloads BSData, the Munitorum Field Manual and 40kdc-data at a fixed point in time. Takes a few minutes and is **optional** — see below |
+| **Build the Dataset** | rebuilds the dataset from that snapshot, applying every correction |
+| **Check** | verifies the files against the schema and the no-rules-text rule |
+| **Publish a Release** | freezes the dataset under a tag and updates the manifest the apps read |
+| **Propose my changes** | opens a pull request with what you wrote |
 
 Each task streams its log as it runs, and only one runs at a time.
 
@@ -58,7 +55,7 @@ fix a number and do not want to download all of BSData.
 
 ## Fixing a value, step by step
 
-1. Click **Récupérer le Dataset**.
+1. Click **Fetch the Dataset**.
 2. Type a name in the search box — a unit, a detachment, a stratagem — and click
    the result.
 3. The sheet lists every field with its **origin**: `bsdata`, `mfm`, `40kdc`,
@@ -67,9 +64,9 @@ fix a number and do not want to download all of BSData.
 4. Fill in the *New correction* form. The army, the target and the current
    upstream value are filled in for you; you provide the corrected value and a
    one-sentence reason.
-5. Click **Écrire la Correction**. The file is created, checked, and the sheet
+5. Click **Write the Correction**. The file is created, checked, and the sheet
    reloads so you can see your change applied.
-6. Click **Proposer mes changements** to open a pull request — or copy the git
+6. Click **Propose my changes** to open a pull request — or copy the git
    commands it prints and run them yourself.
 
 You can also review the suggestions this tool computes for abilities that have

@@ -42,7 +42,7 @@ function jsonFiles(dir: string, rel = ''): string[] {
 export function checkDataset(dir: string, gameSystem: string): CheckReport {
   const schema = existsSync(join(dir, gameSystem))
     ? validateDatasetDir(dir, gameSystem)
-    : [{ file: gameSystem, errors: ['dossier du Game System absent'] }];
+    : [{ file: gameSystem, errors: ['Game System directory missing'] }];
 
   const text: TextFinding[] = [];
   for (const file of jsonFiles(dir)) {
@@ -50,7 +50,7 @@ export function checkDataset(dir: string, gameSystem: string): CheckReport {
     try {
       data = JSON.parse(readFileSync(join(dir, file), 'utf8'));
     } catch (err) {
-      schema.push({ file, errors: [`JSON illisible : ${(err as Error).message}`] });
+      schema.push({ file, errors: [`unreadable JSON: ${(err as Error).message}`] });
       continue;
     }
     text.push(...findRulesText(data, file));
@@ -66,8 +66,8 @@ export function checkDataset(dir: string, gameSystem: string): CheckReport {
 /** Le rapport, tel qu'on le lit dans un journal de CI. */
 export function renderCheck(report: CheckReport): string {
   const lines: string[] = [];
-  for (const f of report.schema) lines.push(`✘ schéma — ${f.file} : ${f.errors.join(' ; ')}`);
-  for (const f of report.text) lines.push(`✘ texte de règles — ${f.where} : ${f.reason} — « ${f.excerpt} »`);
-  lines.push(report.ok ? '✔ conforme au schéma, aucun texte de règles' : `✘ ${report.schema.length} fichier(s) hors schéma, ${report.text.length} constat(s) de texte`);
+  for (const f of report.schema) lines.push(`✘ schema — ${f.file}: ${f.errors.join('; ')}`);
+  for (const f of report.text) lines.push(`✘ rules text — ${f.where}: ${f.reason} — "${f.excerpt}"`);
+  lines.push(report.ok ? '✔ schema valid, no rules text' : `✘ ${report.schema.length} file(s) off schema, ${report.text.length} text finding(s)`);
   return lines.join('\n');
 }

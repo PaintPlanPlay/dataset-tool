@@ -179,7 +179,7 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   const { snapshot } = input;
   const gameSystem = input.gameSystem ?? 'wh40k-11e';
   const system = GAME_SYSTEMS[gameSystem];
-  if (!system) throw new Error(`Game System inconnu : ${gameSystem}`);
+  if (!system) throw new Error(`unknown Game System: ${gameSystem}`);
   const corrections = input.corrections ?? [];
 
   const ids = structuredClone(input.ids ?? emptyRegistry());
@@ -254,8 +254,8 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   };
   for (const c of corrections) {
     const { root, entity } = parseTarget(c.target);
-    if (DETACHMENT_ENTITIES.has(entity) && !upstreamDetachments.has(root)) orphan({ target: c.target, why: `Army ${root} absente` });
-    if (entity === 'stratagem' && !upstreamStratagems.has(root)) orphan({ target: c.target, why: `Army ${root} absente` });
+    if (DETACHMENT_ENTITIES.has(entity) && !upstreamDetachments.has(root)) orphan({ target: c.target, why: `Army ${root} missing` });
+    if (entity === 'stratagem' && !upstreamStratagems.has(root)) orphan({ target: c.target, why: `Army ${root} missing` });
   }
 
   const summaries: ArmySummary[] = [];

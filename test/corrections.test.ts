@@ -40,7 +40,7 @@ check('active : l\'amont a toujours la valeur corrigée', verdict(corrected, 'wa
 check('périmée : l\'amont a rejoint la Correction', verdict(corrected, 'boyz-choppa-strength.json')?.state === 'stale');
 check(
   'en conflit : l\'amont dit une troisième valeur',
-  verdict(corrected, 'mek-gunz-attacks.json')?.state === 'conflict' && verdict(corrected, 'mek-gunz-attacks.json')!.note.includes('troisième valeur'),
+  verdict(corrected, 'mek-gunz-attacks.json')?.state === 'conflict' && verdict(corrected, 'mek-gunz-attacks.json')!.note.includes('third value'),
 );
 check('une Correction en conflit reste appliquée en attendant qu\'un humain tranche', unitOf(corrected, 'orks', 'Mek Gunz').weapons[0].A === 'D6+1');
 check('un ajout que l\'amont ne porte pas est actif', verdict(corrected, 'warboss-leads-nobz.json')?.state === 'active');
@@ -98,8 +98,8 @@ check('une Unit alliée ne fait pas doublon dans le rapport', diff.changes.filte
 check('première construction : rien à comparer', diffDatasets(undefined, plain.files).initial);
 
 const markdown = renderReport(makeReport(corrected, plain.files));
-check('le rapport liste les chiffres modifiés', /## Chiffres modifiés/.test(markdown) && /Warboss/.test(markdown));
-check('le rapport liste les désaccords entre sources', /## Désaccords entre sources/.test(markdown) && /mfm `75` retenu, bsdata `90` écarté/.test(markdown));
-check('le rapport donne l\'état de chaque Correction', /\*\*périmée\*\*/.test(markdown) && /\*\*en conflit\*\*/.test(markdown) && /\*\*active\*\*/.test(markdown));
-check('le rapport rappelle la PR amont d\'une Correction', markdown.includes('PR amont : https://github.com/BSData/wh40k-11e-mfm/pull/1'));
+check('le rapport liste les chiffres modifiés', /## Numbers changed/.test(markdown) && /Warboss/.test(markdown));
+check('le rapport liste les désaccords entre sources', /## Disagreements between sources/.test(markdown) && /mfm `75` kept, bsdata `90` set aside/.test(markdown));
+check('le rapport donne l\'état de chaque Correction', /\*\*stale\*\*/.test(markdown) && /\*\*in conflict\*\*/.test(markdown) && /\*\*active\*\*/.test(markdown));
+check('le rapport rappelle la PR amont d\'une Correction', markdown.includes('upstream PR: https://github.com/BSData/wh40k-11e-mfm/pull/1'));
 check('le rapport ne recopie aucun texte amont', !/FIXTURE-RULES-TEXT/.test(markdown));

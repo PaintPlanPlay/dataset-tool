@@ -37,9 +37,9 @@ for (const rejected of [
   'While this unit is leading a unit, models in that unit have the Feel No Pain 5+ ability.',
 ]) check(`refusé : « ${rejected.slice(0, 50)}… »`, inspectString(rejected).length > 0);
 const longProse = Array.from({ length: 40 }, (_, i) => `mot${i}`).join(' ');
-check('une prose longue est refusée même sans formulation connue', inspectString(longProse).some((r) => r.startsWith('prose longue')));
-check('un résumé au-delà d\'une ligne est refusé', inspectString('x'.repeat(170), { summary: true }).some((r) => r.startsWith('résumé trop long')));
-check('une clé de texte est refusée, quel que soit son contenu', findRulesText({ abilities: [{ name: 'Waaagh!', text: 'court' }] }).some((f) => f.reason.includes('clé de texte')));
+check('une prose longue est refusée même sans formulation connue', inspectString(longProse).some((r) => r.startsWith('long prose')));
+check('un résumé au-delà d\'une ligne est refusé', inspectString('x'.repeat(170), { summary: true }).some((r) => r.startsWith('summary too long')));
+check('une clé de texte est refusée, quel que soit son contenu', findRulesText({ abilities: [{ name: 'Waaagh!', text: 'court' }] }).some((f) => f.reason.includes('text key')));
 
 section('Contrôle : commande sur un dépôt de Dataset');
 const out = await build({ snapshot: openSnapshot(fixture('snapshot')) });

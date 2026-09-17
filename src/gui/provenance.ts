@@ -87,7 +87,7 @@ export function inspect(current: DatasetView, bare: DatasetView | null, target: 
       if (field === 'abilities') continue;
       if (upstream && !same(value, (upstream as unknown as Record<string, unknown>)[field])) origins.push(correctionOrigin(field, verdicts));
       else if (!bare) origins.push({ field, origin: 'published' });
-      else if (MFM_UNIT_FIELDS.has(field)) origins.push(unmatched ? { field, origin: 'bsdata', detail: 'absente du MFM' } : { field, origin: 'mfm' });
+      else if (MFM_UNIT_FIELDS.has(field)) origins.push(unmatched ? { field, origin: 'bsdata', detail: 'missing from the MFM' } : { field, origin: 'mfm' });
       else origins.push({ field, origin: 'bsdata' });
     }
     for (const ability of found.unit.abilities) {
@@ -95,7 +95,7 @@ export function inspect(current: DatasetView, bare: DatasetView | null, target: 
       const field = `abilities › ${ability.name}`;
       if (upstream && !same(ability, before)) origins.push(correctionOrigin(field, verdicts));
       else if (!bare && !ability.effectSource) origins.push({ field, origin: 'published' });
-      else origins.push({ field, origin: ability.effectSource ?? 'bsdata', ...(ability.effectSource ? {} : { detail: 'nom seul' }) });
+      else origins.push({ field, origin: ability.effectSource ?? 'bsdata', ...(ability.effectSource ? {} : { detail: 'name only' }) });
     }
     const proposals = found.unit.abilities
       .filter((a) => a.effectSource === 'analysis' && a.effect)

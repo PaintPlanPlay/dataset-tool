@@ -180,12 +180,12 @@ export function effectBody(ability: KdcAbility | undefined, drop: (reason: strin
   if (!ability?.effect) return {};
   const errors = validateEffect(ability.effect, ability.scope);
   if (errors.length) {
-    drop(`hors du format figé : ${errors[0]}`);
+    drop(`outside the frozen format: ${errors[0]}`);
     return {};
   }
   const text = findRulesText({ effect: ability.effect, scope: ability.scope });
   if (text.length) {
-    drop(`porte du texte : ${text[0].reason}`);
+    drop(`carries text: ${text[0].reason}`);
     return {};
   }
   return { effect: ability.effect as RuleBody['effect'], ...(ability.scope ? { scope: ability.scope as RuleBody['scope'] } : {}) };

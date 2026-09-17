@@ -221,7 +221,7 @@ try {
     const search = await at<{ error: string }>('/api/search?q=boyz');
     check(
       "consulter sans Dataset dit par quel bouton commencer",
-      search.status === 409 && search.body.error.includes('récupérer le Dataset'),
+      search.status === 409 && search.body.error.includes('fetch the Dataset'),
       `${search.status} ${search.body.error}`,
     );
     check('une tâche inconnue est refusée', (await at('/api/jobs/effacer-tout', {})).status === 404);
@@ -231,7 +231,7 @@ try {
     const second = await at<{ error: string }>('/api/jobs/dataset', {});
     check(
       'une seule tâche à la fois : la seconde est refusée pendant la première',
-      first.status === 202 && second.status === 409 && second.body.error.includes('déjà en cours'),
+      first.status === 202 && second.status === 409 && second.body.error.includes('already running'),
       `${first.status}/${second.status}`,
     );
   } finally {

@@ -95,7 +95,7 @@ export function applyCorrections(
 
   const index = new Set(units.map((u) => u.id));
   for (const [root, list] of byUnit)
-    if (!index.has(root)) for (const c of list) report.orphans.push({ target: c.target, why: `Unit ${root} absente` });
+    if (!index.has(root)) for (const c of list) report.orphans.push({ target: c.target, why: `Unit ${root} missing` });
 
   const out = units.map((unit) => {
     const list = byUnit.get(unit.id);
@@ -141,7 +141,7 @@ function applyOne(
     // Retirer ce que l'amont a déjà retiré ne vise rien : la Correction est périmée, pas orpheline.
     if (i < 0 && remove) return null;
     if (i < 0 && !create) {
-      report.orphans.push({ target, why: `figurine « ${name} » absente` });
+      report.orphans.push({ target, why: `model "${name}" missing` });
       return null;
     }
     const models = [...unit.models];
@@ -156,7 +156,7 @@ function applyOne(
     // Retirer ce que l'amont a déjà retiré ne vise rien : la Correction est périmée, pas orpheline.
     if (i < 0 && remove) return null;
     if (i < 0 && !create) {
-      report.orphans.push({ target, why: `arme « ${name} » absente` });
+      report.orphans.push({ target, why: `weapon "${name}" missing` });
       return null;
     }
     const weapons = [...unit.weapons];
@@ -183,7 +183,7 @@ function applyOne(
     // Retirer ce que l'amont a déjà retiré ne vise rien : la Correction est périmée, pas orpheline.
     if (i < 0 && remove) return null;
     if (i < 0 && !create) {
-      report.orphans.push({ target, why: `cible « ${who} » absente de ${field}` });
+      report.orphans.push({ target, why: `target "${who}" missing from ${field}` });
       return null;
     }
     const targets = [...current];
@@ -196,7 +196,7 @@ function applyOne(
   const i = unit.abilities.findIndex((a) => a.name === name);
   if (i < 0 && remove) return null;
   if (i < 0 && !create) {
-    report.orphans.push({ target, why: `aptitude « ${name} » absente` });
+    report.orphans.push({ target, why: `ability "${name}" missing` });
     return null;
   }
   const abilities = [...unit.abilities];
@@ -244,7 +244,7 @@ export function applyDetachmentCorrections(
       const i = list.findIndex((d) => d.id === name);
       if (i < 0 && remove) continue;
       if (i < 0 && !create) {
-        report.orphans.push({ target: c.target, why: `Detachment « ${name} » absent` });
+        report.orphans.push({ target: c.target, why: `Detachment "${name}" missing` });
         continue;
       }
       if (remove) list = list.filter((_d, j) => j !== i);
@@ -257,14 +257,14 @@ export function applyDetachmentCorrections(
     const [detId, enhId] = name.split('|');
     const di = list.findIndex((d) => d.id === detId);
     if (di < 0) {
-      report.orphans.push({ target: c.target, why: `Detachment « ${detId} » absent` });
+      report.orphans.push({ target: c.target, why: `Detachment "${detId}" missing` });
       continue;
     }
     const det = list[di];
     const ei = det.enhancements.findIndex((e) => e.id === enhId);
     if (ei < 0 && remove) continue;
     if (ei < 0 && !create) {
-      report.orphans.push({ target: c.target, why: `Enhancement « ${enhId} » absente de « ${det.name} »` });
+      report.orphans.push({ target: c.target, why: `Enhancement "${enhId}" missing from "${det.name}"` });
       continue;
     }
     const fresh: Enhancement = { id: enhId, name: enhId, points: 0, appliesTo: 'character', aura: false, maxTargets: 1, requires: [], excludes: [] };
@@ -307,7 +307,7 @@ export function applyStratagemCorrections<T extends { id: string }>(
     const i = list.findIndex((s) => s.id === name);
     if (i < 0 && c.patch[DELETE] === true) continue;
     if (i < 0) {
-      report.orphans.push({ target: c.target, why: `Stratagem « ${name} » absent` });
+      report.orphans.push({ target: c.target, why: `Stratagem "${name}" missing` });
       continue;
     }
     list = c.patch[DELETE] === true ? list.filter((_s, j) => j !== i) : list.map((s, j) => (j === i ? { ...s, ...allowed(c.patch, STRATAGEM_FIELDS) } : s));

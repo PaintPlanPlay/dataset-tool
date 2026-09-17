@@ -49,7 +49,7 @@ check('des restrictions alternatives restent des groupes, avec leurs exclusions'
   JSON.stringify(enh('Kunnin’ But Brutal').requires) === JSON.stringify([['Orks', 'Infantry'], ['Orks', 'Mounted']]) && enh('Kunnin’ But Brutal').excludes.join() === 'Epic Hero');
 check('l\'Effect d\'une Enhancement est repris', enh('Follow Me Ladz').effect?.type === 'roll-modifier');
 check('un Effect amont porteur de texte est écarté et signalé',
-  !enh('Kunnin’ But Brutal').effect && first.droppedEffects.some((e) => e.where === 'War Horde › Kunnin’ But Brutal' && e.reason.startsWith('porte du texte')));
+  !enh('Kunnin’ But Brutal').effect && first.droppedEffects.some((e) => e.where === 'War Horde › Kunnin’ But Brutal' && e.reason.startsWith('carries text')));
 check('un Detachment absent de 40kdc-data est publié par son nom seul, et signalé',
   bigHunt.rules.length === 0 && bigHunt.enhancements[0].requires.length === 0 && first.missing.some((m) => m.name === 'Da Big Hunt' && m.missingIn === '40kdc' && m.published));
 check('la sous-faction reprend les données 40kdc-data de sa faction', det(first, 'War Horde') && (first.files.get(`${GS}/armies/orks-freebooterz.json`) as ArmyFile).detachments.find((d) => d.name === 'War Horde')?.rules.length === 1);
@@ -84,5 +84,5 @@ section('Detachments : schéma, texte et rapport');
 check('le fichier d\'Army avec ses Detachments est conforme au schéma', validateFile('army', orks(first)).length === 0, validateFile('army', orks(first)).join(' ; '));
 check('la construction ne produit aucun constat de texte', first.textCheck.length === 0, first.textCheck.map((f) => f.where).join(' ; '));
 const markdown = renderReport(makeReport(first, undefined));
-check('le rapport liste les éléments absents d\'une source et les Effects écartés', /## Éléments absents d'une source/.test(markdown) && /## Effects écartés/.test(markdown));
+check('le rapport liste les éléments absents d\'une source et les Effects écartés', /## Elements missing from a source/.test(markdown) && /## Effects set aside/.test(markdown));
 check('le rapport ne recopie pas le libellé écarté', !/until the end of the phase/.test(markdown));

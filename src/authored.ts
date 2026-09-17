@@ -126,10 +126,10 @@ export function resolveAuthored(authored: AuthoredCore | undefined, armies: Map<
 /** Ce qui empêche de publier un Effect ou un résumé écrit par le projet ; vide s'il passe. */
 export function authoredEffectProblems(e: AuthoredEffect): string[] {
   const problems: string[] = [];
-  if (e.effect === undefined && e.summary === undefined) problems.push('ni Effect ni résumé');
-  if (e.effect !== undefined) problems.push(...validateEffect(e.effect).map((m) => `Effect hors du format figé : ${m}`));
+  if (e.effect === undefined && e.summary === undefined) problems.push('neither Effect nor summary');
+  if (e.effect !== undefined) problems.push(...validateEffect(e.effect).map((m) => `Effect outside the frozen format: ${m}`));
   if (e.summary !== undefined) problems.push(...inspectString(e.summary, { summary: true }));
-  if (!e.reason?.trim()) problems.push('raison absente');
+  if (!e.reason?.trim()) problems.push('reason missing');
   else problems.push(...inspectString(e.reason));
   return problems;
 }

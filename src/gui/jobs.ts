@@ -36,7 +36,7 @@ export class JobRunner {
   }
 
   start(name: string, cmd: string, args: string[], cwd: string): Job {
-    if (this.busy) throw new Error(`une tâche est déjà en cours : ${this.job!.name}`);
+    if (this.busy) throw new Error(`a task is already running: ${this.job!.name}`);
     const job: Job = {
       name,
       command: [cmd, ...args].join(' '),
@@ -66,7 +66,7 @@ export class JobRunner {
       if (job.state !== 'running') return;
       job.state = code === 0 ? 'ok' : 'failed';
       job.endedAt = new Date().toISOString();
-      job.log.push(code === 0 ? '— terminé' : `— échec (code ${code})`);
+      job.log.push(code === 0 ? '— done' : `— failed (exit code ${code})`);
     });
     return job;
   }

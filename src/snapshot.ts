@@ -32,7 +32,7 @@ export interface Snapshot {
 
 export function openSnapshot(dir: string): Snapshot {
   const sourcesFile = join(dir, 'sources.json');
-  if (!existsSync(sourcesFile)) throw new Error(`instantané invalide : ${sourcesFile} absent`);
+  if (!existsSync(sourcesFile)) throw new Error(`invalid snapshot: ${sourcesFile} missing`);
   const sources = JSON.parse(readFileSync(sourcesFile, 'utf8')) as SourceRef[];
 
   const bsDir = join(dir, 'bsdata');

@@ -19,7 +19,7 @@ import type { CorrectionFile } from './files.ts';
 
 export type CorrectionState = 'active' | 'stale' | 'conflict';
 
-export const STATE_LABEL: Record<CorrectionState, string> = { active: 'active', stale: 'périmée', conflict: 'en conflit' };
+export const STATE_LABEL: Record<CorrectionState, string> = { active: 'active', stale: 'stale', conflict: 'in conflict' };
 
 export interface CorrectionVerdict {
   path: string;
@@ -92,26 +92,26 @@ export function reconcile(corrections: CorrectionFile[], locate: (target: string
 
     // Retrait et ajout se jugent sur la présence de l'élément, pas sur ses champs.
     if (c.patch[DELETE] === true) {
-      if (!rootFound) return { ...base, state: 'stale', note: "le porteur a disparu de l'amont : le retrait n'a plus d'objet", upstreamNow: {} };
+      if (!rootFound) return { ...base, state: 'stale', note: 'the holder is gone upstream: the removal has nothing left to do', upstreamNow: {} };
       return up
-        ? { ...base, state: 'active', note: "l'amont porte toujours l'élément retiré", upstreamNow: up }
-        : { ...base, state: 'stale', note: "l'amont a retiré l'élément à son tour", upstreamNow: {} };
+        ? { ...base, state: 'active', note: 'upstream still carries the element we remove', upstreamNow: up }
+        : { ...base, state: 'stale', note: 'upstream has removed the element as well', upstreamNow: {} };
     }
     if (c.patch[ADD] === true) {
-      if (!rootFound) return { ...base, state: 'conflict', note: "le porteur a disparu de l'amont : l'ajout ne s'applique plus à rien", upstreamNow: {} };
+      if (!rootFound) return { ...base, state: 'conflict', note: 'the holder is gone upstream: the addition applies to nothing', upstreamNow: {} };
       return up
-        ? { ...base, state: 'stale', note: "l'amont a ajouté l'élément à son tour", upstreamNow: up }
-        : { ...base, state: 'active', note: "l'amont ne porte toujours pas l'élément", upstreamNow: {} };
+        ? { ...base, state: 'stale', note: 'upstream has added the element as well', upstreamNow: up }
+        : { ...base, state: 'active', note: 'upstream still does not carry the element', upstreamNow: {} };
     }
 
-    if (!up) return { ...base, state: 'conflict', note: "la cible a disparu de l'amont : la Correction ne s'applique plus à rien", upstreamNow: {} };
+    if (!up) return { ...base, state: 'conflict', note: 'the target is gone upstream: the Correction applies to nothing', upstreamNow: {} };
 
     const keys = Object.keys(c.patch);
     const upstreamNow = Object.fromEntries(keys.map((k) => [k, up[k]]));
-    if (keys.every((k) => same(up[k], c.patch[k]))) return { ...base, state: 'stale', note: "l'amont dit maintenant la même chose que la Correction", upstreamNow };
-    if (!c.upstream) return { ...base, state: 'active', note: "valeur amont d'origine non enregistrée : l'amont diffère de la Correction", upstreamNow };
+    if (keys.every((k) => same(up[k], c.patch[k]))) return { ...base, state: 'stale', note: 'upstream now says the same as the Correction', upstreamNow };
+    if (!c.upstream) return { ...base, state: 'active', note: 'the original upstream value was not recorded: upstream differs from the Correction', upstreamNow };
     const moved = keys.filter((k) => !same(up[k], c.upstream?.[k]) && !same(up[k], c.patch[k]));
-    if (moved.length) return { ...base, state: 'conflict', note: `l'amont a changé pour une troisième valeur sur : ${moved.join(', ')}`, upstreamNow };
-    return { ...base, state: 'active', note: "l'amont n'a pas bougé, la Correction reste nécessaire", upstreamNow };
+    if (moved.length) return { ...base, state: 'conflict', note: `upstream moved to a third value on: ${moved.join(', ')}`, upstreamNow };
+    return { ...base, state: 'active', note: 'upstream has not moved, the Correction is still needed', upstreamNow };
   });
 }

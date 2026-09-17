@@ -54,10 +54,10 @@ export function privateAddress(host: string): boolean {
 export function tailscaleAddress(): string {
   try {
     const out = execFileSync('tailscale', ['ip', '-4'], { encoding: 'utf8' }).trim().split('\n')[0].trim();
-    if (!privateAddress(out)) throw new Error(`adresse inattendue : ${out}`);
+    if (!privateAddress(out)) throw new Error(`unexpected address: ${out}`);
     return out;
   } catch (err) {
-    throw new Error(`adresse Tailscale introuvable (${(err as Error).message}) — donner l'adresse à --host`);
+    throw new Error(`Tailscale address not found (${(err as Error).message}) — pass the address to --host`);
   }
 }
 
@@ -75,13 +75,13 @@ async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> 
   let size = 0;
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    if (size > MAX_BODY) throw new ApiError(413, 'requête trop volumineuse');
+    if (size > MAX_BODY) throw new ApiError(413, 'request too large');
     chunks.push(chunk as Buffer);
   }
   try {
     return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}') as Record<string, unknown>;
   } catch {
-    throw new ApiError(400, 'JSON invalide');
+    throw new ApiError(400, 'invalid JSON');
   }
 }
 
@@ -98,7 +98,7 @@ export interface GuiOptions {
 
 export async function startGui(ws: Workspace, options: GuiOptions | number = {}): Promise<GuiServer> {
   const { port = 4173, host = '127.0.0.1' } = typeof options === 'number' ? { port: options } : options;
-  if (!privateAddress(host)) throw new Error(`${host} n'est pas une adresse privée : l'interface n'a aucune authentification`);
+  if (!privateAddress(host)) throw new Error(`${host} is not a private address: the interface has no authentication`);
   // Une seule tâche longue à la fois, partagée par toutes les requêtes.
   const runner = new JobRunner();
 
@@ -112,7 +112,7 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
   async function handle(req: IncomingMessage, res: ServerResponse) {
     const actual = (server.address() as AddressInfo).port;
     if (!allowedHost(req.headers.host, actual, host) || !allowedOrigin(req.headers.origin, actual, host)) {
-      send(res, 403, { error: 'interface locale : cette machine seulement' });
+      send(res, 403, { error: 'local interface: this machine only' });
       return;
     }
     const url = new URL(req.url ?? '/', `http://127.0.0.1:${actual}`);
@@ -144,7 +144,7 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
         return send(res, 200, search(datasetOf(ws), param('q')));
       case 'GET /api/inspect': {
         const found = inspect(datasetOf(ws), ws.bare, param('target'));
-        if (!found) throw new ApiError(404, `introuvable : ${param('target')}`);
+        if (!found) throw new ApiError(404, `not found: ${param('target')}`);
         return send(res, 200, found);
       }
       case 'GET /api/upstream-draft':
@@ -173,7 +173,7 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
           const started = startJob(ws, runner, job[1], await readBody(req));
           return send(res, 202, { job: { name: started.name, command: started.command, state: started.state } });
         }
-        throw new ApiError(404, `route inconnue : ${route}`);
+        throw new ApiError(404, `unknown route: ${route}`);
       }
     }
   }

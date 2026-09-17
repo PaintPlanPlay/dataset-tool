@@ -61,14 +61,14 @@ const headers = (): Record<string, string> => {
 
 async function api<T>(path: string): Promise<T> {
   const res = await fetch(`https://api.github.com/repos/${path}`, { headers: headers() });
-  if (!res.ok) throw new Error(`GitHub ${res.status} sur ${path}`);
+  if (!res.ok) throw new Error(`GitHub ${res.status} on ${path}`);
   return (await res.json()) as T;
 }
 
 async function raw(repo: string, commit: string, path: string): Promise<string> {
   const url = `https://raw.githubusercontent.com/${repo}/${commit}/${path.split('/').map(encodeURIComponent).join('/')}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`téléchargement de ${repo}/${path} : HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`download of ${repo}/${path}: HTTP ${res.status}`);
   return res.text();
 }
 
@@ -79,7 +79,7 @@ export async function headCommit(repo: string): Promise<string> {
 
 async function tree(repo: string, commit: string): Promise<string[]> {
   const t = await api<{ tree: { path: string; type: string }[]; truncated: boolean }>(`${repo}/git/trees/${commit}?recursive=1`);
-  if (t.truncated) throw new Error(`arbre de ${repo} tronqué par l'API`);
+  if (t.truncated) throw new Error(`tree of ${repo} truncated by the API`);
   return t.tree.filter((n) => n.type === 'blob').map((n) => n.path);
 }
 
@@ -110,7 +110,7 @@ export async function fetchSnapshot(options: FetchOptions): Promise<SourceRef[]>
   const bsFiles = (await tree(UPSTREAMS.bsdata, bsCommit)).filter((p) => p.endsWith('.json') && !p.includes('/'));
   mkdirSync(join(options.out, 'bsdata'), { recursive: true });
   await pool(bsFiles, 6, async (p) => writeFileSync(join(options.out, 'bsdata', p), await raw(UPSTREAMS.bsdata, bsCommit, p)));
-  log(`BSData ${bsCommit.slice(0, 7)} : ${bsFiles.length} catalogues`);
+  log(`BSData ${bsCommit.slice(0, 7)}: ${bsFiles.length} catalogues`);
   sources.push({ id: 'bsdata', repository: UPSTREAMS.bsdata, commit: bsCommit });
 
   // MFM : un YAML par faction, plus meta.yaml.
@@ -123,7 +123,7 @@ export async function fetchSnapshot(options: FetchOptions): Promise<SourceRef[]>
     if (p === 'data/meta.yaml') version = /^version:\s*"?([^"\n]+)"?/m.exec(text)?.[1] ?? '';
     writeFileSync(join(options.out, 'mfm', p.slice('data/'.length)), text);
   });
-  log(`MFM ${mfmCommit.slice(0, 7)} : ${mfmFiles.length} fichiers, version ${version || '?'}`);
+  log(`MFM ${mfmCommit.slice(0, 7)}: ${mfmFiles.length} files, version ${version || '?'}`);
   sources.push({ id: 'mfm', repository: UPSTREAMS.mfm, commit: mfmCommit, ...(version ? { version } : {}) });
 
   // 40kdc-data : Detachments, Enhancements, Stratagems, Effects.
