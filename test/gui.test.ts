@@ -196,6 +196,26 @@ try {
      * Publier écrit dans le dépôt : le bouton se ferme à qui n'en a pas le droit,
      * plutôt que d'échouer au push devant quelqu'un qui n'y pouvait rien.
      */
+    const specRelease = jobSpecs(wsVide).find((j) => j.name === 'release')!;
+    check(
+      'publier demande la période de règles et son adresse, au lieu de trois champs posés en permanence',
+      (specRelease.asks ?? []).map((f) => f.name).join() === 'dataslate,releaseUrl',
+      JSON.stringify((specRelease.asks ?? []).map((f) => f.label)),
+    );
+
+    /*
+     * Enchaîner par `&&` puis clore par `|| { echo … }` faisait porter le dernier
+     * message à tout échec antérieur : une Release arrêtée faute de période
+     * confirmée annonçait un push impossible, et on cherchait un problème
+     * d'authentification qui n'existait pas.
+     */
+    const lignes = specRelease.args[1].split('\n');
+    check(
+      "un échec ne porte jamais le message d'une autre commande",
+      !lignes.some((l) => l.includes('release --dataset') && l.includes('could not be pushed')) && lignes.filter((l) => l.includes('echo ')).length >= 3,
+      lignes.length + ' lignes',
+    );
+
     const release = jobSpecs(wsVide).find((j) => j.name === 'release')!.args.join(' ');
     check(
       'publier fait tout : retour sur main, mise à jour, tag, puis push',

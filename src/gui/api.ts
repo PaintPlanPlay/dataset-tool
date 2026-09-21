@@ -8,7 +8,8 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import type { Correction } from '@paintplanplay/dataset-schema';
+import { indexPath, manifestPath, type Correction, type DatasetIndex, type Manifest } from '@paintplanplay/dataset-schema';
+import { proposeDataslate, type DataslateProposal } from '../release.ts';
 import { validateFile } from '@paintplanplay/dataset-schema/validate';
 import { authoredDir, authoredEffectProblems, EFFECTS_FILE, type AuthoredEffect } from '../authored.ts';
 import { correctionsDir } from '../corrections/files.ts';
@@ -290,6 +291,16 @@ export function publishRight(datasetDir: string): string | null {
   return WRITERS.has(droitConnu) ? null : `you have ${droitConnu} access on ${repo}: only a maintainer can publish a Release`;
 }
 
+/** Ce qu'une tâche demande avant de partir, posé par la page dans sa modale. */
+export interface JobField {
+  name: 'dataslate' | 'releaseUrl' | 'title';
+  label: string;
+  /** Ce que c'est, pour qui ne le sait pas : la modale l'affiche sous le libellé. */
+  hint: string;
+  /** Proposition pré-remplie, quand l'outil sait la calculer. */
+  value?: string;
+}
+
 export interface JobSpec {
   name: string;
   label: string;
@@ -298,11 +309,41 @@ export interface JobSpec {
   cmd: string;
   args: string[];
   cwd: string;
+  /** Ce qu'elle demande avant de partir ; vide pour les tâches qui ne demandent rien. */
+  asks?: JobField[];
   /** Ce qui doit être là avant de la lancer. */
   needs?: (ws: Workspace) => string | null;
 }
 
+/**
+ * La Dataslate que l'outil publierait, telle qu'il la déduit de la version du
+ * MFM. La proposer évite d'avoir à l'inventer : personne ne peut deviner
+ * « mfm-1-4 » depuis une page web.
+ */
+export function dataslateProposal(ws: Workspace): DataslateProposal | null {
+  try {
+    const index = JSON.parse(readFileSync(join(ws.datasetDir, indexPath(ws.gameSystem)), 'utf8')) as DatasetIndex;
+    const file = join(ws.datasetDir, manifestPath);
+    const manifest = existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as Manifest) : undefined;
+    return proposeDataslate(index.sources, manifest);
+  } catch {
+    return null;
+  }
+}
+
 const tool = (...args: string[]) => ({ cmd: 'npx', args: ['tsx', CLI, ...args], cwd: TOOL_DIR });
+
+/**
+ * Un script shell où chaque message d'échec appartient à sa propre commande.
+ *
+ * Enchaîner par `&&` puis clore par `|| { echo … }` faisait porter le dernier
+ * message à *tout* échec antérieur : une Release arrêtée faute de Dataslate
+ * annonçait un push impossible, et on cherchait un problème d'authentification
+ * qui n'existait pas. Une commande par ligne, chacune avec son propre message.
+ */
+function script(steps: [string, string][]): string {
+  return ['set -e', 'export GIT_TERMINAL_PROMPT=0', ...steps.map(([cmd, oops]) => `{ ${cmd}; } || { echo ${quote(oops)}; exit 1; }`)].join('\n');
+}
 
 const needsDataset = (ws: Workspace) => (ws.state.dataset ? null : 'click Update data first');
 const needsSnapshot = (ws: Workspace) => (ws.state.snapshot ? null : 'click Update data first, so the sources are here');
@@ -319,6 +360,7 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
   const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Dataset changes';
   const branch = `dataset/${slug(title)}`;
   const releaseUrl = typeof body.releaseUrl === 'string' ? body.releaseUrl : '';
+  const proposition = dataslateProposal(ws);
 
   return [
     {
@@ -329,15 +371,16 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
       cmd: 'sh',
       args: [
         '-c',
-        `export GIT_TERMINAL_PROMPT=0; ${[
+        script([
           // Un clone la première fois. Ensuite retour sur main, parce que proposer
           // laisse le dossier sur sa branche : on ne construit pas, et surtout on
           // ne publie pas, depuis une branche qui attend sa relecture.
-          `{ if [ -d ${ds('.git')} ]; then git -C ${ds()} checkout main && git -C ${ds()} pull --ff-only; else git clone ${quote(ws.repository)} ${ds()}; fi; } || { echo ${quote(
+          [
+            `if [ -d ${ds('.git')} ]; then git -C ${ds()} checkout main && git -C ${ds()} pull --ff-only; else git clone ${quote(ws.repository)} ${ds()}; fi`,
             'the Dataset folder could not be updated — it probably holds changes that are neither proposed nor discarded.',
-          )}; exit 1; }`,
-          `npx tsx ${quote(CLI)} fetch --out ${quote(ws.snapshotDir)}`,
-        ].join(' && ')}`,
+          ],
+          [`npx tsx ${quote(CLI)} fetch --out ${quote(ws.snapshotDir)}`, 'the sources could not be downloaded — read the lines above.'],
+        ]),
       ],
     },
     {
@@ -353,21 +396,30 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
       hint: 'opens a pull request on the Dataset repository with what you wrote',
       needs: (w) => needsPush(w) ?? needsDataset(w),
       cwd: ws.datasetDir,
+      asks: [
+        {
+          name: 'title',
+          label: 'Name for your pull request',
+          hint: 'A maintainer sees this line in the list of open requests. Say what you changed, for example "Ghazghkull back to 300 points".',
+          value: title,
+        },
+      ],
       cmd: 'sh',
       args: [
         '-c',
-        `export GIT_TERMINAL_PROMPT=0; ${[
-          `git checkout -b ${arg(branch)} 2>/dev/null || git checkout ${arg(branch)}`,
-          'git add -A',
+        script([
+          [`git checkout -b ${arg(branch)} 2>/dev/null || git checkout ${arg(branch)}`, 'could not open a branch for your changes — read the lines above.'],
+          ['git add -A', 'your changes could not be staged — read the lines above.'],
           // Rien de neuf à committer n'est pas une erreur : le commit précédent
           // existe peut-être déjà, et c'est le push qui avait échoué.
-          `git diff --cached --quiet || git commit -m ${quote(title)}`,
+          [`git diff --cached --quiet || git commit -m ${quote(title)}`, 'your changes could not be committed — read the lines above.'],
           // Le porte-clés de `gh` plutôt qu'une invite que la page ne verrait pas.
-          `git ${GH_KEYRING.map(arg).join(' ')} push -u origin ${arg(branch)} || { echo ${quote(
+          [
+            `git ${GH_KEYRING.map(arg).join(' ')} push -u origin ${arg(branch)}`,
             'push refused — see git above. GitHub has not accepted a password since 2021: the push borrows the GitHub CLI, so it also fails when this process cannot run `gh`.',
-          )}; exit 1; }`,
-          `gh pr create --title ${quote(title)} --body ${quote(PR_BODY)} || true`,
-        ].join(' && ')}`,
+          ],
+          [`gh pr create --title ${quote(title)} --body ${quote(PR_BODY)} || true`, 'the pull request could not be opened — the push did go through, open it from GitHub.'],
+        ]),
       ],
     },
     {
@@ -376,23 +428,46 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
       hint: 'once the pull request is merged: takes in what was merged, freezes it under an immutable tag, and pushes it. Name the Dataslate above, or click once to be told which one to confirm',
       needs: (w) => needsPush(w) ?? needsDataset(w) ?? publishRight(w.datasetDir),
       cwd: TOOL_DIR,
+      asks: [
+        {
+          name: 'dataslate',
+          label: 'Rules period to publish into',
+          hint: proposition
+            ? `Releases are grouped by rules period, named after the Munitorum Field Manual. Yours is MFM ${proposition.mfmVersion}, ${
+                proposition.isNew ? 'which opens a new period' : 'which already exists'
+              } — keep the proposed name unless you know otherwise.`
+            : 'Releases are grouped by rules period, named after the Munitorum Field Manual version the Dataset was built from.',
+          value: proposition?.id ?? dataslate,
+        },
+        {
+          name: 'releaseUrl',
+          label: 'Address the apps will read this release from',
+          hint: 'A CDN serving your repository at the release tag. Taken from the repository itself — leave it unless you serve the files elsewhere.',
+          value: releaseUrl || defaultReleaseUrl(ws.datasetDir) || '',
+        },
+      ],
       cmd: 'sh',
       args: [
         '-c',
-        `export GIT_TERMINAL_PROMPT=0; ${[
+        script([
           // Ce qui vient d'être fusionné, d'abord : une Release tague le dépôt tel
           // qu'il est ici, et taguer une branche en retard ne se rattrape pas.
-          `{ git -C ${ds()} checkout main && git -C ${ds()} pull --ff-only; } || { echo ${quote(
+          [
+            `git -C ${ds()} checkout main && git -C ${ds()} pull --ff-only`,
             'the Dataset folder could not be updated — it probably holds changes that are neither proposed nor discarded.',
-          )}; exit 1; }`,
-          `npx tsx ${quote(CLI)} release --dataset ${ds()} --game-system ${arg(ws.gameSystem)}${dataslate ? ` --dataslate ${arg(dataslate)}` : ''}${
-            releaseUrl || defaultReleaseUrl(ws.datasetDir) ? ` --release-url ${arg(releaseUrl || defaultReleaseUrl(ws.datasetDir)!)}` : ''
-          }`,
+          ],
+          [
+            `npx tsx ${quote(CLI)} release --dataset ${ds()} --game-system ${arg(ws.gameSystem)}${dataslate ? ` --dataslate ${arg(dataslate)}` : ''}${
+              releaseUrl || defaultReleaseUrl(ws.datasetDir) ? ` --release-url ${arg(releaseUrl || defaultReleaseUrl(ws.datasetDir)!)}` : ''
+            }`,
+            'no Release was made — read the lines above. Without a confirmed rules period, the tool only proposes one and stops.',
+          ],
           // Le tag ne vaut que poussé : sans ça la Release n'existe que sur cette machine.
-          `git -C ${ds()} ${GH_KEYRING.map(arg).join(' ')} push --follow-tags || { echo ${quote(
+          [
+            `git -C ${ds()} ${GH_KEYRING.map(arg).join(' ')} push --follow-tags`,
             'the Release was made here but could not be pushed — see git above. The push borrows the GitHub CLI, so it also fails when this process cannot run `gh`.',
-          )}; exit 1; }`,
-        ].join(' && ')}`,
+          ],
+        ]),
       ],
     },
     {

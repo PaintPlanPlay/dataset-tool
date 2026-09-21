@@ -138,7 +138,7 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
           gh: ghReady(),
           gameSystem: ws.gameSystem,
           releaseUrl: defaultReleaseUrl(ws.datasetDir),
-          jobs: jobSpecs(ws).map(({ name, label, hint, needs }) => ({ name, label, hint, blocked: needs?.(ws) ?? null })),
+          jobs: jobSpecs(ws).map(({ name, label, hint, asks, needs }) => ({ name, label, hint, asks: asks ?? [], blocked: needs?.(ws) ?? null })),
         });
       case 'GET /api/jobs':
         return send(res, 200, runner.report(Number(param('since')) || 0));

@@ -38,6 +38,16 @@ export const PAGE = `<!doctype html>
   .admin button.busy::after { content: ''; display: inline-block; width: 9px; height: 9px; margin-left: 7px; vertical-align: -1px;
     border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  /* Une tâche dit ce qu'elle va faire et demande son dû avant de partir. */
+  dialog { border: 1px solid #8886; border-radius: 6px; padding: 16px 18px; max-width: 460px; color: inherit; background: Canvas; }
+  dialog::backdrop { background: #0007; }
+  dialog h3 { margin: 0 0 6px; font-size: 16px; }
+  dialog .about { margin: 0 0 4px; opacity: .8; }
+  dialog label { display: block; margin: 12px 0 0; font-weight: 600; }
+  dialog .why { display: block; font-weight: 400; opacity: .75; margin: 3px 0 5px; }
+  dialog input { width: 100%; box-sizing: border-box; padding: 5px 7px; }
+  dialog .choix { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  dialog .choix button { padding: 5px 12px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -51,13 +61,17 @@ export const PAGE = `<!doctype html>
     <h2>Administration</h2>
     <div class="state" id="state">…</div>
     <div class="row" id="jobs"></div>
-    <div class="row">
-      <label>Dataslate <input id="j-dataslate" size="10" placeholder="mfm-1-4"></label>
-      <label>Release URL <input id="j-url" size="38" placeholder="https://cdn.jsdelivr.net/gh/…@{tag}/"></label>
-      <label>PR title <input id="j-title" size="22" placeholder="Dataset changes"></label>
-    </div>
     <pre class="log" id="log">No task started yet.</pre>
   </section>
+  <dialog id="ask">
+    <h3 id="ask-title"></h3>
+    <p class="about" id="ask-about"></p>
+    <div id="ask-fields"></div>
+    <div class="choix">
+      <button id="ask-no">Cancel</button>
+      <button id="ask-go">Yes, do it</button>
+    </div>
+  </dialog>
   <div id="view"><p>Search for something to see where each of its values comes from.</p></div>
   <fieldset>
     <legend>New Correction</legend>
@@ -113,7 +127,6 @@ async function refreshState() {
   const d = await api('/api/state');
   const s = d.state;
   const mark = (ok, label) => '<span><b>' + (ok ? '✔' : '—') + '</b> ' + label + '</span>';
-  if (d.releaseUrl && !$('j-url').value) $('j-url').value = d.releaseUrl;
   $('state').innerHTML =
     mark(s.dataset, 'Dataset') +
     mark(s.snapshot, 'snapshot') +
@@ -128,12 +141,42 @@ async function refreshState() {
     b.title = j.blocked || j.hint;
     b.disabled = Boolean(j.blocked);
     b.dataset.job = j.name;
-    b.onclick = () => runJob(j.name);
+    b.onclick = () => demander(j);
     jobs.append(b);
   }
 }
 
-async function runJob(name) {
+/*
+ * Un bouton dit d'abord ce qu'il va faire, et ne demande que ce dont il a
+ * besoin. Trois champs posés en permanence au-dessus du journal n'apprenaient
+ * rien à personne : on ne devine pas qu'il faut nommer une période de règles.
+ */
+function demander(job) {
+  const dlg = $('ask');
+  $('ask-title').textContent = job.label;
+  $('ask-about').textContent = job.hint;
+  const boite = $('ask-fields');
+  boite.replaceChildren();
+  const entrees = [];
+  for (const f of job.asks || []) {
+    const lab = el('label', f.label);
+    const champ = document.createElement('input');
+    champ.value = f.value || '';
+    lab.append(el('span', f.hint, 'why'), champ);
+    boite.append(lab);
+    entrees.push([f.name, champ]);
+  }
+  $('ask-no').onclick = () => dlg.close();
+  $('ask-go').onclick = () => {
+    const valeurs = {};
+    for (const paire of entrees) valeurs[paire[0]] = paire[1].value.trim();
+    dlg.close();
+    runJob(job.name, valeurs);
+  };
+  dlg.showModal();
+}
+
+async function runJob(name, valeurs) {
   logCursor = 0;
   logOuvert = false;
   // Le clic doit se voir avant même que le serveur réponde : sinon on croit
@@ -142,11 +185,7 @@ async function runJob(name) {
   for (const b of boutons) { b.disabled = true; if (b.dataset.job === name) b.classList.add('busy'); }
   $('log').textContent = 'starting…';
   try {
-    await api('/api/jobs/' + name, {
-      dataslate: $('j-dataslate').value.trim(),
-      releaseUrl: $('j-url').value.trim(),
-      title: $('j-title').value.trim(),
-    });
+    await api('/api/jobs/' + name, valeurs || {});
   } catch (e) {
     $('log').textContent = e.message;
     await refreshState();
