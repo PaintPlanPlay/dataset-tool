@@ -243,8 +243,21 @@ try {
     );
     rmSync(distant, { recursive: true, force: true });
 
-    const avecDepot = await at<{ releaseUrl: string | null }>('/api/state');
+    const avecDepot = await at<{ releaseUrl: string | null; gh: boolean }>('/api/state');
     check("l'interface annonce cette adresse pour préremplir le champ", 'releaseUrl' in avecDepot.body, JSON.stringify(avecDepot.body.releaseUrl));
+
+    /*
+     * Proposer et publier empruntent tous deux le GitHub CLI : pour le porte-clés
+     * du push, et pour lire les droits sur le dépôt. Quand le processus ne peut
+     * pas le lancer — `gh` vit souvent dans ~/.local/bin, absent du PATH d'un
+     * lanceur graphique —, les deux échouent sur une erreur qui a l'air d'accuser
+     * l'authentification, laquelle est pourtant bonne. L'état le dit avant le clic.
+     */
+    check(
+      "l'état dit si le GitHub CLI est utilisable par ce processus",
+      typeof avecDepot.body.gh === 'boolean',
+      String(avecDepot.body.gh),
+    );
 
     const search = await at<{ error: string }>('/api/search?q=boyz');
     check(

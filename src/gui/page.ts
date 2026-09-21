@@ -33,6 +33,11 @@ export const PAGE = `<!doctype html>
   .state b { font-weight: 600; }
   .log { background: #111; color: #ddd; font: 12px/1.35 ui-monospace, monospace; padding: 8px; max-height: 220px; overflow: auto; white-space: pre-wrap; }
   .running { color: #c90; } .done { color: #393; } .failed { color: #c33; }
+  /* Un clic doit se voir tout de suite : la tâche met parfois une seconde à écrire sa première ligne. */
+  .admin button.busy { position: relative; opacity: 1; }
+  .admin button.busy::after { content: ''; display: inline-block; width: 9px; height: 9px; margin-left: 7px; vertical-align: -1px;
+    border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -102,6 +107,7 @@ const report = (out, promise) => { out.className = ''; out.textContent = 'writin
 // ------------------------------------------------------------ administration
 let jobTimer = null;
 let logCursor = 0;
+let logOuvert = false;
 
 async function refreshState() {
   const d = await api('/api/state');
@@ -113,13 +119,15 @@ async function refreshState() {
     mark(s.snapshot, 'snapshot') +
     mark(s.published, s.armies ? s.armies + ' Armies' : 'built') +
     mark(s.provenance, 'value origins') +
-    mark(d.allowPush, 'remote writes');
+    mark(d.allowPush, 'remote writes') +
+    mark(d.gh, 'GitHub CLI');
   const jobs = $('jobs');
   jobs.replaceChildren();
   for (const j of d.jobs) {
     const b = el('button', j.label);
     b.title = j.blocked || j.hint;
     b.disabled = Boolean(j.blocked);
+    b.dataset.job = j.name;
     b.onclick = () => runJob(j.name);
     jobs.append(b);
   }
@@ -127,7 +135,12 @@ async function refreshState() {
 
 async function runJob(name) {
   logCursor = 0;
-  $('log').textContent = '';
+  logOuvert = false;
+  // Le clic doit se voir avant même que le serveur réponde : sinon on croit
+  // avoir manqué le bouton, et on reclique.
+  const boutons = Array.from($('jobs').querySelectorAll('button'));
+  for (const b of boutons) { b.disabled = true; if (b.dataset.job === name) b.classList.add('busy'); }
+  $('log').textContent = 'starting…';
   try {
     await api('/api/jobs/' + name, {
       dataslate: $('j-dataslate').value.trim(),
@@ -136,6 +149,7 @@ async function runJob(name) {
     });
   } catch (e) {
     $('log').textContent = e.message;
+    await refreshState();
     return;
   }
   if (jobTimer) clearInterval(jobTimer);
@@ -148,7 +162,11 @@ async function pollJob() {
   if (!d.job) return;
   logCursor = d.next;
   const log = $('log');
-  if (d.lines.length) log.textContent += d.lines.join('\\n') + '\\n';
+  if (d.lines.length) {
+    // La première ligne chasse le « starting… », les suivantes s'y ajoutent.
+    if (!logOuvert) { log.textContent = ''; logOuvert = true; }
+    log.textContent += d.lines.join('\\n') + '\\n';
+  }
   log.scrollTop = log.scrollHeight;
   if (d.job.state !== 'running') {
     clearInterval(jobTimer);

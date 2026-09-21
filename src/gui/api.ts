@@ -240,21 +240,54 @@ export function defaultReleaseUrl(datasetDir: string): string | null {
  * la page le redemanderait à chaque rafraîchissement. Un échec, lui, n'est pas
  * gardé : on se sera peut-être authentifié entre-temps.
  */
+/**
+ * Le GitHub CLI est-il utilisable *par ce processus* ? Proposer et publier en
+ * dépendent tous deux — pour le porte-clés du push comme pour lire les droits.
+ *
+ * La question n'est pas « est-il installé » mais « ce processus le trouve-t-il » :
+ * `gh` vit souvent dans ~/.local/bin, absent du PATH d'un lanceur graphique. On
+ * le dit donc dans l'état de la page, avant le clic, plutôt que de laisser
+ * échouer un bouton en accusant une authentification qui, elle, est bonne.
+ */
+let ghVu: boolean | undefined;
+
+export function ghReady(): boolean {
+  // Un échec n'est pas gardé : on se sera peut-être connecté entre-temps.
+  if (ghVu) return true;
+  try {
+    execFileSync('gh', ['auth', 'status'], { stdio: 'ignore', env: GIT_ASKS_NOTHING });
+    ghVu = true;
+  } catch {
+    ghVu = false;
+  }
+  return ghVu;
+}
+
 const WRITERS = new Set(['ADMIN', 'MAINTAIN', 'WRITE']);
 let droitConnu: string | undefined;
+/** Ce que `gh` a répondu quand il n'a pas répondu de droit : sans ça, on cherche à l'aveugle. */
+let pourquoiPas = '';
 
 export function publishRight(datasetDir: string): string | null {
+  const repo = repoOf(datasetDir);
+  if (!repo) return 'the Dataset folder has no GitHub remote — click Update data first';
   if (droitConnu === undefined) {
-    const repo = repoOf(datasetDir);
     try {
-      const out = execFileSync('gh', ['repo', 'view', repo ?? '', '--json', 'viewerPermission'], { encoding: 'utf8', env: GIT_ASKS_NOTHING });
+      const out = execFileSync('gh', ['repo', 'view', repo, '--json', 'viewerPermission'], {
+        encoding: 'utf8',
+        env: GIT_ASKS_NOTHING,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
       droitConnu = (JSON.parse(out) as { viewerPermission?: string }).viewerPermission || undefined;
-    } catch {
-      droitConnu = undefined;
+      pourquoiPas = '';
+    } catch (err) {
+      const e = err as { stderr?: string; message?: string };
+      // Dire ce que l'outil a vu, plutôt que d'envoyer se connecter quelqu'un qui l'est déjà.
+      pourquoiPas = String(e.stderr || e.message || '').trim().split('\n')[0].slice(0, 200);
     }
   }
-  if (!droitConnu) return 'cannot tell who you are on GitHub — run `gh auth login` in a terminal, then reload';
-  return WRITERS.has(droitConnu) ? null : 'only a maintainer of the Dataset repository can publish a Release';
+  if (!droitConnu) return `cannot check your rights on ${repo} — the GitHub CLI answered: ${pourquoiPas || '(nothing)'}`;
+  return WRITERS.has(droitConnu) ? null : `you have ${droitConnu} access on ${repo}: only a maintainer can publish a Release`;
 }
 
 export interface JobSpec {
@@ -331,7 +364,7 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
           `git diff --cached --quiet || git commit -m ${quote(title)}`,
           // Le porte-clés de `gh` plutôt qu'une invite que la page ne verrait pas.
           `git ${GH_KEYRING.map(arg).join(' ')} push -u origin ${arg(branch)} || { echo ${quote(
-            'push refused. GitHub has not accepted a password here since 2021 — run `gh auth login` in a terminal, then click again.',
+            'push refused — see git above. GitHub has not accepted a password since 2021: the push borrows the GitHub CLI, so it also fails when this process cannot run `gh`.',
           )}; exit 1; }`,
           `gh pr create --title ${quote(title)} --body ${quote(PR_BODY)} || true`,
         ].join(' && ')}`,
@@ -357,7 +390,7 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
           }`,
           // Le tag ne vaut que poussé : sans ça la Release n'existe que sur cette machine.
           `git -C ${ds()} ${GH_KEYRING.map(arg).join(' ')} push --follow-tags || { echo ${quote(
-            'the Release was made here but could not be pushed — run `gh auth login` in a terminal, then click again.',
+            'the Release was made here but could not be pushed — see git above. The push borrows the GitHub CLI, so it also fails when this process cannot run `gh`.',
           )}; exit 1; }`,
         ].join(' && ')}`,
       ],
