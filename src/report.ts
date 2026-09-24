@@ -8,6 +8,7 @@
  */
 import type { ArmyFile, DatasetIndex, Unit } from '@paintplanplay/dataset-schema';
 import type { BuildOutput, DroppedEffect, MissingEntity, SourceConflict } from './build.ts';
+import type { ContributionVerdict } from './authored.ts';
 import { STATE_LABEL, type CorrectionVerdict } from './corrections/lifecycle.ts';
 
 export interface UnitChange {
@@ -22,6 +23,11 @@ export interface UnitChange {
 export interface DatasetDiff {
   /** Aucun Dataset précédent : rien à comparer. */
   initial: boolean;
+  /**
+   * Le Dataset précédent suit une autre version majeure du schéma : ses
+   * fichiers n'ont pas la même forme, on ne les compare pas.
+   */
+  schemaChange?: { from: string; to: string };
   armiesAdded: string[];
   armiesRemoved: string[];
   unitsAdded: { army: string; id: string; name: string }[];
@@ -33,6 +39,8 @@ export interface DriftReport {
   diff: DatasetDiff;
   conflicts: SourceConflict[];
   corrections: CorrectionVerdict[];
+  /** Les Contributions dont l'amont a changé depuis leur rédaction : à relire, jamais remplacées. */
+  flaggedContributions: ContributionVerdict[];
   orphans: { target: string; why: string }[];
   unmatched: BuildOutput['unmatched'];
   missing: MissingEntity[];
@@ -52,13 +60,21 @@ const FIELDS: { label: string; show: (u: Unit) => string }[] = [
   { label: 'model count', show: (u) => `${u.minModels}-${u.maxModels}` },
   { label: 'profiles', show: (u) => JSON.stringify(u.models) },
   { label: 'keywords', show: (u) => u.keywords.join(', ') },
+  { label: 'faction keywords', show: (u) => u.factionKeywords.join(', ') },
+  { label: 'army rules', show: (u) => u.armyRules.join(', ') || '—' },
   { label: 'units led', show: (u) => u.leaderTargets.join(', ') || '—' },
   { label: 'units supported', show: (u) => u.supportTargets.join(', ') || '—' },
   { label: 'abilities', show: (u) => u.abilities.map((a) => a.name).join(', ') },
 ];
 
+/** Une Weapon en une ligne : chacun de ses profils, nommé quand elle en a plusieurs. */
 const weaponSignature = (w: Unit['weapons'][number]) =>
-  `${w.range} A${w.A} ${w.kind === 'melee' ? 'WS' : 'BS'}${w.skill} S${w.S} AP${w.AP} D${w.D} [${w.keywords.join('/')}]`;
+  w.profiles
+    .map(
+      (p) =>
+        `${w.profiles.length > 1 ? `${p.name}: ` : ''}${p.range} A${p.A} ${w.kind === 'melee' ? 'WS' : 'BS'}${p.skill} S${p.S} AP${p.AP} D${p.D} [${p.keywords.join('/')}]`,
+    )
+    .join(' | ');
 
 /**
  * Compare deux Datasets. Une Unit alliée figure dans plusieurs Armies : seules
@@ -68,6 +84,11 @@ const weaponSignature = (w: Unit['weapons'][number]) =>
 export function diffDatasets(previous: Map<string, unknown> | undefined, next: Map<string, unknown>): DatasetDiff {
   const d: DatasetDiff = { initial: !previous || previous.size === 0, armiesAdded: [], armiesRemoved: [], unitsAdded: [], unitsRemoved: [], changes: [] };
   if (d.initial) return d;
+  const versionOf = (files: Map<string, unknown>) =>
+    ([...files].find(([p]) => p.endsWith('/index.json'))?.[1] as DatasetIndex | undefined)?.schemaVersion ?? '';
+  const from = versionOf(previous!);
+  const to = versionOf(next);
+  if (from.split('.')[0] !== to.split('.')[0]) return { ...d, schemaChange: { from, to } };
   const before = armiesOf(previous!);
   const after = armiesOf(next);
 
@@ -136,6 +157,7 @@ export function makeReport(out: BuildOutput, previous: Map<string, unknown> | un
     diff: diffDatasets(previous, out.files),
     conflicts: out.conflicts,
     corrections: out.corrections,
+    flaggedContributions: out.contributions.filter((c) => c.state === 'flagged'),
     orphans: out.orphans,
     unmatched: out.unmatched,
     missing: out.missing,
@@ -171,7 +193,9 @@ export function renderReport(r: DriftReport): string {
   L.push(
     d.initial
       ? '**First build**: nothing to compare.'
-      : `**${d.changes.length}** number(s) changed · **${d.unitsAdded.length}** Unit(s) added · **${d.unitsRemoved.length}** removed · ` +
+      : d.schemaChange
+        ? `**Schema ${d.schemaChange.from} → ${d.schemaChange.to}**: the previous Dataset has another shape, nothing to compare.`
+        : `**${d.changes.length}** number(s) changed · **${d.unitsAdded.length}** Unit(s) added · **${d.unitsRemoved.length}** removed · ` +
           `**${r.conflicts.length}** disagreement(s) between sources · Corrections: ${r.corrections.length - stale.length - conflicting.length} active, ` +
           `${stale.length} stale, ${conflicting.length} in conflict`,
     '',
@@ -206,6 +230,12 @@ export function renderReport(r: DriftReport): string {
       L.push(`- **${STATE_LABEL[c.state]}** — \`${c.path}\`: ${c.note}${c.upstreamPr ? ` · upstream PR: ${c.upstreamPr}` : ''}`);
     for (const o of r.orphans) L.push(`- **orphaned** — \`${o.target}\`: ${o.why}`);
     L.push('');
+  }
+
+  if (r.flaggedContributions.length) {
+    L.push(`## Contributions to review (${r.flaggedContributions.length})`, '');
+    L.push('40kdc-data changed these rules after we wrote our own Effect or summary. Ours stays applied until someone decides.', '');
+    L.push(...r.flaggedContributions.map((c) => `- \`${c.target}\` — ${c.reason}`), '');
   }
 
   if (r.missing.length) {

@@ -9,14 +9,16 @@
  *   npx tsx test/gui.test.ts
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
-import { Script } from 'node:vm';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defaultReleaseUrl, jobSpecs } from '../src/gui/api.ts';
 import { allowedHost, allowedOrigin, privateAddress, startGui } from '../src/gui/server.ts';
-import type { Inspection } from '../src/gui/provenance.ts';
+import type { Overview } from '../src/gui/overview.ts';
+import type { SearchHit } from '../src/gui/provenance.ts';
+import type { Sheet } from '../src/gui/sheets.ts';
+import { viteUi } from '../src/gui/ui.ts';
 import { openWorkspace } from '../src/gui/workspace.ts';
 import { check, fixture, section } from './check.ts';
 
@@ -25,9 +27,9 @@ const ws = await openWorkspace({ datasetDir: dir, snapshotDir: fixture('snapshot
 const gui = await startGui(ws, 0);
 const base = new URL(gui.url);
 
-const raw = (path: string, headers: Record<string, string>) =>
+const raw = (path: string, headers: Record<string, string>, port = base.port) =>
   new Promise<number>((resolve, reject) => {
-    const req = request({ host: '127.0.0.1', port: base.port, path, headers }, (res) => {
+    const req = request({ host: '127.0.0.1', port, path, headers }, (res) => {
       res.resume();
       resolve(res.statusCode ?? 0);
     });
@@ -42,7 +44,7 @@ const post = async <T>(path: string, body: unknown) => {
   const res = await fetch(new URL(path, gui.url), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   return { status: res.status, body: (await res.json()) as T };
 };
-const originOf = (i: Inspection, field: string) => i.origins.find((o) => o.field === field);
+const originOf = (i: Sheet, field: string) => i.origins.find((o) => o.field === field);
 
 try {
   section('Interface locale : accès');
@@ -69,22 +71,6 @@ try {
       !allowedHost('evil.example:4173', 4173, '100.101.102.103') &&
       !allowedOrigin('https://evil.example', 4173, '100.101.102.103'),
   );
-  const page = await (await fetch(gui.url)).text();
-  check('la page se sert', page.length > 0);
-  /*
-   * La page est du JavaScript écrit dans un gabarit TypeScript : un accent
-   * grave, un ${…} ou un \n mal échappé y sort tel quel et casse tout le
-   * script — les boutons disparaissent sans que rien ne réponde en erreur.
-   * Servir la page ne prouve donc rien ; il faut l'analyser.
-   */
-  const script = page.slice(page.indexOf('<script>') + 8, page.lastIndexOf('</script>'));
-  let syntaxe = '';
-  try {
-    new Script(script);
-  } catch (err) {
-    syntaxe = (err as Error).message;
-  }
-  check("le script de la page s'analyse comme du JavaScript", syntaxe === '' && script.length > 500, syntaxe || `${script.length} caractères`);
   check(
     'un autre hôte ou une autre origine est refusé',
     (await raw('/api/search?q=boyz', { Host: `evil.example:${base.port}` })) === 403 &&
@@ -96,37 +82,23 @@ try {
   const warHorde = hits.body.find((h) => h.kind === 'detachment' && h.name === 'War Horde');
   check('recherche : Units, Detachments, Stratagems', hits.body.some((h) => h.name === 'Warboss') && Boolean(warHorde), hits.body.map((h) => `${h.kind}:${h.name}`).join(', '));
 
-  const boss = (await get<Inspection>('/api/inspect?target=u-warboss')).body;
+  const boss = (await get<Sheet>('/api/sheet?target=u-warboss')).body;
   check(
     'Unit : chaque champ dit sa source — MFM pour le coût, BSData pour le profil, 40kdc-data pour l\'Effect',
     ['mfm', 'bsdata'].includes(originOf(boss, 'points')?.origin ?? '') && originOf(boss, 'models')?.origin === 'bsdata' && originOf(boss, 'abilities › Da Boss Fixture')?.origin === '40kdc',
     JSON.stringify(boss.origins),
   );
-  const det = (await get<Inspection>(`/api/inspect?target=${encodeURIComponent(warHorde!.target)}`)).body;
+  const det = (await get<Sheet>(`/api/sheet?target=${encodeURIComponent(warHorde!.target)}`)).body;
   check('Detachment : DP du MFM, règles de 40kdc-data', originOf(det, 'dp')?.origin === 'mfm' && originOf(det, 'rules')?.origin === '40kdc');
 
   section('Interface locale : écrire');
-  const boyz = (await get<Inspection>('/api/inspect?target=u-boyz')).body;
+  const boyz = (await get<Sheet>('/api/sheet?target=u-boyz')).body;
   const prose = 'Each time this unit makes an attack, add one to the hit roll and if the target is within range of an objective marker you can re-roll the wound roll as well for every model in it';
-  const refused = await post<{ error: string }>('/api/corrections', {
-    army: 'orks',
-    name: 'boyz-prose',
-    correction: { target: 'u-boyz', source: 'bsdata', patch: { points: 1 }, reason: prose },
-  });
-  check('une Correction porteuse de texte de règles est refusée, rien n\'est écrit', refused.status === 400 && !existsSync(join(dir, 'corrections/wh40k-11e/orks/boyz-prose.json')));
-
-  const written = await post<{ path: string; prCommands: string[] }>('/api/corrections', {
-    army: 'orks',
-    name: 'boyz-points',
-    correction: { target: 'u-boyz', source: 'mfm', patch: { points: 999 }, upstream: { points: (boyz.value as { points: number }).points }, reason: 'Coût de test.' },
-  });
-  const after = (await get<Inspection>('/api/inspect?target=u-boyz')).body;
-  check(
-    'créer une Correction : fichier écrit, valeur rattachée à la Correction, commandes de PR données',
-    written.status === 201 && existsSync(join(dir, written.body.path)) && originOf(after, 'points')?.origin === 'correction' &&
-      originOf(after, 'points')?.detail === written.body.path && written.body.prCommands.some((c) => c.startsWith('gh pr create')),
-    JSON.stringify(written.body),
-  );
+  const boyzValue = boyz.value as { pricing: { costs: { points: number }[] }[] };
+  const repriced = structuredClone(boyzValue);
+  repriced.pricing[0].costs[0].points = 99;
+  const refused = await post<{ error: string }>('/api/sheet/save', { target: 'u-boyz', draft: repriced, reason: prose });
+  check('une raison porteuse de texte de règles est refusée, rien n\'est écrit', refused.status === 400 && !existsSync(join(dir, 'corrections')));
 
   /*
    * Relire le Dataset après une écriture demande deux reconstructions — une
@@ -134,17 +106,27 @@ try {
    * ça : sinon le bouton paraît mort, et le message n'arrive jamais.
    */
   const debut = Date.now();
-  await post('/api/corrections', {
-    army: 'orks',
-    name: 'duree-ecriture',
-    correction: { target: 'u-boyz', source: 'mfm', patch: { points: 123 }, upstream: { points: (boyz.value as { points: number }).points }, reason: "Durée d'écriture." },
-  });
+  const written = await post<{ files: { path: string }[] }>('/api/sheet/save', { target: 'u-boyz', draft: repriced, reason: 'Coût de test.' });
   const duree = Date.now() - debut;
   check("une écriture répond sans attendre la relecture du Dataset", duree < 3000, `${duree} ms`);
+  const path = written.body.files[0]?.path ?? '';
+  await post('/api/refresh', {});
+  const after = (await get<Sheet>('/api/sheet?target=u-boyz')).body;
+  check(
+    'enregistrer une fiche : fichier écrit, valeur rattachée à la Correction',
+    written.status === 201 && existsSync(join(dir, path)) && originOf(after, 'pricing')?.origin === 'correction' && originOf(after, 'pricing')?.detail === path,
+    JSON.stringify(written.body),
+  );
 
-  const longSummary = await post<{ error: string }>('/api/effects', { target: 'u-warboss::ability:Da Boss Fixture', summary: 'x '.repeat(100), reason: 'Test.' });
-  const summary = await post<{ path: string }>('/api/effects', { target: 'u-warboss::ability:Da Boss Fixture', summary: '+1 to wound in melee.', reason: 'Résumé de test.' });
-  const bossAfter = (await get<Inspection>('/api/inspect?target=u-warboss')).body;
+  const bossValue = boss.value as { abilities: { name: string; summary?: string }[] };
+  const longDraft = structuredClone(bossValue);
+  longDraft.abilities.find((a) => a.name === 'Da Boss Fixture')!.summary = 'x '.repeat(100);
+  const shortDraft = structuredClone(bossValue);
+  shortDraft.abilities.find((a) => a.name === 'Da Boss Fixture')!.summary = '+1 to wound in melee.';
+  const longSummary = await post<{ error: string }>('/api/sheet/save', { target: 'u-warboss', draft: longDraft, reason: 'Test.' });
+  const summary = await post<{ files: unknown[] }>('/api/sheet/save', { target: 'u-warboss', draft: shortDraft, reason: 'Résumé de test.' });
+  await post('/api/refresh', {});
+  const bossAfter = (await get<Sheet>('/api/sheet?target=u-warboss')).body;
   const bossAbility = (bossAfter.value as { abilities: { name: string; summary?: string; effectSource?: string }[] }).abilities.find((a) => a.name === 'Da Boss Fixture');
   check(
     'un résumé passe le contrôle « aucun texte » avant d\'être écrit ; il s\'ajoute sans toucher l\'Effect',
@@ -153,15 +135,16 @@ try {
 
   check('les propositions de l\'analyse sont consultables', boyz.proposals.some((p) => p.ability === 'Mob Fixture'));
   const accepted = await post<{ path: string }>('/api/proposals/accept', { target: 'u-boyz::ability:Mob Fixture' });
-  const boyzAfter = (await get<Inspection>('/api/inspect?target=u-boyz')).body;
+  await post('/api/refresh', {});
+  const boyzAfter = (await get<Sheet>('/api/sheet?target=u-boyz')).body;
   check(
     'accepter une proposition : elle devient un Effect écrit par le projet',
     accepted.status === 201 && originOf(boyzAfter, 'abilities › Mob Fixture')?.origin === 'project' && boyzAfter.proposals.length === 0,
   );
 
-  const draft = await get<{ repository: string; url: string }>(`/api/upstream-draft?path=${encodeURIComponent(written.body.path)}`);
-  const pr = await post<{ path: string }>('/api/corrections/upstream-pr', { path: written.body.path, url: 'https://github.com/BSData/wh40k-11e-mfm/pull/12' });
-  const saved = JSON.parse(readFileSync(join(dir, written.body.path), 'utf8')) as { upstreamPr?: string };
+  const draft = await get<{ repository: string; url: string }>(`/api/upstream-draft?path=${encodeURIComponent(path)}`);
+  const pr = await post<{ path: string }>('/api/corrections/upstream-pr', { path, url: 'https://github.com/BSData/wh40k-11e-mfm/pull/12' });
+  const saved = JSON.parse(readFileSync(join(dir, path), 'utf8')) as { upstreamPr?: string };
   check(
     'retour amont : issue préremplie chez la bonne source, PR enregistrée sur la Correction',
     draft.body.url.startsWith('https://github.com/BSData/wh40k-11e-mfm/issues/new?') && pr.status === 200 && saved.upstreamPr === 'https://github.com/BSData/wh40k-11e-mfm/pull/12',
@@ -176,21 +159,19 @@ try {
       const res = await fetch(new URL(path, guiVide.url), body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       return { status: res.status, body: (await res.json().catch(() => ({}))) as T };
     };
-    check("la page se sert sans rien avoir sous la main", (await fetch(guiVide.url)).status === 200);
-
-    const state = await at<{ state: { dataset: boolean; snapshot: boolean; published: boolean; armies: number }; allowPush: boolean; jobs: { name: string; blocked: string | null }[] }>('/api/state');
-    const job = (name: string) => state.body.jobs.find((j) => j.name === name);
+    const state = await at<Overview>('/api/overview');
+    const job = (name: keyof Overview['buttons']) => state.body.buttons[name];
     check(
       "l'état dit qu'il n'y a ni Dataset ni instantané",
-      !state.body.state.dataset && !state.body.state.snapshot && !state.body.state.published && state.body.state.armies === 0,
-      JSON.stringify(state.body.state),
+      !state.body.workspace.dataset && !state.body.workspace.snapshot && !state.body.workspace.published && state.body.workspace.armies === 0,
+      JSON.stringify(state.body.workspace),
     );
     check(
       'un seul bouton pour se mettre à jour ; construire et contrôler attendent leur tour',
-      job('update')?.blocked === null && Boolean(job('build')?.blocked) && Boolean(job('check')?.blocked),
-      state.body.jobs.map((j) => `${j.name}:${j.blocked ?? 'ok'}`).join(' · '),
+      job('update').enabled && !job('build').enabled && !job('check').enabled,
+      Object.values(state.body.buttons).map((j) => `${j.name}:${j.reason ?? 'ok'}`).join(' · '),
     );
-    check("l'écriture distante est refusée sans --allow-push", !state.body.allowPush && Boolean(job('propose')?.blocked) && Boolean(job('release')?.blocked));
+    check("l'écriture distante est refusée sans --allow-push", !state.body.allowPush && !job('propose').enabled && !job('release').enabled);
 
     /*
      * Publier écrit dans le dépôt : le bouton se ferme à qui n'en a pas le droit,
@@ -263,8 +244,11 @@ try {
     );
     rmSync(distant, { recursive: true, force: true });
 
-    const avecDepot = await at<{ releaseUrl: string | null; gh: boolean }>('/api/state');
-    check("l'interface annonce cette adresse pour préremplir le champ", 'releaseUrl' in avecDepot.body, JSON.stringify(avecDepot.body.releaseUrl));
+    const avecDepot = await at<Overview>('/api/overview');
+    check(
+      "l'interface préremplit l'adresse des Releases dans ce que Publish demande",
+      avecDepot.body.buttons.release.asks.some((f) => f.name === 'releaseUrl'),
+    );
 
     /*
      * Proposer et publier empruntent tous deux le GitHub CLI : pour le porte-clés
@@ -298,6 +282,124 @@ try {
   } finally {
     await guiVide.close();
     rmSync(vide, { recursive: true, force: true });
+  }
+
+  section('Nouvelle interface : état global');
+  /*
+   * Savoir si l'instantané est à jour demande la tête de chaque Upstream Source,
+   * et savoir qui peut publier demande GitHub : deux sondes que le test remplace,
+   * pour ne dépendre ni du réseau ni d'un compte.
+   */
+  const overviewDir = mkdtempSync(join(tmpdir(), 'dataset-overview-'));
+  cpSync(fixture('dataset'), overviewDir, { recursive: true });
+  const release = (n: number) => ({ tag: `wh40k-11e-mfm-1-4-r${n}`, number: n, publishedAt: '2026-09-01T00:00:00.000Z', schemaVersion: '1.0.0' });
+  writeFileSync(
+    join(overviewDir, 'manifest.json'),
+    JSON.stringify({
+      schemaVersion: '1.0.0',
+      gameSystem: 'wh40k-11e',
+      releaseUrl: 'https://cdn.example/{tag}/',
+      current: 'mfm-1-4',
+      offered: ['mfm-1-4'],
+      dataslates: [{ id: 'mfm-1-4', name: 'MFM 1.4', mfmVersion: '1.4', frozen: false, releases: [release(2), release(1)], latest: 'wh40k-11e-mfm-1-4-r2' }],
+    }),
+  );
+  const snapshotHeads: Record<string, string> = Object.fromEntries(
+    (JSON.parse(readFileSync(fixture('snapshot', 'sources.json'), 'utf8')) as { id: string; commit: string }[]).map((s) => [s.id, s.commit]),
+  );
+  let heads: Record<string, string> | Error = snapshotHeads;
+  let right: string | null = 'you have READ access on PaintPlanPlay/dataset: only a maintainer can publish a Release';
+  const wsOverview = await openWorkspace({ datasetDir: overviewDir, snapshotDir: fixture('snapshot') });
+  const guiOverview = await startGui(wsOverview, {
+    port: 0,
+    probe: {
+      upstreamHeads: async () => {
+        if (heads instanceof Error) throw heads;
+        return heads;
+      },
+      publishRight: () => right,
+      pullRequest: () => null,
+    },
+  });
+  try {
+    const at = async <T>(path: string) => (await fetch(new URL(path, guiOverview.url))).json() as Promise<T>;
+    const overview = () => at<Overview>('/api/overview');
+
+    const fresh = await overview();
+    const source = (o: Overview, id: string) => o.versions.sources.find((x) => x.id === id);
+    check(
+      'versions : Dataset Release, Dataslate, BSData et MFM',
+      fresh.versions.release === 'wh40k-11e-mfm-1-4-r2' && fresh.versions.dataslate?.name === 'MFM 1.4' &&
+        source(fresh, 'bsdata')?.commit === snapshotHeads.bsdata && source(fresh, 'mfm')?.version === '1.4',
+      JSON.stringify(fresh.versions),
+    );
+    check('le nombre de Corrections du Dataset', fresh.corrections === 4, String(fresh.corrections));
+    check('tout est à jour : Update data est grisé', fresh.upToDate === true && !fresh.buttons.update.enabled, JSON.stringify(fresh.buttons.update));
+    check(
+      'chaque bouton dit s\'il est actif, et pourquoi pas',
+      (['update', 'build', 'propose', 'release', 'check'] as const).every((n) => typeof fresh.buttons[n].enabled === 'boolean') &&
+        fresh.buttons.build.enabled && fresh.buttons.check.enabled && !fresh.buttons.propose.enabled && Boolean(fresh.buttons.propose.reason),
+    );
+    check('sans droit d\'écriture, Publish Release est masqué', !fresh.buttons.release.visible);
+    check('les Armies, pour le filtre de la recherche', fresh.armies.some((a) => a.id === 'orks' && a.name === 'Orks'));
+
+    heads = { ...snapshotHeads, bsdata: 'f'.repeat(40) };
+    right = null;
+    const moved = await overview();
+    check(
+      'une source a bougé : pas à jour, Update data actif, la source en cause désignée',
+      moved.upToDate === false && moved.buttons.update.enabled && source(moved, 'bsdata')?.upToDate === false && source(moved, 'mfm')?.upToDate === true,
+    );
+    check('avec le droit d\'écrire, Publish Release apparaît', moved.buttons.release.visible);
+
+    heads = new Error('offline');
+    const offline = await overview();
+    check('sans réseau : statut inconnu, Update data reste possible', offline.upToDate === null && offline.buttons.update.enabled);
+
+    section('Nouvelle interface : recherche et fiche');
+    const war = await at<SearchHit[]>('/api/search?q=war');
+    check(
+      'chaque résultat porte son Army',
+      war.length > 0 && war.every((h) => h.armyName.length > 0) && war.find((h) => h.name === 'Warboss')?.armyName === 'Orks',
+      war.map((h) => `${h.name} · ${h.armyName}`).join(', '),
+    );
+    const onlyCustodes = await at<SearchHit[]>('/api/search?q=a&army=adeptus-custodes');
+    const everyArmy = await at<SearchHit[]>('/api/search?q=a');
+    check(
+      'le filtre d\'Army restreint les résultats ; Core, commun à toutes, reste trouvable',
+      onlyCustodes.some((h) => h.army === 'adeptus-custodes') && onlyCustodes.every((h) => h.army === 'adeptus-custodes' || h.army === 'core') &&
+        everyArmy.some((h) => h.army === 'orks'),
+    );
+    const kinds = new Set([...everyArmy, ...(await at<SearchHit[]>('/api/search?q=core'))].map((h) => h.kind));
+    check('la recherche trouve Units, Detachments, Stratagems et Core', ['unit', 'detachment', 'stratagem', 'core'].every((k) => kinds.has(k as SearchHit['kind'])), [...kinds].join());
+    const core = await at<Sheet>('/api/sheet?target=core');
+    const coreValue = core.value as { battleSizes: unknown[]; stratagems: unknown[] };
+    check('la fiche Core porte les Battle Sizes et les Stratagems Core', core.kind === 'core' && Array.isArray(coreValue.battleSizes) && coreValue.stratagems.length > 0);
+    const schema = await at<{ dataset: { $defs: Record<string, unknown> }; vendor: { $id: string }[] }>('/api/schema');
+    check(
+      'le schéma du Dataset est servi au moteur de rendu, avec les schémas d\'Effect',
+      ['unit', 'detachment', 'stratagem', 'coreFile'].every((d) => d in schema.dataset.$defs) && schema.vendor.some((v) => v.$id.includes('effect')),
+    );
+  } finally {
+    await guiOverview.close();
+    rmSync(overviewDir, { recursive: true, force: true });
+  }
+
+  section('Nouvelle interface : servie par la même commande');
+  const guiUi = await startGui(ws, { port: 0, ui: viteUi });
+  try {
+    const shell = await (await fetch(guiUi.url)).text();
+    check(
+      'la racine sert l\'interface React',
+      shell.includes('<div id="root">') && shell.includes('/@vite/client'),
+      shell.slice(0, 120),
+    );
+    const app = await fetch(new URL('/src/main.tsx', guiUi.url));
+    check('les sources de l\'interface se servent, transformées', app.ok && (await app.text()).includes('createRoot'));
+    const uiPort = new URL(guiUi.url).port;
+    check('la même garde d\'hôte protège l\'interface', (await raw('/', { Host: `evil.example:${uiPort}` }, uiPort)) === 403);
+  } finally {
+    await guiUi.close();
   }
 } finally {
   await gui.close();

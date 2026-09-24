@@ -23,6 +23,7 @@ const DEFS: Record<FileKind, string> = {
 };
 
 let compiled: Map<FileKind, ValidateFunction> | null = null;
+let datasetId = '';
 let effectValidators: { effect: ValidateFunction; scope: ValidateFunction } | null = null;
 
 function vendoredSchemas(): Record<string, unknown>[] {
@@ -47,6 +48,7 @@ function validators(): Map<FileKind, ValidateFunction> {
   const schema = readJson(new URL('dataset.schema.json', root));
   ajv.addSchema(schema);
   const id = schema.$id as string;
+  datasetId = id;
   compiled = new Map(
     (Object.keys(DEFS) as FileKind[]).map((kind) => [kind, ajv.getSchema(`${id}#/$defs/${DEFS[kind]}`)!]),
   );
@@ -63,6 +65,97 @@ const errorsOf = (validate: ValidateFunction, data: unknown) =>
 /** Erreurs de validation d'un fichier, lisibles ; vide s'il est conforme. */
 export function validateFile(kind: FileKind, data: unknown): string[] {
   return errorsOf(validators().get(kind)!, data);
+}
+
+/** Une erreur de validation, à son emplacement dans la valeur. */
+export interface FieldError {
+  /** Pointeur JSON : « /models/0/T ». Vide pour la valeur entière. */
+  path: string;
+  message: string;
+}
+
+/**
+ * Un validateur à part pour les éditeurs : `verbose` donne, pour un `oneOf` en
+ * échec, le schéma qui le porte — de quoi retrouver la branche que la valeur
+ * désigne par son `type`.
+ */
+let editorAjv: { ajv: Ajv2020; docs: Record<string, unknown>[]; defs: Map<string, ValidateFunction> } | null = null;
+
+function editor() {
+  if (editorAjv) return editorAjv;
+  const ajv = new Ajv2020({ allErrors: true, strict: false, verbose: true });
+  const docs = [...vendoredSchemas(), readJson(new URL('dataset.schema.json', root))];
+  for (const d of docs) ajv.addSchema(d);
+  editorAjv = { ajv, docs, defs: new Map() };
+  return editorAjv;
+}
+
+/** Le document vendu qui contient un sous-schéma (par identité), pour résoudre ses `$ref` relatives. */
+function docOf(docs: Record<string, unknown>[], target: unknown): string | undefined {
+  const contains = (node: unknown): boolean =>
+    node === target || (node !== null && typeof node === 'object' && Object.values(node as Record<string, unknown>).some(contains));
+  return docs.find((d) => contains(d))?.$id as string | undefined;
+}
+
+const at = (data: unknown, pointer: string) =>
+  pointer
+    .split('/')
+    .slice(1)
+    .reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k.replace(/~1/g, '/').replace(/~0/g, '~')], data);
+
+/**
+ * Un `oneOf` en échec produit les erreurs de toutes ses branches, et l'éditeur
+ * les afficherait toutes sur le nœud : un Effect « choice » se ferait réclamer
+ * les champs d'un « sequence ». Quand la valeur désigne sa branche par son
+ * `type`, on ne garde que les erreurs de celle-là.
+ */
+function refine(validate: ValidateFunction, data: unknown, prefix = '', depth = 0): FieldError[] {
+  if (validate(data)) return [];
+  const errors = [...(validate.errors ?? [])];
+  const { ajv, docs } = editor();
+  const out: FieldError[] = [];
+  const handled: string[] = [];
+  for (const e of errors) {
+    if (e.keyword !== 'oneOf' || depth > 12) continue;
+    const node = at(data, e.instancePath) as { type?: unknown } | undefined;
+    const branches = e.schema as { $ref?: string }[] | undefined;
+    const doc = docOf(docs, e.parentSchema);
+    if (typeof node?.type !== 'string' || !Array.isArray(branches) || !doc) continue;
+    const chosen = branches
+      .map((b) => (b.$ref ? ajv.getSchema(new URL(b.$ref, doc).href) : undefined))
+      .find((v) => {
+        const tag = (v?.schema as { properties?: { type?: { const?: unknown; enum?: unknown[] } } } | undefined)?.properties?.type;
+        return tag?.const === node.type || tag?.enum?.includes(node.type);
+      });
+    if (!chosen) continue;
+    handled.push(e.instancePath);
+    out.push(...refine(chosen, node, `${prefix}${e.instancePath}`, depth + 1));
+  }
+  const inside = (p: string) => handled.some((h) => p === h || p.startsWith(`${h}/`));
+  for (const e of errors)
+    if (!inside(e.instancePath) && !(e.keyword === 'oneOf' && handled.includes(e.instancePath)))
+      out.push({ path: `${prefix}${e.instancePath}`, message: e.message ?? 'invalid' });
+  return out;
+}
+
+/**
+ * Une valeur contre une définition du schéma (« unit », « stratagem »…), erreurs
+ * par champ : ce qu'un éditeur montre sur le champ fautif.
+ */
+export function validateDef(def: string, data: unknown): FieldError[] {
+  const { ajv, defs } = editor();
+  let validate = defs.get(def);
+  if (!validate) {
+    validators();
+    validate = ajv.getSchema(`${datasetId}#/$defs/${def}`);
+    if (!validate) throw new Error(`unknown schema definition: ${def}`);
+    defs.set(def, validate);
+  }
+  const seen = new Set<string>();
+  return refine(validate, data).filter((e) => {
+    const key = `${e.path}|${e.message}`;
+    return seen.has(key) ? false : (seen.add(key), true);
+  });
 }
 
 /**

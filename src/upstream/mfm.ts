@@ -190,6 +190,16 @@ const sameNames = (a: string[], b: string[]) =>
  * Unit partagée prenne le prix de son propre codex quand deux factions la
  * listent sous le même nom.
  */
+/**
+ * Le coût de base et les paliers qu'une grille du MFM impose : la première
+ * tranche est le tarif normal, et ses coûts successifs sont les paliers.
+ */
+export function pricedFields(pricing: { costs: { models: number; points: number }[] }[]): { points: number; costBrackets: { overModels: number; points: number }[] } | null {
+  const base = pricing[0];
+  if (!base?.costs.length) return null;
+  return { points: base.costs[0].points, costBrackets: base.costs.slice(1).map((c, i) => ({ overModels: base.costs[i].models, points: c.points })) };
+}
+
 export function applyMfm(units: CatalogueUnit[], factions: MfmFaction[]): { units: CatalogueUnit[]; report: MergeReport } {
   const index = new Map<string, MfmUnit>();
   for (const f of factions) for (const u of f.units) if (!index.has(mfmKey(u.name))) index.set(mfmKey(u.name), u);
@@ -205,16 +215,14 @@ export function applyMfm(units: CatalogueUnit[], factions: MfmFaction[]): { unit
     report.matched++;
 
     // La première plage est le tarif normal ; les suivantes sont les seuils.
-    const base = m.pricing[0];
-    const cheapest = base.costs[0];
     const next: CatalogueUnit = { ...unit, pricing: m.pricing };
-
-    if (cheapest && cheapest.points !== unit.points) {
-      report.conflicts.push({ unitId: unit.id, unit: unit.name, field: 'points', mfm: String(cheapest.points), bsdata: String(unit.points) });
-      next.points = cheapest.points;
+    const priced = pricedFields(m.pricing);
+    if (priced && priced.points !== unit.points) {
+      report.conflicts.push({ unitId: unit.id, unit: unit.name, field: 'points', mfm: String(priced.points), bsdata: String(unit.points) });
+      next.points = priced.points;
     }
     // Les paliers de taille du MFM remplacent ceux devinés dans les modificateurs.
-    next.costBrackets = base.costs.slice(1).map((c, i) => ({ overModels: base.costs[i].models, points: c.points }));
+    if (priced) next.costBrackets = priced.costBrackets;
 
     if (m.wargear?.length) next.wargear = m.wargear;
 

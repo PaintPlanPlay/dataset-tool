@@ -1,36 +1,13 @@
 /** Modèle « à plat » des datasheets BSData, tel que le Dataset Tool le manipule avant d'en tirer le Dataset. */
+import type { Weapon, WeaponKind } from '@paintplanplay/dataset-schema';
 import type { ParsedAbility } from './abilities.ts';
 
-export type WeaponKind = 'ranged' | 'melee';
-
-export interface Weapon {
-  name: string;
-  kind: WeaponKind;
-  /** "24\"", "Melee" */
-  range: string;
-  /** Portée en pouces, 0 pour le corps à corps. */
-  rangeInches: number;
-  /** Nombre d'attaques, expression de dés : "3", "D6", "2D6+1". */
-  A: string;
-  /** BS ou WS, valeur du jet à atteindre (2..6). 7 = ne touche jamais / N.A. */
-  skill: number;
-  S: number;
-  /** Négatif ou 0 (AP -2 => -2). */
-  AP: number;
-  /** Dégâts, expression de dés. */
-  D: string;
-  keywords: string[];
-  /**
-   * Nombre maximal de figurines du pack qui peuvent la porter, quand la
-   * datasheet le dit. Il vient de l'emplacement de figurine sur lequel l'arme
-   * est assise — le Boss Nob d'un pack de Boyz est seul, donc sa power klaw
-   * plafonne à 1, quand bien même le pack en compte vingt.
-   *
-   * Absent quand aucune borne n'a été trouvée : le pack entier est alors la
-   * seule limite connue.
-   */
-  maxCarriers?: number;
-}
+/**
+ * Une Weapon et ses Weapon Profiles, dans la forme même du Dataset (ADR 0009).
+ * BSData les écrit à plat (`➤ Kombi-rokkit - Shoota`) : l'aplatissement les
+ * regroupe une fois pour toutes.
+ */
+export type { Weapon, WeaponKind, WeaponProfile } from '@paintplanplay/dataset-schema';
 
 /** Identité d'une arme au sein d'une datasheet, pour la désigner depuis une option. */
 export const weaponRef = (w: { kind: WeaponKind; name: string }) => `${w.kind}|${w.name}`;
@@ -47,7 +24,7 @@ export interface WeaponOption {
   /** Identifiant BSData de l'entrée ou du lien qui porte l'option. */
   id: string;
   name: string;
-  /** Armes équipées, en clés `weaponRef`. */
+  /** Weapons équipées, en clés `weaponRef` : la Weapon, jamais un de ses profils. */
   weapons: string[];
   /** Nombre maximal de figurines qui peuvent la prendre. */
   maxCarriers: number;
@@ -169,8 +146,12 @@ export interface CatalogueUnit {
   /** Une ligne par variante de figurine (sergent, chef, etc.). */
   models: Statline[];
   weapons: Weapon[];
-  /** Mots-clés (INFANTRY, VEHICLE, CHARACTER...). */
+  /** Mots-clés (INFANTRY, VEHICLE, CHARACTER...), sans les Faction Keywords. */
   keywords: string[];
+  /** Faction Keywords, tirés des catégories « Faction: X » de BSData, sans le préfixe. */
+  factionKeywords: string[];
+  /** Army Rules que la datasheet désigne par ses liens de règle : « Waaagh! ». */
+  armyRules: string[];
   abilities: Ability[];
   /** Aptitudes analysées : effets déduits et cibles de l'aptitude « Leader ». */
   parsedAbilities: ParsedAbility[];

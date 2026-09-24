@@ -155,7 +155,7 @@ export async function composeArmy(
    * codex Drukhari, tandis qu'un Space Marine générique proposé à un joueur
    * Black Templars vient d'ailleurs.
    */
-  const units = flattenCatalogues(cats, datasheetIds).map((u) =>
+  const units = flattenCatalogues(cats, datasheetIds, cats[0]?.id).map((u) =>
     rootOf.get(u.id) === primary ? u : { ...u, ally: true },
   );
 

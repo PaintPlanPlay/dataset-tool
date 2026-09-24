@@ -5,7 +5,9 @@
 import type { ArmyFile, CoreFile, Detachment, Stratagem, Unit } from '@paintplanplay/dataset-schema';
 
 import { CORE_ROOT, parseTarget } from '../corrections/apply.ts';
+import type { ContributionVerdict } from '../authored.ts';
 import type { CorrectionVerdict } from '../corrections/lifecycle.ts';
+import type { SourceConflict } from '../findings.ts';
 
 export type Origin = 'bsdata' | 'mfm' | '40kdc' | 'analysis' | 'project' | 'correction' | 'published';
 
@@ -19,6 +21,10 @@ export interface DatasetView {
   files: Map<string, unknown>;
   corrections: CorrectionVerdict[];
   unmatched: { id: string }[];
+  /** Désaccords entre sources, quand une construction les a relevés. */
+  conflicts?: SourceConflict[];
+  /** Ce que sont devenues les Contributions à la construction. */
+  contributions?: ContributionVerdict[];
 }
 
 export interface FieldOrigin {
@@ -34,7 +40,7 @@ export interface Proposal {
 }
 
 export interface Inspection {
-  kind: 'unit' | 'detachment' | 'stratagem';
+  kind: 'unit' | 'detachment' | 'stratagem' | 'core';
   army: string;
   target: string;
   name: string;
@@ -75,6 +81,19 @@ const correctionOrigin = (field: string, verdicts: CorrectionVerdict[]): FieldOr
  */
 export function inspect(current: DatasetView, bare: DatasetView | null, target: string): Inspection | null {
   const { root, entity, name } = parseTarget(target);
+
+  // L'entrée Core : ce qui vaut pour toutes les Armies, Battle Sizes et Stratagems Core.
+  if (target === CORE_ROOT) {
+    const core = coreOf(current);
+    if (!core) return null;
+    const verdicts = current.corrections.filter((c) => c.target.startsWith(`${CORE_ROOT}::`));
+    const value = { battleSizes: core.battleSizes, stratagems: core.stratagems };
+    const origins: FieldOrigin[] = [
+      { field: 'battleSizes', origin: bare ? 'project' : 'published' },
+      { field: 'stratagems', origin: bare ? '40kdc' : 'published' },
+    ];
+    return { kind: 'core', army: CORE_ROOT, target: CORE_ROOT, name: 'Core', value, origins, corrections: verdicts, proposals: [] };
+  }
 
   if (entity === 'unit' || entity === 'ability' || entity === 'weapon' || entity === 'model' || entity === 'attachment') {
     const found = findUnit(current, root);
@@ -149,13 +168,20 @@ export function inspect(current: DatasetView, bare: DatasetView | null, target: 
 export interface SearchHit {
   kind: Inspection['kind'];
   army: string;
+  /** Le nom de l'Army, pour distinguer deux homonymes : « Frimeurs · Orks ». */
+  armyName: string;
   name: string;
   target: string;
 }
 
-export function search(current: DatasetView, query: string, limit = 60): SearchHit[] {
+/**
+ * Units, Detachments et Stratagems de toutes les Armies, plus l'entrée Core.
+ * `army` restreint à une Army ; l'entrée Core et ses Stratagems restent
+ * trouvables quel que soit le filtre, puisqu'ils valent pour toutes.
+ */
+export function search(current: DatasetView, query: string, limit = 60, army = ''): SearchHit[] {
   const q = query.trim().toLowerCase();
-  if (q.length < 2) return [];
+  if (q.length < 1) return [];
   const hits: SearchHit[] = [];
   const seen = new Set<string>();
   const push = (h: SearchHit) => {
@@ -163,11 +189,18 @@ export function search(current: DatasetView, query: string, limit = 60): SearchH
     seen.add(h.target);
     hits.push(h);
   };
-  for (const army of armiesOf(current)) {
-    for (const u of army.units) if (!u.ally) push({ kind: 'unit', army: army.id, name: u.name, target: u.id });
-    for (const d of army.detachments) push({ kind: 'detachment', army: army.id, name: d.name, target: `${army.id}::detachment:${d.id}` });
-    for (const s of army.stratagems) push({ kind: 'stratagem', army: army.id, name: s.name, target: `${army.id}::stratagem:${s.id}` });
+  for (const a of armiesOf(current)) {
+    if (army && a.id !== army) continue;
+    const of = { army: a.id, armyName: a.name };
+    for (const u of a.units) if (!u.ally) push({ kind: 'unit', ...of, name: u.name, target: u.id });
+    for (const d of a.detachments) push({ kind: 'detachment', ...of, name: d.name, target: `${a.id}::detachment:${d.id}` });
+    for (const s of a.stratagems) push({ kind: 'stratagem', ...of, name: s.name, target: `${a.id}::stratagem:${s.id}` });
   }
-  for (const s of coreOf(current)?.stratagems ?? []) push({ kind: 'stratagem', army: CORE_ROOT, name: s.name, target: `${CORE_ROOT}::stratagem:${s.id}` });
+  const core = coreOf(current);
+  if (core) {
+    const of = { army: CORE_ROOT, armyName: 'Core' };
+    push({ kind: 'core', ...of, name: 'Core', target: CORE_ROOT });
+    for (const s of core.stratagems) push({ kind: 'stratagem', ...of, name: s.name, target: `${CORE_ROOT}::stratagem:${s.id}` });
+  }
   return hits;
 }

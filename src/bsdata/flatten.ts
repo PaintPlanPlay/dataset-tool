@@ -8,7 +8,7 @@
  * caractéristiques et l'arsenal possible d'une datasheet.
  */
 import { parseAbilities } from './abilities.ts';
-import { weaponRef, type Ability, type CatalogueUnit, type OptionGroup, type Statline, type Weapon, type WeaponOption } from './types.ts';
+import { weaponRef, type Ability, type CatalogueUnit, type OptionGroup, type Statline, type Weapon, type WeaponKind, type WeaponOption, type WeaponProfile } from './types.ts';
 
 interface BsNode {
   id?: string;
@@ -34,12 +34,24 @@ interface BsNode {
     type?: string;
     field?: string;
     value?: unknown;
-    conditions?: { type?: string; field?: string; value: number }[];
+    conditions?: BsCondition[];
+    conditionGroups?: { type?: string; conditions?: BsCondition[] }[];
   }[];
 }
 
+interface BsCondition {
+  type?: string;
+  field?: string;
+  value: number;
+  scope?: string;
+  childId?: string;
+}
+
 export interface BsCatalogue extends BsNode {
+  /** Déclaré (vrai ou faux) par tout catalogue, jamais par le Game System lui-même. */
   library?: boolean;
+  /** Règles propres au catalogue : c'est là que vivent la plupart des Army Rules. */
+  rules?: BsNode[];
   sharedSelectionEntries?: BsNode[];
   sharedSelectionEntryGroups?: BsNode[];
   sharedProfiles?: BsNode[];
@@ -78,7 +90,7 @@ function parseNum(v: string | undefined, fallback = 0): number {
   return m ? Number(m[0]) : fallback;
 }
 
-function parseRangeInches(v: string | undefined): number {
+export function parseRangeInches(v: string | undefined): number {
   if (!v || /melee/i.test(v)) return 0;
   return parseNum(v, 0);
 }
@@ -94,9 +106,54 @@ function splitKeywords(v: string | undefined): string[] {
 /** Porteurs d'une arme dans le pack : un emplacement de figurine ne compte qu'une fois. */
 const carriers = (perSlot: Map<string, number>) => [...perSlot.values()].reduce((n, v) => n + v, 0);
 
-const weaponKey = (w: Weapon) => `${w.kind}|${w.name}|${w.A}|${w.S}|${w.AP}|${w.D}|${w.skill}|${w.range}`;
+/**
+ * Un profil d'arme tel que BSData l'écrit, à plat : son nom peut être celui
+ * d'un seul profil d'une Weapon (« ➤ Kombi-rokkit - Shoota »).
+ */
+type FlatProfile = WeaponProfile & { kind: WeaponKind };
 
-function toWeapon(p: BsNode): Weapon | null {
+const weaponKey = (w: FlatProfile) => `${w.kind}|${w.name}|${w.A}|${w.S}|${w.AP}|${w.D}|${w.skill}|${w.range}`;
+
+/**
+ * La Weapon et le profil que désigne un nom de profil BSData. « ➤ X - Y » est
+ * le profil Y de la Weapon X ; le tiret colle parfois au nom (« ➤ Rokkit
+ * Launcha- Busta »), jamais au profil. Un nom sans « ➤ » est une arme simple,
+ * dont l'unique profil porte le nom.
+ */
+export function profileOf(raw: string): { weapon: string; profile: string } {
+  const name = raw.trim();
+  if (!name.startsWith('➤')) return { weapon: name, profile: name };
+  const rest = name.replace(/^➤\s*/, '');
+  const m = /^(.+?)\s*-\s+(.+)$/.exec(rest);
+  return m ? { weapon: m[1].trim(), profile: m[2].trim() } : { weapon: rest, profile: rest };
+}
+
+/** La Weapon qu'un profil à plat désigne, en clé `weaponRef`. */
+const refOf = (p: FlatProfile) => weaponRef({ kind: p.kind, name: profileOf(p.name).weapon });
+
+/**
+ * Regroupe les profils à plat sous leur Weapon, dans l'ordre où BSData les
+ * donne. Deux genres distincts font deux Weapons : un Atrapos lascutter qui
+ * tire et frappe se désigne `ranged|…` et `melee|…`.
+ */
+function groupProfiles(flat: FlatProfile[]): Weapon[] {
+  const byRef = new Map<string, Weapon>();
+  for (const p of flat) {
+    const { weapon, profile } = profileOf(p.name);
+    const ref = weaponRef({ kind: p.kind, name: weapon });
+    const w = byRef.get(ref) ?? byRef.set(ref, { name: weapon, kind: p.kind, profiles: [] }).get(ref)!;
+    /*
+     * Les profils identiques sont déjà écartés. Deux profils homonymes aux
+     * caractéristiques différentes restent tous deux : les datasheets Crucible
+     * fusionnent plusieurs variantes, et en garder un seul perdrait l'autre.
+     */
+    const { kind: _kind, name: _name, ...stats } = p;
+    w.profiles.push({ name: profile, ...stats });
+  }
+  return [...byRef.values()];
+}
+
+function toWeapon(p: BsNode): FlatProfile | null {
   const c = chars(p);
   const melee = /melee/i.test(p.typeName ?? '');
   const skillRaw = melee ? c.WS : c.BS;
@@ -128,6 +185,31 @@ function toStatline(p: BsNode): Statline {
   };
 }
 
+/**
+ * Un nœud masqué pour l'Army composée. BSData pose une même Army Rule sur des
+ * datasheets partagées et la masque selon le catalogue principal : Templar
+ * Vows n'existe que pour les Black Templars. Seules ces conditions-là se
+ * tranchent sans roster ; une condition sur le contenu d'une List (un
+ * Detachment retenu, un effectif) ne masque rien ici.
+ */
+function hiddenFor(node: BsNode, primaryId: string | undefined): boolean {
+  if (node.hidden) return true;
+  const holds = (c: BsCondition): boolean => {
+    if (c.scope !== 'primary-catalogue' || !primaryId) return false;
+    if (c.type === 'instanceOf') return c.childId === primaryId;
+    if (c.type === 'notInstanceOf') return c.childId !== primaryId;
+    return false;
+  };
+  return (node.modifiers ?? []).some((m) => {
+    if (m.field !== 'hidden' || m.type !== 'set' || m.value !== true) return false;
+    const groups = (m.conditionGroups ?? []).map((g) =>
+      g.type === 'or' ? (g.conditions ?? []).some(holds) : (g.conditions ?? []).every(holds),
+    );
+    const all = [...(m.conditions ?? []).map(holds), ...groups];
+    return all.length > 0 && all.every(Boolean);
+  });
+}
+
 /** Index id -> nœud, pour résoudre les entryLink/infoLink d'un ou plusieurs catalogues. */
 export function buildIdIndex(catalogues: BsCatalogue[]): Map<string, BsNode> {
   const byId = new Map<string, BsNode>();
@@ -148,9 +230,15 @@ export function buildIdIndex(catalogues: BsCatalogue[]): Map<string, BsNode> {
 
 interface Collected {
   models: Statline[];
-  weapons: Weapon[];
+  weapons: FlatProfile[];
   abilities: Ability[];
   keywords: Set<string>;
+  /** Army Rules désignées par les liens de règle de la datasheet. */
+  armyRules: Set<string>;
+  /** Identifiants des règles définies par un catalogue d'Army, et non par le Game System. */
+  armyRuleIds: Set<string>;
+  /** Catalogue principal de l'Army composée, que visent les conditions « primary-catalogue ». */
+  primaryId?: string;
   /**
    * Armes de la dotation par défaut : pour chaque arme, combien de figurines la
    * portent **dans chaque emplacement du pack**. Un pack de Boyz sort ainsi
@@ -316,6 +404,17 @@ function collect(
   for (const link of node.infoLinks ?? []) {
     const target = link.targetId ? byId.get(link.targetId) : undefined;
     if (!target) continue;
+    /*
+     * Une Army Rule se reconnaît à son lien de règle vers une règle que le
+     * catalogue d'Army définit (Waaagh!), là où les règles communes — Deep
+     * Strike, Leader — vivent dans le Game System. C'est la datasheet qui pose
+     * le lien : appartenir à l'Army ne suffit pas.
+     */
+    if (link.type === 'rule' && own && target.name && acc.armyRuleIds.has(target.id ?? '')) {
+      // Seule la datasheet pose le lien : celui d'un groupe d'infos (« Detachment Rules ») n'en est pas un.
+      if (node.type && !hiddenFor(link, acc.primaryId) && !hiddenFor(target, acc.primaryId)) acc.armyRules.add(target.name.trim());
+      continue;
+    }
     const key = visitKey('i', link.targetId, slotId, preferred);
     if (seen.has(key)) continue;
     seen.add(key);
@@ -505,7 +604,7 @@ function branchOf(
   for (const p of node.profiles ?? []) {
     if (!/Weapons/i.test(p.typeName ?? '')) continue;
     const w = toWeapon(p);
-    if (w?.name) into.add(weaponRef(w));
+    if (w?.name) into.add(refOf(w));
   }
 
   for (const child of node.selectionEntries ?? []) cap = branchOf(child, byId, seen, depth + 1, pending, cap, into);
@@ -687,9 +786,18 @@ function carrierLimits(groups: OptionGroup[], defaults: Map<string, number>): Ma
  *   joueur Drukhari qu'il peut aligner des Wraithlords, puisque les deux factions
  *   partagent la bibliothèque Aeldari. Les vraies datasheets d'un catalogue sont
  *   celles que ses `entryLinks` racine désignent ; le reste n'est que définition.
+ * @param primaryId catalogue principal de l'Army : il dit quelles Army Rules
+ *   BSData montre à ses datasheets.
  */
-export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<string>): CatalogueUnit[] {
+export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<string>, primaryId?: string): CatalogueUnit[] {
   const byId = buildIdIndex(catalogues);
+  const armyRuleIds = new Set(
+    catalogues
+      .filter((c) => c.library !== undefined)
+      .flatMap((c) => [...(c.rules ?? []), ...(c.sharedRules ?? [])])
+      .map((r) => r.id)
+      .filter((id): id is string => Boolean(id)),
+  );
   const out: CatalogueUnit[] = [];
   const seenNames = new Set<string>();
 
@@ -703,7 +811,7 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
       if (!name) continue;
 
       const acc: Collected = {
-        models: [], weapons: [], abilities: [], keywords: new Set(),
+        models: [], weapons: [], abilities: [], keywords: new Set(), armyRules: new Set(), armyRuleIds, primaryId,
         defaults: new Map(), composition: new Map(), slots: new Map(),
       };
       collect(root, byId, acc, new Set([visitKey('e', root.id, '', true)]), 0);
@@ -742,7 +850,7 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
       for (const w of kept) {
         const perSlot = acc.defaults.get(weaponKey(w));
         if (!perSlot) continue;
-        const ref = weaponRef(w);
+        const ref = refOf(w);
         const here = Math.min(defaultModels, carriers(perSlot));
         const full =
           defaultModels > 0 && defaultModels < sizes.max
@@ -751,7 +859,7 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
         defaultCounts.set(ref, Math.max(defaultCounts.get(ref) ?? 0, full));
       }
       const limits = carrierLimits(optionGroups, defaultCounts);
-      const weapons = kept.map((w) => {
+      const weapons = groupProfiles(kept).map((w) => {
         const cap = limits.get(weaponRef(w));
         return cap ? { ...w, maxCarriers: cap } : w;
       });
@@ -784,6 +892,19 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
        * qui rejoint ces unités-là, pas un chef.
        */
       const supportKeyword = acc.keywords.has('Support');
+      const FACTION = /^Faction:\s*/;
+      const allKeywords = [...acc.keywords];
+      /*
+       * Porteurs de la dotation par Weapon : ses profils se portent ensemble, le
+       * plus porté donne le compte — un Kombi-rokkit par figurine, pas deux.
+       */
+      const defaultCarriers = new Map<string, number>();
+      for (const w of kept) {
+        const perSlot = acc.defaults.get(weaponKey(w));
+        if (!perSlot) continue;
+        const ref = refOf(w);
+        defaultCarriers.set(ref, Math.max(defaultCarriers.get(ref) ?? 0, Math.min(defaultModels, carriers(perSlot))));
+      }
       const fromLeader = targetsOf('leader');
       const leaderTargets = supportKeyword ? [] : fromLeader;
       const supportTargets = [...targetsOf('support'), ...(supportKeyword ? fromLeader : [])];
@@ -795,7 +916,9 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
         points: pointsOf(root),
         models,
         weapons,
-        keywords: [...acc.keywords],
+        keywords: allKeywords.filter((k) => !FACTION.test(k)),
+        factionKeywords: allKeywords.filter((k) => FACTION.test(k)).map((k) => k.replace(FACTION, '').trim()),
+        armyRules: [...acc.armyRules],
         abilities,
         parsedAbilities,
         leaderTargets,
@@ -817,12 +940,8 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
           .map((g) => ({ ...g, options: g.options.filter((o) => o.weapons.some((r) => keptRefs.has(r))) }))
           .filter((g, _i, all) => g.options.length >= 2 || (g.pool && g.options.length === 1 && all.some((c) => c.parent === g.id))),
         defaultLoadout: weapons
-          .filter((w) => acc.defaults.has(weaponKey(w)))
-          .map((w) => ({
-            weapon: w.name,
-            kind: w.kind,
-            count: Math.min(defaultModels, carriers(acc.defaults.get(weaponKey(w))!)),
-          })),
+          .filter((w) => defaultCarriers.has(weaponRef(w)))
+          .map((w) => ({ weapon: w.name, kind: w.kind, count: defaultCarriers.get(weaponRef(w))! })),
         /*
          * Effectif auquel les compteurs ci-dessus se rapportent. Il n'est pas
          * toujours `maxModels` : BSData décrit la dotation de la composition

@@ -8,9 +8,10 @@
  * rattache aux Units qu'elle vient de produire — identifiant, effectif borné,
  * coût du jour — et signale celles qu'elle ne trouve plus.
  */
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ArmyFile, BattleSize, CoreFile, Effect, ReferenceTarget, SampleList, SampleSection, SampleUnit, Unit, WargearCount } from '@paintplanplay/dataset-schema';
+import type { ArmyFile, BattleSize, CoreFile, Effect, EffectScope, ReferenceTarget, SampleList, SampleSection, SampleUnit, Unit, WargearCount } from '@paintplanplay/dataset-schema';
 import { validateEffect } from '@paintplanplay/dataset-schema/validate';
 import { CORE_ROOT, parseTarget } from './corrections/apply.ts';
 import { inspectString } from './notext.ts';
@@ -24,7 +25,8 @@ export interface AuthoredSampleUnit {
 }
 
 /**
- * Un Effect ou un résumé écrit par le projet — jamais un texte recopié.
+ * Une Contribution (ADR 0010) : un Effect ou un résumé écrit par le projet —
+ * jamais un texte recopié. Elle prime définitivement sur 40kdc-data.
  * Adresses : `<unitId>::ability:<nom>`, `<armyId>::rule:<detachmentId>|<ruleId>`,
  * `<armyId>::enhancement:<detachmentId>|<enhancementId>`, `<armyId>::stratagem:<id>`,
  * `core::stratagem:<id>`.
@@ -32,10 +34,37 @@ export interface AuthoredSampleUnit {
 export interface AuthoredEffect {
   target: string;
   effect?: unknown;
+  /** Portée de l'Effect (range, durée), au format de 40kdc-data. */
+  scope?: unknown;
   summary?: string;
   /** Pourquoi, en une phrase à nous. */
   reason: string;
+  /**
+   * Empreinte de ce que disait l'amont (Effect et résumé) quand on l'a écrite.
+   * Un amont qui a bougé depuis est signalé, jamais appliqué.
+   */
+  upstream?: string;
 }
+
+/** Ce que devient une Contribution à la construction. */
+export interface ContributionVerdict {
+  target: string;
+  reason: string;
+  /**
+   * `active` : appliquée ; `flagged` : appliquée, mais l'amont a changé depuis sa
+   * rédaction ; `rejected` : hors format ; `unresolved` : cible introuvable.
+   */
+  state: 'active' | 'flagged' | 'rejected' | 'unresolved';
+  note: string;
+  /** Empreinte de ce que dit l'amont aujourd'hui, avant la Contribution. */
+  upstreamNow?: string;
+}
+
+/** Empreinte courte d'une valeur JSON. */
+export const fingerprint = (value: unknown) => createHash('sha1').update(JSON.stringify(value ?? null)).digest('hex').slice(0, 12);
+
+/** Ce qu'on retient de l'amont d'une règle : son Effect et son résumé. */
+const upstreamOf = (el: { effect?: unknown; summary?: string }) => fingerprint({ effect: el.effect, summary: el.summary });
 
 export interface AuthoredCore {
   effects?: AuthoredEffect[];
@@ -127,7 +156,7 @@ export function resolveAuthored(authored: AuthoredCore | undefined, armies: Map<
 export function authoredEffectProblems(e: AuthoredEffect): string[] {
   const problems: string[] = [];
   if (e.effect === undefined && e.summary === undefined) problems.push('neither Effect nor summary');
-  if (e.effect !== undefined) problems.push(...validateEffect(e.effect).map((m) => `Effect outside the frozen format: ${m}`));
+  if (e.effect !== undefined) problems.push(...validateEffect(e.effect, e.scope).map((m) => `Effect outside the frozen format: ${m}`));
   if (e.summary !== undefined) problems.push(...inspectString(e.summary, { summary: true }));
   if (!e.reason?.trim()) problems.push('reason missing');
   else problems.push(...inspectString(e.reason));
@@ -143,9 +172,10 @@ export function applyAuthoredEffects(
   files: Map<string, unknown>,
   gameSystem: string,
   effects: AuthoredEffect[],
-): { unresolved: string[]; rejected: { target: string; reason: string }[] } {
+): { unresolved: string[]; rejected: { target: string; reason: string }[]; contributions: ContributionVerdict[] } {
   const unresolved: string[] = [];
   const rejected: { target: string; reason: string }[] = [];
+  const contributions: ContributionVerdict[] = [];
   const armies = [...files].filter(([p]) => p.startsWith(`${gameSystem}/armies/`)).map(([, f]) => f as ArmyFile);
   const core = files.get(`${gameSystem}/core.json`) as CoreFile | undefined;
 
@@ -153,23 +183,34 @@ export function applyAuthoredEffects(
     const problems = authoredEffectProblems(e);
     if (problems.length) {
       rejected.push({ target: e.target, reason: problems[0] });
+      contributions.push({ target: e.target, reason: e.reason, state: 'rejected', note: problems[0] });
       continue;
     }
-    const body = { ...(e.effect !== undefined ? { effect: e.effect as Effect } : {}), ...(e.summary !== undefined ? { summary: e.summary } : {}) };
+    const body = {
+      ...(e.effect !== undefined ? { effect: e.effect as Effect } : {}),
+      ...(e.scope !== undefined ? { scope: e.scope as EffectScope } : {}),
+      ...(e.summary !== undefined ? { summary: e.summary } : {}),
+    };
     const { root, entity, name } = parseTarget(e.target);
     let hits = 0;
+    // L'amont se lit avant d'être recouvert : c'est lui que l'empreinte compare.
+    let upstreamNow: string | undefined;
+    const take = (el: { effect?: unknown; summary?: string }) => {
+      upstreamNow ??= upstreamOf(el);
+      Object.assign(el, body);
+      hits++;
+    };
     if (entity === 'ability') {
       for (const a of armies)
         for (const u of a.units)
           if (u.id === root)
             for (const ab of u.abilities)
               if (ab.name === name) {
-                Object.assign(ab, body);
+                take(ab);
                 if (e.effect !== undefined) {
                   ab.effectSource = 'project';
                   delete ab.conditional;
                 }
-                hits++;
               }
     } else if (entity === 'rule' || entity === 'enhancement') {
       const [detachmentId, elementId] = name.split('|');
@@ -178,19 +219,17 @@ export function applyAuthoredEffects(
           for (const d of a.detachments)
             if (d.id === detachmentId)
               for (const el of entity === 'rule' ? d.rules : d.enhancements)
-                if (el.id === elementId) {
-                  Object.assign(el, body);
-                  hits++;
-                }
+                if (el.id === elementId) take(el);
     } else if (entity === 'stratagem') {
       const list = root === CORE_ROOT ? (core?.stratagems ?? []) : (armies.find((a) => a.id === root)?.stratagems ?? []);
-      for (const s of list)
-        if (s.id === name) {
-          Object.assign(s, body);
-          hits++;
-        }
+      for (const s of list) if (s.id === name) take(s);
     }
-    if (!hits) unresolved.push(e.target);
+    if (!hits) {
+      unresolved.push(e.target);
+      contributions.push({ target: e.target, reason: e.reason, state: 'unresolved', note: 'the target is not in the Dataset' });
+    } else if (e.upstream && e.upstream !== upstreamNow)
+      contributions.push({ target: e.target, reason: e.reason, state: 'flagged', note: '40kdc-data changed this rule since the Contribution was written: review it, it stays applied', upstreamNow });
+    else contributions.push({ target: e.target, reason: e.reason, state: 'active', note: 'applied, over 40kdc-data', upstreamNow });
   }
-  return { unresolved, rejected };
+  return { unresolved, rejected, contributions };
 }

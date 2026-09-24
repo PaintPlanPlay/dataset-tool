@@ -82,7 +82,15 @@ export function detachmentElement(detachments: Detachment[], target: string): Re
   return undefined;
 }
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+/**
+ * Deux valeurs pareilles pour le Dataset. Une liste vide vaut une liste
+ * absente : la construction garde `[]` là où le Dataset publié ne dit rien, et
+ * ce que l'amont ne donnait pas au moment de corriger ne doit pas passer pour
+ * « une troisième valeur ».
+ */
+const canonical = (v: unknown) => JSON.stringify(v ?? null, (_k, x: unknown) => (Array.isArray(x) && x.length === 0 ? null : x));
+export const sameValue = (a: unknown, b: unknown) => canonical(a) === canonical(b);
+const same = sameValue;
 
 /** Confronte chaque Correction à l'amont de cette construction. */
 export function reconcile(corrections: CorrectionFile[], locate: (target: string) => Located): CorrectionVerdict[] {

@@ -1,7 +1,11 @@
 {
   "target": "u-boyz::weapon:melee|Choppa",
   "source": "bsdata",
-  "patch": { "S": 4 },
-  "upstream": { "S": 3 },
+  "patch": {
+    "profiles": [{ "name": "Choppa", "range": "Melee", "rangeInches": 0, "A": "3", "skill": 3, "S": 4, "AP": -1, "D": "1", "keywords": [] }]
+  },
+  "upstream": {
+    "profiles": [{ "name": "Choppa", "range": "Melee", "rangeInches": 0, "A": "3", "skill": 3, "S": 3, "AP": -1, "D": "1", "keywords": [] }]
+  },
   "reason": "Force du choppa erronée dans BSData"
 }

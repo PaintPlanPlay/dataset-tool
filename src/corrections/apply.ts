@@ -23,7 +23,10 @@
  */
 import type { Detachment, Enhancement } from '@paintplanplay/dataset-schema';
 import type { Ability, CatalogueUnit, Statline, Weapon } from '../bsdata/types.ts';
+import { parseRangeInches } from '../bsdata/flatten.ts';
+import { normalizeModel, normalizeProfile } from './normalize.ts';
 import { weaponRef } from '../bsdata/types.ts';
+import { pricedFields } from '../upstream/mfm.ts';
 
 export type CorrectionEntity = 'unit' | 'model' | 'weapon' | 'ability' | 'attachment';
 
@@ -114,10 +117,42 @@ export function applyCorrections(
       }
     }
     next.isAttachable = next.leaderTargets.length > 0 || next.supportTargets.length > 0;
-    return next;
+    return derive(next, ordered);
   });
 
   return { units: out, report };
+}
+
+/**
+ * Ce qui se déduit d'un champ corrigé ne se corrige pas à part : le coût de base
+ * et les paliers suivent la grille du MFM, l'effectif suit la composition, et la
+ * portée en pouces suit la portée. Une Correction n'a qu'une vérité à tenir.
+ */
+function derive(unit: CatalogueUnit, applied: CorrectionInput[]): CatalogueUnit {
+  const touched = (field: string) => applied.some((c) => parseTarget(c.target).entity === 'unit' && field in c.patch);
+  let next = unit;
+  if (touched('pricing') && next.pricing) {
+    const priced = pricedFields(next.pricing);
+    if (priced) next = { ...next, ...priced };
+  }
+  if (touched('composition') && next.composition?.length) {
+    const minModels = Math.max(1, next.composition.reduce((n, c) => n + c.min, 0));
+    const maxModels = Math.max(minModels, next.composition.reduce((n, c) => n + c.max, 0));
+    const defaultModels = next.defaultModels === undefined ? undefined : Math.min(maxModels, Math.max(minModels, next.defaultModels));
+    next = { ...next, minModels, maxModels, ...(defaultModels !== undefined ? { defaultModels } : {}) };
+  }
+  if (applied.some((c) => parseTarget(c.target).entity === 'weapon'))
+    next = {
+      ...next,
+      weapons: next.weapons.map((w) => ({
+        ...w,
+        profiles: (w.profiles ?? []).map((p) => {
+          const q = normalizeProfile(p);
+          return { ...q, rangeInches: parseRangeInches(q.range) };
+        }),
+      })),
+    };
+  return next;
 }
 
 function applyOne(
@@ -146,8 +181,8 @@ function applyOne(
     }
     const models = [...unit.models];
     if (remove) models.splice(i, 1);
-    else if (i < 0) models.push(merge({ name } as Statline, patch));
-    else models[i] = merge(models[i], patch);
+    else if (i < 0) models.push(normalizeModel(merge({ name } as Statline, patch)));
+    else models[i] = normalizeModel(merge(models[i], patch));
     return { ...unit, models };
   }
 

@@ -113,6 +113,47 @@ check(
 );
 check('une aptitude figure par son nom', warboss.abilities.map((a) => a.name).join(',') === 'Leader,Da Boss Fixture');
 
+section('Construction : Weapons et Weapon Profiles (ADR 0009)');
+const kombi = warboss.weapons.find((w) => w.name === 'Kombi-rokkit');
+check(
+  'les profils « ➤ X - Y » de BSData se regroupent sous une seule Weapon',
+  kombi?.kind === 'ranged' && kombi.profiles.map((p) => `${p.name}:S${p.S}`).join(',') === 'Busta Rokkit:S9,Shoota:S4',
+  JSON.stringify(warboss.weapons.map((w) => [w.name, w.profiles.map((p) => p.name)])),
+);
+check('aucune Weapon ne porte le nom d\'un profil', !/➤/.test(serialized(first)));
+const choppa = boyz.weapons.find((w) => w.name === 'Choppa');
+check('une arme simple a un seul profil, qui porte son nom', choppa?.profiles.length === 1 && choppa.profiles[0].name === 'Choppa' && choppa.profiles[0].S === 4);
+const gun = warboss.optionGroups?.find((g) => g.id === 'g-warboss-gun');
+check(
+  'une option d\'équipement référence la Weapon, jamais un profil',
+  gun?.options.map((o) => o.weapons.join('+')).join(',') === 'ranged|Kombi-rokkit,ranged|Slugga',
+  JSON.stringify(gun?.options.map((o) => o.weapons)),
+);
+check(
+  'le loadout par défaut référence la Weapon une seule fois',
+  JSON.stringify(warboss.defaultLoadout?.filter((d) => d.kind === 'ranged')) === JSON.stringify([{ weapon: 'Kombi-rokkit', kind: 'ranged', count: 1 }]),
+  JSON.stringify(warboss.defaultLoadout),
+);
+
+section('Construction : Faction Keywords');
+check('les Faction Keywords sont extraits, sans préfixe', boyz.factionKeywords.join() === 'Orks' && guard.factionKeywords.join() === 'Adeptus Custodes', `${boyz.factionKeywords}`);
+check(
+  'plus aucun « Faction: » dans les Keywords',
+  [...first.files.values()].every((f) => !(f as ArmyFile).units || (f as ArmyFile).units.every((u) => !u.keywords.some((k) => k.startsWith('Faction:')))),
+);
+check('les autres Keywords restent', boyz.keywords.join() === 'Infantry,Battleline,Boyz', boyz.keywords.join());
+
+section('Construction : Army Rules');
+check('les Boyz ont Waaagh!', boyz.armyRules.join() === 'Waaagh!' && warboss.armyRules.join() === 'Waaagh!', boyz.armyRules.join());
+check('une Unit sans lien de règle d\'armée n\'en a pas', mekGunz.armyRules.length === 0);
+check('une règle de Detachment, liée par un groupe d\'infos, n\'est pas une Army Rule', !mekGunz.armyRules.includes('Dread Mob Fixture'));
+check(
+  'une Army Rule que BSData masque selon le catalogue principal ne vaut que pour l\'Army qui la voit',
+  freeBoyz.armyRules.join() === 'Waaagh!,Freebooter Pride' && !boyz.armyRules.includes('Freebooter Pride'),
+  freeBoyz.armyRules.join(),
+);
+check('une Army Rule n\'est pas une aptitude', !boyz.abilities.some((a) => a.name === 'Waaagh!'));
+
 section('Construction : aucun texte amont dans la sortie');
 const all = serialized(first);
 check('aucun texte d\'aptitude BSData dans les fichiers', !/FIXTURE-RULES-TEXT/.test(all));

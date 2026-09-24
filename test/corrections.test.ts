@@ -42,7 +42,7 @@ check(
   'en conflit : l\'amont dit une troisième valeur',
   verdict(corrected, 'mek-gunz-attacks.json')?.state === 'conflict' && verdict(corrected, 'mek-gunz-attacks.json')!.note.includes('third value'),
 );
-check('une Correction en conflit reste appliquée en attendant qu\'un humain tranche', unitOf(corrected, 'orks', 'Mek Gunz').weapons[0].A === 'D6+1');
+check('une Correction en conflit reste appliquée en attendant qu\'un humain tranche', unitOf(corrected, 'orks', 'Mek Gunz').weapons[0].profiles[0].A === 'D6+1');
 check('un ajout que l\'amont ne porte pas est actif', verdict(corrected, 'warboss-leads-nobz.json')?.state === 'active');
 check('une Correction porte le lien de la PR proposée en amont', verdict(corrected, 'warboss-leads-nobz.json')?.upstreamPr === 'https://github.com/BSData/wh40k-11e-mfm/pull/1');
 
@@ -67,6 +67,90 @@ check(
 );
 check('une arme renommée en amont laisse sa Correction orpheline', variants.orphans.some((o) => o.target === 'u-boyz::weapon:melee|Rusty choppa') && verdict(variants, 'renamed-weapon.json')?.state === 'conflict');
 check('une orpheline n\'est signalée qu\'une fois, quelles que soient les Armies', variants.orphans.filter((o) => o.target === 'u-nothing').length === 1);
+
+section('Corrections : Weapon entière, Faction Keywords et Army Rules');
+const kombiProfiles = unitOf(plain, 'orks', 'Warboss').weapons.find((w) => w.name === 'Kombi-rokkit')!.profiles;
+const reshaped = await build({
+  snapshot,
+  corrections: [
+    inMemory('kombi-shoota', {
+      target: 'u-warboss::weapon:ranged|Kombi-rokkit',
+      patch: { profiles: kombiProfiles.map((p) => (p.name === 'Shoota' ? { ...p, S: 5 } : p)) },
+      upstream: { profiles: kombiProfiles },
+    }),
+    inMemory('old-profile-address', { target: 'u-warboss::weapon:ranged|➤ Kombi-rokkit - Shoota', patch: { __delete: true } }),
+    inMemory('free-faction', { target: 'u-boyz', patch: { factionKeywords: ['Orks', 'Freebooterz'] }, upstream: { factionKeywords: ['Orks'] } }),
+    inMemory('no-waaagh', { target: 'u-warboss', patch: { armyRules: [] }, upstream: { armyRules: ['Waaagh!'] } }),
+  ],
+});
+const kombiAfter = unitOf(reshaped, 'orks', 'Warboss').weapons.find((w) => w.name === 'Kombi-rokkit');
+check(
+  'une Correction vise la Weapon entière, profils compris',
+  kombiAfter?.profiles.map((p) => `${p.name}:S${p.S}`).join(',') === 'Busta Rokkit:S9,Shoota:S5' && verdict(reshaped, 'kombi-shoota.json')?.state === 'active',
+);
+check('une adresse de profil ne vise plus rien', verdict(reshaped, 'old-profile-address.json')?.state === 'stale' && kombiAfter?.profiles.length === 2);
+check('une Correction peut viser les Faction Keywords', unitOf(reshaped, 'orks', 'Boyz').factionKeywords.join() === 'Orks,Freebooterz' && verdict(reshaped, 'free-faction.json')?.state === 'active');
+check('une Correction peut viser les Army Rules', unitOf(reshaped, 'orks', 'Warboss').armyRules.length === 0 && verdict(reshaped, 'no-waaagh.json')?.state === 'active');
+
+section('Corrections : les champs dérivés suivent');
+const boyzPlain = unitOf(plain, 'orks', 'Boyz');
+const derived = await build({
+  snapshot,
+  corrections: [
+    inMemory('boyz-pricing', {
+      target: 'u-boyz',
+      source: 'mfm',
+      patch: { pricing: [{ from: 1, to: null, costs: [{ models: 10, points: 70 }, { models: 20, points: 140 }] }] },
+      upstream: { pricing: boyzPlain.pricing },
+    }),
+    inMemory('boyz-composition', {
+      target: 'u-boyz',
+      patch: { composition: [{ name: 'Boy', min: 8, max: 18 }, { name: 'Boss Nob', min: 1, max: 1 }] },
+      upstream: { composition: boyzPlain.composition },
+    }),
+    inMemory('choppa-range', {
+      target: 'u-boyz::weapon:melee|Choppa',
+      patch: { profiles: [{ ...boyzPlain.weapons.find((w) => w.name === 'Choppa')!.profiles[0], range: '6"', rangeInches: 0 }] },
+    }),
+  ],
+});
+const boyzDerived = unitOf(derived, 'orks', 'Boyz');
+check(
+  'points de base et paliers suivent la grille de prix corrigée',
+  boyzDerived.points === 70 && JSON.stringify(boyzDerived.costBrackets) === JSON.stringify([{ overModels: 10, points: 140 }]),
+  `${boyzDerived.points} ${JSON.stringify(boyzDerived.costBrackets)}`,
+);
+check('les effectifs suivent la composition corrigée', boyzDerived.minModels === 9 && boyzDerived.maxModels === 19, `${boyzDerived.minModels}-${boyzDerived.maxModels}`);
+check('la portée en pouces suit la portée', boyzDerived.weapons.find((w) => w.name === 'Choppa')!.profiles[0].rangeInches === 6);
+
+section('Corrections : un champ que l\'amont ne donne pas');
+const absent = await build({
+  snapshot,
+  corrections: [
+    inMemory('gunz-options', {
+      target: 'u-mekgunz',
+      patch: { optionGroups: [{ id: 'g', name: 'Gun', tree: 'g', parent: '', slot: '', pool: false, minPicks: 0, maxPicks: 1, pickBrackets: [], options: [] }] },
+      upstream: {},
+    }),
+  ],
+});
+check('un champ absent de l\'amont n\'est pas « une troisième valeur » : la Correction reste active', verdict(absent, 'gunz-options.json')?.state === 'active', JSON.stringify(verdict(absent, 'gunz-options.json')));
+
+section('Corrections : les unités se déduisent');
+const unitless = await build({
+  snapshot,
+  corrections: [
+    inMemory('kaptin', { target: 'u-boyz::model:Kaptin', patch: { __add: true, M: '6', T: 5, Sv: 4, Inv: 7, W: 3, LD: '7', OC: 1 } }),
+    inMemory('gun-range', {
+      target: 'u-mekgunz::weapon:ranged|Kustom mega-kannon',
+      patch: { profiles: [{ name: 'Kustom mega-kannon', range: '30', rangeInches: 0, A: 'D6', skill: 5, S: 12, AP: -2, D: 'D6', keywords: [] }] },
+    }),
+  ],
+});
+const kaptin = unitOf(unitless, 'orks', 'Boyz').models.find((m) => m.name === 'Kaptin');
+const kannon = unitOf(unitless, 'orks', 'Mek Gunz').weapons[0].profiles[0];
+check('« 6 » se lit 6", « 7 » se lit 7+ : on n\'a pas à les taper', kaptin?.M === '6"' && kaptin.LD === '7+', JSON.stringify(kaptin));
+check('une portée « 30 » se lit 30", 30 pouces', kannon.range === '30"' && kannon.rangeInches === 30, JSON.stringify(kannon));
 
 const surgical = await build({
   snapshot,
@@ -96,6 +180,13 @@ check('points changés', diff.changes.some((c) => c.name === 'Warboss' && c.fiel
 check('Armies disparues', diff.armiesRemoved.join() === 'adeptus-custodes');
 check('une Unit alliée ne fait pas doublon dans le rapport', diff.changes.filter((c) => c.name === 'Warboss' && c.field === 'points').length === 1);
 check('première construction : rien à comparer', diffDatasets(undefined, plain.files).initial);
+const older = new Map(plain.files);
+older.set(`${GS}/index.json`, { ...(plain.files.get(`${GS}/index.json`) as object), schemaVersion: '0.7.0' });
+older.set(`${GS}/armies/orks.json`, { units: [{ id: 'u-boyz', weapons: [{ name: 'Choppa', kind: 'melee', S: 4 }] }] });
+check(
+  'un Dataset d\'une autre version majeure du schéma ne se compare pas',
+  diffDatasets(older, plain.files).schemaChange?.from === '0.7.0' && /Schema 0\.7\.0 → /.test(renderReport(makeReport(corrected, older))),
+);
 
 const markdown = renderReport(makeReport(corrected, plain.files));
 check('le rapport liste les chiffres modifiés', /## Numbers changed/.test(markdown) && /Warboss/.test(markdown));

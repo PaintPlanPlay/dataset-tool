@@ -20,6 +20,7 @@ import { build } from './build.ts';
 import { readAuthored } from './authored.ts';
 import { publishRelease, repointManifest } from './release.ts';
 import { startGui, tailscaleAddress } from './gui/server.ts';
+import { viteUi } from './gui/ui.ts';
 import { openWorkspace } from './gui/workspace.ts';
 import { checkDataset, renderCheck } from './check.ts';
 import { readCorrections } from './corrections/files.ts';
@@ -90,7 +91,7 @@ async function main(): Promise<void> {
     });
     const asked = optional('host');
     const host = asked === 'tailscale' ? tailscaleAddress() : asked;
-    const gui = await startGui(ws, { port: Number(optional('port') ?? 4173), ...(host ? { host } : {}) });
+    const gui = await startGui(ws, { port: Number(optional('port') ?? 4173), ui: viteUi, ...(host ? { host } : {}) });
     console.log(`Local interface: ${gui.url} — Ctrl+C to stop`);
     if (host) console.log(`Open at ${host}: no authentication, any machine on that network can write.`);
     else console.log('Listening on this machine only. --host <address> opens it to a private network.');
