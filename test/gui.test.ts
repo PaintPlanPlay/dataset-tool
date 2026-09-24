@@ -319,6 +319,7 @@ try {
       },
       publishRight: () => right,
       pullRequest: () => null,
+      remoteRefs: async () => null,
     },
   });
   try {

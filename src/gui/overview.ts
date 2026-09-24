@@ -25,6 +25,12 @@ export interface Probe {
   publishRight(datasetDir: string): string | null;
   /** La PR ouverte depuis la branche du dépôt du Dataset, s'il y en a une. */
   pullRequest(datasetDir: string): PullRequest | null;
+  /**
+   * Les références du dépôt publié du Dataset (`refs/heads/main`, tags de
+   * Release) ; `null` hors ligne. C'est lui, pas la copie locale, qui dit si
+   * une PR a été fusionnée depuis.
+   */
+  remoteRefs(datasetDir: string): Promise<Record<string, string> | null>;
 }
 
 export interface PullRequest {
@@ -34,6 +40,7 @@ export interface PullRequest {
 }
 
 const PR_TTL = 60_000;
+let refs: { at: number; dir: string; value: Record<string, string> | null } | null = null;
 let pr: { at: number; dir: string; value: PullRequest | null } | null = null;
 
 /** Une tête amont ne bouge pas à la minute : on ne redemande pas GitHub à chaque affichage. */
@@ -59,6 +66,23 @@ export const defaultProbe: Probe = {
       // Pas de PR pour cette branche, ou pas de GitHub CLI : rien à montrer.
     }
     pr = { at: Date.now(), dir: datasetDir, value };
+    return value;
+  },
+  async remoteRefs(datasetDir) {
+    if (refs && refs.dir === datasetDir && Date.now() - refs.at < PR_TTL) return refs.value;
+    let value: Record<string, string> | null = null;
+    try {
+      const out = execFileSync('git', ['-C', datasetDir, 'ls-remote', 'origin', 'refs/heads/main', 'refs/tags/*'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+        timeout: 15_000,
+      });
+      value = Object.fromEntries(out.split('\n').filter(Boolean).map((l) => l.split('\t').reverse() as [string, string]));
+    } catch {
+      // Hors ligne, ou pas de dépôt : on ne sait pas, et on ne le prétend pas.
+    }
+    refs = { at: Date.now(), dir: datasetDir, value };
     return value;
   },
 };
@@ -114,6 +138,11 @@ export interface Overview {
    */
   upToDate: boolean | null;
   buttons: Record<ButtonName, ButtonState>;
+  /**
+   * Le dossier du Dataset face au dépôt publié : sa branche, et s'il lui
+   * manque ce qui a été fusionné depuis (`null` : on ne sait pas).
+   */
+  dataset: { branch: string | null; behind: boolean | null };
   /** Pending Changes : ce qui est enregistré et pas encore proposé. */
   pending: number;
   pullRequest: PullRequest | null;
@@ -133,9 +162,12 @@ const readJson = <T>(path: string): T | null => (existsSync(path) ? (JSON.parse(
  * Publier ne sert qu'à ce qui a été fusionné depuis la dernière Release : sans
  * commit sur `main` après son tag, il n'y a rien à publier.
  */
-function nothingToPublish(ws: Workspace, manifest: Manifest | null): string | null {
+function nothingToPublish(ws: Workspace, manifest: Manifest | null, remote: Record<string, string> | null): string | null {
   const tag = manifest?.dataslates.find((d) => d.id === manifest.current)?.latest;
   if (!tag || !isRepository(ws.datasetDir)) return null;
+  // Le dépôt publié fait foi : la copie locale n'a peut-être pas encore tiré la fusion.
+  const released = remote?.[`refs/tags/${tag}^{}`] ?? remote?.[`refs/tags/${tag}`];
+  if (remote && released) return remote['refs/heads/main'] === released ? `nothing merged since the last Release (${tag})` : null;
   try {
     const count = execFileSync('git', ['-C', ws.datasetDir, 'rev-list', '--count', `${tag}..main`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     return Number(count.trim()) > 0 ? null : `nothing merged since the last Release (${tag})`;
@@ -162,18 +194,26 @@ export async function overview(ws: Workspace, probe: Probe = defaultProbe, built
     const head = latest?.[s.id] ?? null;
     return { ...s, latest: head, upToDate: head === null ? null : head === s.commit };
   });
-  const upToDate = !ws.state.dataset || !ws.state.snapshot ? false : latest === null ? null : versions.every((v) => v.upToDate);
+  const sourcesUpToDate = !ws.state.dataset || !ws.state.snapshot ? false : latest === null ? null : versions.every((v) => v.upToDate);
+
+  // Le dossier du Dataset aussi doit être à jour : sur `main`, au commit du dépôt publié.
+  const tracked = isRepository(ws.datasetDir);
+  const git = (...args: string[]) => execFileSync('git', ['-C', ws.datasetDir, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  const branch = tracked ? git('rev-parse', '--abbrev-ref', 'HEAD') : null;
+  const remote = tracked ? await probe.remoteRefs(ws.datasetDir) : null;
+  const remoteMain = remote?.['refs/heads/main'];
+  const behind = !tracked ? null : branch !== 'main' ? true : remoteMain ? git('rev-parse', 'HEAD') !== remoteMain : null;
+  const upToDate = behind === true ? false : sourcesUpToDate;
 
   const right = probe.publishRight(ws.datasetDir);
   // Sans dépôt git, on ne sait pas ce qui attend : les boutons ne suivent que leurs prérequis.
-  const tracked = isRepository(ws.datasetDir);
   const pending = tracked ? pendingChanges(ws).length : 0;
   const rule: Partial<Record<ButtonName, () => string | null>> = {
     update: () => (upToDate === true ? 'everything is up to date' : null),
     build: () => (tracked && pending === 0 ? 'nothing to build: no pending change' : null),
     propose: () =>
       !tracked ? null : pending === 0 ? 'no pending change to propose' : built !== pendingFingerprint(ws) ? 'click Save & Build first: the build must pass the check' : null,
-    release: () => nothingToPublish(ws, manifest),
+    release: () => nothingToPublish(ws, manifest, remote),
   };
   const buttons = Object.fromEntries(
     jobSpecs(ws, {}, probe).map((spec) => {
@@ -192,6 +232,7 @@ export async function overview(ws: Workspace, probe: Probe = defaultProbe, built
     corrections: ws.state.dataset ? readCorrections(ws.datasetDir, ws.gameSystem).length + contributionCount(ws) : 0,
     upToDate,
     buttons,
+    dataset: { branch, behind },
     pending,
     pullRequest: probe.pullRequest(ws.datasetDir),
     disagreements: ws.current?.conflicts?.length ?? 0,

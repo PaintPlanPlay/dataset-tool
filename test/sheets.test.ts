@@ -32,10 +32,13 @@ git('add', '-A');
 git('commit', '-q', '-m', 'Dataset de fixtures');
 
 let pullRequest: { url: string; state: string } | null = null;
+/** Ce que le dépôt publié du Dataset dit de ses références ; `null` : on ne le sait pas (hors ligne). */
+let remote: Record<string, string> | null = null;
+const snapshotHeads = Object.fromEntries((JSON.parse(readFileSync(join(snap, 'sources.json'), 'utf8')) as { id: string; commit: string }[]).map((s) => [s.id, s.commit]));
 const ws = await openWorkspace({ datasetDir: dir, snapshotDir: snap, allowPush: true });
 const gui = await startGui(ws, {
   port: 0,
-  probe: { upstreamHeads: async () => ({}), publishRight: () => null, pullRequest: () => pullRequest },
+  probe: { upstreamHeads: async () => snapshotHeads, publishRight: () => null, pullRequest: () => pullRequest, remoteRefs: async () => remote },
 });
 
 const call = async <T>(path: string, body?: unknown) => {
@@ -388,6 +391,30 @@ try {
   git('commit', '-q', '-m', 'Merge pull request #7');
   o = (await call<Overview>('/api/overview')).body;
   check('une PR fusionnée pas encore publiée : Publish Release actif', o.buttons.release.enabled, JSON.stringify(o.buttons.release));
+
+  section('#89 : à jour, c\'est aussi le dossier du Dataset');
+  const head = git('rev-parse', 'HEAD');
+  const tagged = git('rev-parse', 'r1^{commit}');
+  remote = { 'refs/heads/main': head, 'refs/tags/r1^{}': tagged };
+  o = (await call<Overview>('/api/overview')).body;
+  check('sources et dossier au dernier commit : à jour, Update data grisé', o.upToDate === true && !o.buttons.update.enabled, JSON.stringify(o.buttons.update));
+  remote = { 'refs/heads/main': 'f'.repeat(40), 'refs/tags/r1^{}': tagged };
+  o = (await call<Overview>('/api/overview')).body;
+  check(
+    'le dépôt publié a avancé (une PR fusionnée) : pas à jour, Update data actif',
+    o.upToDate === false && o.buttons.update.enabled && o.dataset.behind === true,
+    JSON.stringify({ upToDate: o.upToDate, dataset: o.dataset }),
+  );
+  check('et Publish Release s\'ouvre, même avant d\'avoir tiré main', o.buttons.release.enabled, JSON.stringify(o.buttons.release));
+  git('checkout', '-q', '-b', 'dataset/some-proposal');
+  remote = { 'refs/heads/main': head, 'refs/tags/r1^{}': tagged };
+  o = (await call<Overview>('/api/overview')).body;
+  check('resté sur la branche d\'une proposition : pas à jour, Update data ramène sur main', o.upToDate === false && o.buttons.update.enabled && o.dataset.branch === 'dataset/some-proposal');
+  git('checkout', '-q', 'main');
+  remote = { 'refs/heads/main': tagged, 'refs/tags/r1^{}': tagged };
+  o = (await call<Overview>('/api/overview')).body;
+  check('rien de fusionné depuis la Release, d\'après le dépôt publié : Publish grisé', !o.buttons.release.enabled && /nothing merged/.test(o.buttons.release.reason ?? ''));
+  remote = null;
 
   section('#89 : une mise à jour réévalue les Pending Changes');
   const boyzNow = clone((await sheet('u-boyz')).value as UnitValue);
