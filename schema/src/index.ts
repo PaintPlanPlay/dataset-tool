@@ -10,7 +10,7 @@
  */
 
 /** Version du schéma à laquelle un fichier se conforme. */
-export const SCHEMA_VERSION = '0.7.0';
+export const SCHEMA_VERSION = '1.0.0';
 
 /** Un wargame à une édition donnée. Le Dataset est rangé par Game System. */
 export interface GameSystem {
@@ -255,9 +255,13 @@ export interface Stratagem extends RuleBody {
 
 export type WeaponKind = 'ranged' | 'melee';
 
-export interface Weapon {
+/**
+ * Une façon d'utiliser une Weapon : sa portée, ses caractéristiques et ses
+ * mots-clés d'arme. Le Kombi-rokkit en a deux (« Busta Rokkit », « Shoota ») ;
+ * une arme simple n'en a qu'un, qui porte son nom.
+ */
+export interface WeaponProfile {
   name: string;
-  kind: WeaponKind;
   /** « 24" », « Melee ». */
   range: string;
   /** Portée en pouces, 0 au corps à corps. */
@@ -273,6 +277,18 @@ export interface Weapon {
   D: string;
   /** Mots-clés d'arme : « Rapid Fire 1 », « Anti-Infantry 4+ ». */
   keywords: string[];
+}
+
+/**
+ * Une Weapon : ce qu'une figurine porte, avec tous ses Weapon Profiles (ADR
+ * 0009). La prendre apporte tous ses profils ; lequel utiliser se décide à la
+ * table, jamais dans la List.
+ */
+export interface Weapon {
+  name: string;
+  kind: WeaponKind;
+  /** Au moins un. */
+  profiles: WeaponProfile[];
   /** Figurines de l'Unit qui peuvent la porter au plus, quand la datasheet le dit. */
   maxCarriers?: number;
 }
@@ -294,7 +310,7 @@ export interface Profile {
 export interface WeaponOption {
   id: string;
   name: string;
-  /** Armes équipées, en clés « kind|name ». */
+  /** Weapons équipées, en clés « kind|name » : la Weapon, jamais un de ses profils. */
   weapons: string[];
   maxCarriers: number;
   /** « Une figurine par tranche de N ». */
@@ -355,7 +371,16 @@ export interface Unit {
   ally?: boolean;
   /** Legends ou Crucible : hors tournoi. */
   isLegends: boolean;
+  /** Keywords, sans les Faction Keywords. */
   keywords: string[];
+  /** Faction Keywords, sans le préfixe « Faction: » de BSData : « Orks ». */
+  factionKeywords: string[];
+  /**
+   * Army Rules dont l'Unit bénéficie, par nom : « Waaagh! ». Appartenir à une
+   * Army ne les donne pas, chaque Unit liste les siennes. Leur Effect n'est pas
+   * répété ici.
+   */
+  armyRules: string[];
   models: Profile[];
   weapons: Weapon[];
   abilities: UnitAbility[];
@@ -376,6 +401,7 @@ export interface Unit {
   /** Effectif auquel se rapportent les compteurs de `defaultLoadout`. */
   defaultModels?: number;
   composition?: { name: string; min: number; max: number }[];
+  /** Weapons portées d'office, par nom et genre. */
   defaultLoadout?: { weapon: string; kind: WeaponKind; count: number }[];
   optionGroups?: OptionGroup[];
 }
@@ -391,7 +417,8 @@ export interface Unit {
  */
 export interface Correction {
   /**
-   * Adresse de l'élément corrigé : « <unitId> », « <unitId>::weapon:melee|Power klaw »,
+   * Adresse de l'élément corrigé : « <unitId> », « <unitId>::weapon:melee|Power klaw »
+   * (la Weapon entière, profils compris),
    * « <armyId>::detachment:<detachmentId> », « <armyId>::enhancement:<detachmentId>|<enhancementId> »…
    */
   target: string;
@@ -475,3 +502,5 @@ export function kindOfPath(path: string): FileKind | null {
   if (parts.length === 3 && parts[1] === 'armies' && parts[2].endsWith('.json')) return 'army';
   return null;
 }
+
+export * from './weaponKeywords.ts';

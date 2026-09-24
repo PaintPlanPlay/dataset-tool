@@ -3,6 +3,26 @@
     "name": "Orks",
     "id": "cat-orks",
     "library": false,
+    "rules": [
+      { "id": "r-waaagh", "name": "Waaagh!", "description": "FIXTURE-RULES-TEXT-WAAAGH Once per battle, this army can call a Waaagh!" },
+      {
+        "id": "r-pride",
+        "name": "Freebooter Pride",
+        "description": "FIXTURE-RULES-TEXT-PRIDE Only Freebooterz show this rule.",
+        "modifiers": [
+          {
+            "type": "set",
+            "field": "hidden",
+            "value": true,
+            "conditions": [{ "type": "notInstanceOf", "field": "selections", "scope": "primary-catalogue", "childId": "cat-freebooterz", "value": 1 }]
+          }
+        ]
+      },
+      { "id": "r-dreadmob", "name": "Dread Mob Fixture", "description": "FIXTURE-RULES-TEXT-DETACHMENT A Detachment Rule, not an Army Rule." }
+    ],
+    "sharedInfoGroups": [
+      { "id": "ig-detachment-rules", "name": "Detachment Rules", "infoLinks": [{ "id": "il-dreadmob", "name": "Dread Mob Fixture", "targetId": "r-dreadmob", "type": "rule" }] }
+    ],
     "entryLinks": [
       { "id": "l-boyz", "name": "Boyz", "targetId": "u-boyz", "type": "selectionEntry" },
       { "id": "l-warboss", "name": "Warboss", "targetId": "u-warboss", "type": "selectionEntry" },
@@ -18,6 +38,10 @@
           { "type": "set", "field": "pts", "value": 170, "conditions": [{ "type": "greaterThan", "field": "selections", "value": 10 }] }
         ],
         "categoryLinks": [{ "name": "Infantry" }, { "name": "Battleline" }, { "name": "Boyz" }, { "name": "Faction: Orks" }],
+        "infoLinks": [
+          { "id": "il-boyz-waaagh", "name": "Waaagh!", "targetId": "r-waaagh", "type": "rule" },
+          { "id": "il-boyz-pride", "name": "Freebooter Pride", "targetId": "r-pride", "type": "rule" }
+        ],
         "profiles": [
           {
             "name": "Mob Fixture",
@@ -149,6 +173,55 @@
         "type": "model",
         "costs": [{ "name": "pts", "typeId": "pts", "value": 65 }],
         "categoryLinks": [{ "name": "Character" }, { "name": "Infantry" }, { "name": "Warboss" }, { "name": "Faction: Orks" }],
+        "infoLinks": [{ "id": "il-warboss-waaagh", "name": "Waaagh!", "targetId": "r-waaagh", "type": "rule" }],
+        "selectionEntryGroups": [
+          {
+            "id": "g-warboss-gun",
+            "name": "Wargear",
+            "defaultSelectionEntryId": "e-kombi",
+            "constraints": [{ "type": "max", "field": "selections", "scope": "parent", "value": 1 }],
+            "selectionEntries": [
+              {
+                "id": "e-kombi",
+                "name": "Kombi-rokkit",
+                "type": "upgrade",
+                "profiles": [
+                  {
+                    "name": "➤ Kombi-rokkit - Busta Rokkit",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      { "name": "Range", "$text": "24\"" }, { "name": "A", "$text": "1" }, { "name": "BS", "$text": "5+" },
+                      { "name": "S", "$text": "9" }, { "name": "AP", "$text": "-2" }, { "name": "D", "$text": "D6" }, { "name": "Keywords", "$text": "ONE SHOT" }
+                    ]
+                  },
+                  {
+                    "name": "➤ Kombi-rokkit - Shoota",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      { "name": "Range", "$text": "18\"" }, { "name": "A", "$text": "2" }, { "name": "BS", "$text": "5+" },
+                      { "name": "S", "$text": "4" }, { "name": "AP", "$text": "0" }, { "name": "D", "$text": "1" }, { "name": "Keywords", "$text": "Rapid Fire 1" }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "e-slugga",
+                "name": "Slugga",
+                "type": "upgrade",
+                "profiles": [
+                  {
+                    "name": "Slugga",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      { "name": "Range", "$text": "12\"" }, { "name": "A", "$text": "1" }, { "name": "BS", "$text": "5+" },
+                      { "name": "S", "$text": "4" }, { "name": "AP", "$text": "0" }, { "name": "D", "$text": "1" }, { "name": "Keywords", "$text": "Pistol" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
         "profiles": [
           {
             "name": "Warboss",
@@ -184,6 +257,7 @@
         "type": "unit",
         "costs": [{ "name": "pts", "typeId": "pts", "value": 45 }],
         "categoryLinks": [{ "name": "Artillery" }, { "name": "Mek Gunz" }, { "name": "Faction: Orks" }],
+        "infoLinks": [{ "id": "il-gunz-detachment", "name": "Detachment Rules", "targetId": "ig-detachment-rules", "type": "infoGroup" }],
         "selectionEntryGroups": [
           {
             "id": "g-gun",

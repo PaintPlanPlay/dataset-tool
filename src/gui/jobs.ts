@@ -6,7 +6,7 @@
  * mêmes fichiers — et son journal est gardé en mémoire pour que la page le
  * relise au fil de l'eau, sans rien installer côté navigateur.
  */
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 
 export type JobState = 'running' | 'ok' | 'failed';
 
@@ -25,6 +25,7 @@ const MAX_LINES = 2000;
 
 export class JobRunner {
   private job: Job | null = null;
+  private child: ChildProcess | null = null;
 
   /** La tâche en cours ou la dernière terminée ; `null` si rien n'a jamais tourné. */
   get current(): Job | null {
@@ -54,7 +55,9 @@ export class JobRunner {
       }
     };
 
-    const child = spawn(cmd, args, { cwd, env: process.env });
+    // Son propre groupe de processus : l'arrêter arrête aussi ce qu'il a lancé.
+    const child = spawn(cmd, args, { cwd, env: process.env, detached: true });
+    this.child = child;
     child.stdout.on('data', push);
     child.stderr.on('data', push);
     child.on('error', (err) => {
@@ -69,6 +72,20 @@ export class JobRunner {
       job.log.push(code === 0 ? '— done' : `— failed (exit code ${code})`);
     });
     return job;
+  }
+
+  /** Arrête la tâche en cours, et tout ce qu'elle a lancé : l'interface se ferme sans rien laisser tourner. */
+  stop(): void {
+    if (!this.busy || !this.child?.pid) return;
+    try {
+      process.kill(-this.child.pid, 'SIGTERM');
+    } catch {
+      // Déjà terminée.
+    }
+    // Un sous-processus qui traîne ne doit pas retenir le serveur par ses tuyaux.
+    this.child.stdout?.destroy();
+    this.child.stderr?.destroy();
+    this.child.unref();
   }
 
   /** L'état, et les lignes de journal depuis `since` : la page ne relit jamais tout. */

@@ -37,7 +37,7 @@ import { findRulesText, type TextFinding } from './notext.ts';
 import type { Snapshot } from './snapshot.ts';
 import { kdcFactionFor } from './upstream/kdc.ts';
 import { unitAbilities } from './abilities.ts';
-import { applyAuthoredEffects, resolveAuthored, type AuthoredCore } from './authored.ts';
+import { applyAuthoredEffects, resolveAuthored, type AuthoredCore, type ContributionVerdict } from './authored.ts';
 import { applyMfm, mfmKey, type MfmConflict, type MfmFaction } from './upstream/mfm.ts';
 
 export type { DroppedEffect, MissingEntity, SourceConflict } from './findings.ts';
@@ -71,6 +71,8 @@ export interface BuildOutput {
   unresolvedAuthored: string[];
   /** État de chaque Correction face à l'amont de cette construction. */
   corrections: CorrectionVerdict[];
+  /** Ce que deviennent les Contributions : appliquées, signalées quand l'amont a bougé. */
+  contributions: ContributionVerdict[];
   /** Corrections dont la cible est introuvable. */
   orphans: ApplyReport['orphans'];
   /** Verdict du contrôle « aucun texte de règles » sur les fichiers produits et les Corrections : vide = conforme. */
@@ -120,6 +122,8 @@ export function toDatasetUnit(u: CatalogueUnit, abilities: Unit['abilities'] = u
     ...(u.ally ? { ally: true } : {}),
     isLegends: u.isLegends,
     keywords: u.keywords,
+    factionKeywords: u.factionKeywords,
+    armyRules: u.armyRules,
     models: u.models,
     weapons: u.weapons,
     abilities,
@@ -350,5 +354,8 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
     ...[...files].flatMap(([path, data]) => findRulesText(data, path)),
     ...corrections.flatMap(({ path, ...c }) => findRulesText(c, path)),
   ];
-  return { gameSystem, files, ids, conflicts, unmatched, armiesWithoutMfm, missing, droppedEffects, unresolvedAuthored: authored.unresolved, corrections: verdicts, orphans, textCheck };
+  return {
+    gameSystem, files, ids, conflicts, unmatched, armiesWithoutMfm, missing, droppedEffects,
+    unresolvedAuthored: authored.unresolved, corrections: verdicts, contributions: authoredEffects.contributions, orphans, textCheck,
+  };
 }

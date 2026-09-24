@@ -177,17 +177,11 @@
       ],
       "additionalProperties": false
     },
-    "weapon": {
+    "weaponProfile": {
       "type": "object",
       "properties": {
         "name": {
           "$ref": "#/$defs/name"
-        },
-        "kind": {
-          "enum": [
-            "ranged",
-            "melee"
-          ]
         },
         "range": {
           "type": "string",
@@ -215,6 +209,39 @@
         },
         "keywords": {
           "$ref": "#/$defs/keywords"
+        }
+      },
+      "required": [
+        "name",
+        "range",
+        "rangeInches",
+        "A",
+        "skill",
+        "S",
+        "AP",
+        "D",
+        "keywords"
+      ],
+      "additionalProperties": false
+    },
+    "weapon": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "kind": {
+          "enum": [
+            "ranged",
+            "melee"
+          ]
+        },
+        "profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/weaponProfile"
+          }
         },
         "maxCarriers": {
           "type": "integer",
@@ -224,14 +251,7 @@
       "required": [
         "name",
         "kind",
-        "range",
-        "rangeInches",
-        "A",
-        "skill",
-        "S",
-        "AP",
-        "D",
-        "keywords"
+        "profiles"
       ],
       "additionalProperties": false
     },
@@ -448,7 +468,23 @@
           "type": "boolean"
         },
         "keywords": {
+          "type": "array",
+          "description": "Keywords other than Faction Keywords, which live in factionKeywords.",
+          "items": {
+            "$ref": "#/$defs/keyword",
+            "not": {
+              "pattern": "^Faction:"
+            }
+          }
+        },
+        "factionKeywords": {
           "$ref": "#/$defs/keywords"
+        },
+        "armyRules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
         },
         "models": {
           "type": "array",
@@ -605,6 +641,8 @@
         "source",
         "isLegends",
         "keywords",
+        "factionKeywords",
+        "armyRules",
         "models",
         "weapons",
         "abilities",
@@ -623,7 +661,11 @@
         "target": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 300
+          "maxLength": 300,
+          "description": "A Weapon is targeted whole (\"<unitId>::weapon:<kind>|<name>\"), never one of its Weapon Profiles.",
+          "not": {
+            "pattern": "➤"
+          }
         },
         "source": {
           "enum": [

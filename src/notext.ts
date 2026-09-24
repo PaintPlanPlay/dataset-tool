@@ -1,5 +1,5 @@
 /**
- * Le contrôle « aucun texte de règles » : le garde-fou juridique de l'ADR 0005.
+ * Le contrôle « aucun texte de règles » : le garde-fou juridique de l'ADR 0007.
  *
  * Il ne fait confiance ni à l'outil ni à la relecture : tout ce qui entre dans
  * le Dataset — sortie de construction, Corrections, résumés, contributions —

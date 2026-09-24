@@ -33,52 +33,92 @@ cd dataset-tool && npm ci
 npm run dev
 ```
 
-Open `http://127.0.0.1:4173` in your browser. The interface starts **empty** and
-offers to fetch what it needs — you do not have to download anything by hand.
+Open `http://127.0.0.1:4173` in your browser (a desktop screen, at least 1200
+pixels wide). The interface starts **empty** and offers to fetch what it needs —
+you do not have to download anything by hand.
 
 Everything it downloads lives in `.workspace/`, inside this folder. Deleting that
 folder resets you to a clean slate.
 
-## What the buttons do
+## The interface
+
+The screen has two columns. **You never see JSON**: every part of the dataset
+schema is drawn as a form — an object is a card, a list has **+** and **−**
+buttons, a choice between kinds of rule node is a menu that shows the right
+fields once you pick one.
+
+**On the left, the state of your copy:**
+
+- the versions you are working from: the dataset release, the dataslate, BSData
+  and the Munitorum Field Manual;
+- whether your sources are **up to date** (green) or not (red) against the
+  latest commit of each source;
+- how many corrections the dataset carries, how many disagreements between
+  sources the build noticed, and how many suggested effects wait for review —
+  click the first two to see them;
+- your **pending changes**: everything you saved and have not proposed yet.
+  Click one to open its sheet, or **−** to undo it;
+- the pull request you opened, and whether it is in review or merged;
+- the buttons, each greyed out with the reason when it cannot run yet.
 
 | Button | What happens |
 |---|---|
-| **Update data** | brings everything up to date: the dataset as published, and a fresh snapshot of BSData, the Munitorum Field Manual and 40kdc-data. Takes a few minutes, and means you never work on something that is already fixed |
-| **Save and build** | writes your corrections into the dataset files, from that snapshot |
-| **Propose my changes** | opens a pull request with what you wrote |
-| **Publish a Release** | maintainers only: takes in the merged pull request, freezes the dataset under a tag, and pushes it |
-| **Check** | verifies the files against the schema and the no-rules-text rule. It already runs before a release and on every pull request; the button is only there to see it now |
+| **Update data** | brings everything up to date: the dataset as published, and a fresh snapshot of BSData, the Munitorum Field Manual and 40kdc-data. Takes a few minutes; greyed out when you are already up to date. Your pending changes are kept, and re-checked against the new sources |
+| **Save & Build** | builds the dataset files with your pending changes, then checks them. Only open when something is pending |
+| **Propose my change** | opens a pull request with your pending changes. Only open after a build that passed the check, for exactly what is pending |
+| **Publish Release** | shown to maintainers only, open once a merged pull request is not yet published: takes it in, freezes the dataset under a tag, and pushes it |
+| **Check** | verifies the files against the schema and the no-rules-text rule. It already runs before a release and on every pull request |
 
 Each task streams its log as it runs, and only one runs at a time.
 
-**If you only have the dataset and no snapshot** — you cloned this repository by
-hand, say — the interface still lets you read and correct it. The *Origin*
-column then just says `published`, because without the sources there is no way
-to tell which one a value came from.
+**On the right, the sheet you are editing:** a search box across every army —
+units, detachments, stratagems and the *Core* entry (battle sizes and core
+stratagems), each result with its army, and an army filter your browser
+remembers. Next to it, the sheet's name, **Corrections (n)** and **Save**.
+
+On the sheet, each section says where its values come from (*Prices · MFM*,
+*Weapons · BSData*, *Abilities · project*). An **orange** dot marks a value you
+changed and did not save yet; a **blue** dot, a value a published correction or
+contribution changed — hover it for the upstream value, the new value and the
+reason. Values the build derives — a unit's base points and cost brackets from
+its price grid, its model counts from its composition, a weapon's range in
+inches — are shown, not typed. Every edit is checked as you type: against the
+schema, and against the no-rules-text rule.
 
 ## Fixing a value, step by step
 
 1. Click **Update data**.
-2. Type a name in the search box — a unit, a detachment, a stratagem — and click
-   the result.
-3. The sheet lists every field with its **origin**: `bsdata`, `mfm`, `40kdc`,
-   `analysis` (a suggestion computed by this tool), `project` (written by us), or
-   `correction` with the file that changed it.
-4. Fill in the *New correction* form. The army, the target and the current
-   upstream value are filled in for you; you provide the corrected value and a
-   one-sentence reason.
-5. Click **Write the Correction**. The file is created, checked, and the sheet
-   reloads so you can see your change applied.
-6. Click **Save and build**, so the dataset files carry your correction.
-7. Click **Propose my changes** to open a pull request — or copy the git
-   commands it prints and run them yourself.
+2. Search for the unit, detachment, stratagem or *Core*, and open it.
+3. Change what is wrong, as many fields as you like: a characteristic, a cost in
+   the price grid, a keyword, a weapon profile, an option, a leader attachment.
+4. Click **Save** and give one sentence saying why. The tool works out what
+   changed and writes one **correction** per element and per source it belongs
+   to — or a **contribution** for an effect or a summary, which we own
+   outright (see below). File names are made up for you, and nothing is written
+   if anything is refused: the offending field is pointed out.
+5. Click **Save & Build**, then **Propose my change** to open a pull request.
 
-A maintainer reviews it and merges. Publishing what was merged is one button,
-**Publish a Release**, and it is open only to someone with write access to the
-dataset repository: it updates the folder, tags the release, and pushes it.
+Leaving a sheet with unsaved edits asks whether to save, discard or stay.
+**Corrections (n)** lists what is applied to the open sheet, with its state:
+*active*, *stale* (the source now agrees, it can go), *in conflict* (the source
+moved to a third value). Deleting one is itself a pending change, proposed and
+reviewed like any other; you can still undo it until then. From there you can
+also open a prefilled issue with the source, so it fixes itself, and paste the
+link it gives you.
 
-You can also review the suggestions this tool computes for abilities that have
-no structured effect yet, and accept the ones that look right.
+**Corrections and contributions.** A value that BSData or the Munitorum Field
+Manual publishes — a profile, a cost, a keyword, an option — is fixed with a
+correction, re-checked against that source on every update and dropped once the
+source agrees. An effect or a one-line summary is a **contribution**: ours for
+good. If 40kdc-data later changes the same rule, the change is flagged in the
+build report and on the sheet, never applied over ours. You never choose between
+the two: the field decides.
+
+A maintainer reviews the pull request and merges. Publishing what was merged is
+one button, **Publish Release**.
+
+Suggested effects — structured effects this tool computes for abilities that
+have none yet — appear on their ability with an **Accept** button.
 
 ## Where the numbers come from
 

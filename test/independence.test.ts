@@ -1,6 +1,6 @@
 /**
  * Le Dataset Tool ne partage aucun code avec l'application : aucune source ne
- * doit importer quoi que ce soit hors de ce paquet (issue #56, ADR 0005).
+ * doit importer quoi que ce soit hors de ce paquet (issue #56, ADR 0007).
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -15,7 +15,7 @@ const walk = (dir: string) => {
     if (entry.name === 'node_modules' || entry.name === 'fixtures' || entry.name.startsWith('.')) continue;
     const abs = join(dir, entry.name);
     if (entry.isDirectory()) walk(abs);
-    else if (/\.(ts|mts|js|mjs)$/.test(entry.name)) sources.push(abs);
+    else if (/\.(ts|tsx|mts|js|mjs)$/.test(entry.name)) sources.push(abs);
   }
 };
 walk(root);

@@ -8,10 +8,9 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { indexPath, manifestPath, type Correction, type DatasetIndex, type Manifest } from '@paintplanplay/dataset-schema';
+import { indexPath, manifestPath, type Correction, type DatasetIndex, type Manifest, type Unit } from '@paintplanplay/dataset-schema';
 import { proposeDataslate, type DataslateProposal } from '../release.ts';
-import { validateFile } from '@paintplanplay/dataset-schema/validate';
-import { authoredDir, authoredEffectProblems, EFFECTS_FILE, type AuthoredEffect } from '../authored.ts';
+import { authoredDir, authoredEffectProblems, EFFECTS_FILE, fingerprint, type AuthoredEffect } from '../authored.ts';
 import { correctionsDir } from '../corrections/files.ts';
 import { toJson } from '../dataset.ts';
 import { findRulesText } from '../notext.ts';
@@ -45,7 +44,6 @@ export interface WriteResult {
   pullRequest?: string;
 }
 
-const SLUG = /^[a-z0-9][a-z0-9-]*$/;
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'dataset';
 const quote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 /** Un argument ne se protège que s'il en a besoin : les commandes restent lisibles. */
@@ -123,29 +121,6 @@ async function finish(ws: Workspace, path: string, title: string, openPr: boolea
   return result;
 }
 
-export interface CorrectionInput {
-  army: string;
-  /** Nom du fichier, sans extension. */
-  name: string;
-  correction: Correction;
-  overwrite?: boolean;
-  openPr?: boolean;
-}
-
-export async function createCorrection(ws: Workspace, input: CorrectionInput): Promise<WriteResult> {
-  if (!SLUG.test(input.army) || !SLUG.test(input.name)) throw new ApiError(400, 'Army and file name: lower-case letters, digits and hyphens');
-  const schema = validateFile('correction', input.correction);
-  if (schema.length) throw new ApiError(400, 'Correction does not match the schema', schema);
-  const path = `${correctionsDir(ws.gameSystem)}/${input.army}/${input.name}.json`;
-  const text = findRulesText(input.correction, path);
-  if (text.length) throw new ApiError(400, 'Rules text refused', text.map((f) => `${f.where} : ${f.reason}`));
-  const abs = join(ws.datasetDir, path);
-  if (existsSync(abs) && !input.overwrite) throw new ApiError(409, `${path} already exists`);
-  mkdirSync(dirname(abs), { recursive: true });
-  writeFileSync(abs, toJson(input.correction));
-  return finish(ws, path, `Correction ${input.correction.target}`, input.openPr);
-}
-
 export async function writeAuthoredEffect(ws: Workspace, input: AuthoredEffect & { openPr?: boolean }): Promise<WriteResult> {
   const { openPr, ...entry } = input;
   const problems = [...authoredEffectProblems(entry), ...findRulesText(entry).map((f) => `${f.where} : ${f.reason}`)];
@@ -165,7 +140,15 @@ export async function acceptProposal(ws: Workspace, target: string, openPr?: boo
   const unitId = target.split('::')[0];
   const proposal = inspect(datasetOf(ws), ws.bare, unitId)?.proposals.find((p) => p.target === target);
   if (!proposal) throw new ApiError(404, `no suggestion for ${target}`);
-  return writeAuthoredEffect(ws, { target, effect: proposal.effect, reason: 'Suggestion from the ability analysis, reviewed and accepted.', openPr });
+  // L'empreinte de ce que l'amont disait : si 40kdc-data écrit un jour cet Effect, on le saura.
+  const ability = (inspect(datasetOf(ws), ws.bare, unitId)?.value as Unit | undefined)?.abilities.find((a) => `${unitId}::ability:${a.name}` === target);
+  return writeAuthoredEffect(ws, {
+    target,
+    effect: proposal.effect,
+    reason: 'Suggestion from the ability analysis, reviewed and accepted.',
+    upstream: fingerprint({ effect: ability?.effect, summary: ability?.summary }),
+    openPr,
+  });
 }
 
 const readCorrection = (ws: Workspace, path: string) => {
@@ -219,7 +202,7 @@ const TOOL_DIR = fileURLToPath(new URL('../..', import.meta.url));
 /** Le dépôt du Dataset, « owner/repo », lu sur son remote. */
 function repoOf(datasetDir: string): string | null {
   try {
-    const remote = execFileSync('git', ['-C', datasetDir, 'remote', 'get-url', 'origin'], { encoding: 'utf8' }).trim();
+    const remote = execFileSync('git', ['-C', datasetDir, 'remote', 'get-url', 'origin'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     const repo = /github\.com[:/]([^/]+)\/(.+?)(?:\.git)?$/.exec(remote);
     return repo ? `${repo[1]}/${repo[2]}` : null;
   } catch {
@@ -353,7 +336,12 @@ const needsPush = (ws: Workspace) => (ws.allowPush ? null : 'restart the interfa
  * Les tâches offertes par l'interface. `release` et `propose` touchent au dépôt :
  * elles ne sont proposées que si l'interface a le droit d'écrire au loin.
  */
-export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): JobSpec[] {
+export function jobSpecs(
+  ws: Workspace,
+  body: Record<string, unknown> = {},
+  /** Qui peut publier : GitHub par défaut, remplacé par les tests. */
+  rights: { publishRight(datasetDir: string): string | null } = { publishRight },
+): JobSpec[] {
   /** Le dossier du Dataset dans une commande shell, protégé une fois pour toutes. */
   const ds = (sub?: string) => quote(sub ? join(ws.datasetDir, sub) : ws.datasetDir);
   const dataslate = typeof body.dataslate === 'string' ? body.dataslate : '';
@@ -374,9 +362,11 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
         script([
           // Un clone la première fois. Ensuite retour sur main, parce que proposer
           // laisse le dossier sur sa branche : on ne construit pas, et surtout on
-          // ne publie pas, depuis une branche qui attend sa relecture.
+          // ne publie pas, depuis une branche qui attend sa relecture. Les Pending
+          // Changes suivent (autostash) : une mise à jour ne détruit jamais le
+          // travail en cours, elle le fait réévaluer contre le nouvel instantané.
           [
-            `if [ -d ${ds('.git')} ]; then git -C ${ds()} checkout main && git -C ${ds()} pull --ff-only; else git clone ${quote(ws.repository)} ${ds()}; fi`,
+            `if [ -d ${ds('.git')} ]; then git -C ${ds()} checkout main && git -C ${ds()} pull --ff-only --autostash; else git clone ${quote(ws.repository)} ${ds()}; fi`,
             'the Dataset folder could not be updated — it probably holds changes that are neither proposed nor discarded.',
           ],
           [`npx tsx ${quote(CLI)} fetch --out ${quote(ws.snapshotDir)}`, 'the sources could not be downloaded — read the lines above.'],
@@ -386,9 +376,21 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
     {
       name: 'build',
       label: 'Save and build',
-      hint: 'writes your corrections into the Dataset files, from the snapshot',
+      hint: 'writes your corrections into the Dataset files, from the snapshot, then checks them',
       needs: (w) => needsDataset(w) ?? needsSnapshot(w),
-      ...tool('build', '--snapshot', ws.snapshotDir, '--dataset', ws.datasetDir, '--game-system', ws.gameSystem),
+      cwd: TOOL_DIR,
+      cmd: 'sh',
+      args: [
+        '-c',
+        // Proposer n'ouvre qu'après un build qui passe le contrôle : les deux vont ensemble.
+        script([
+          [
+            `npx tsx ${quote(CLI)} build --snapshot ${quote(ws.snapshotDir)} --dataset ${ds()} --game-system ${arg(ws.gameSystem)}`,
+            'the build failed — read the lines above.',
+          ],
+          [`npx tsx ${quote(CLI)} check --dataset ${ds()} --game-system ${arg(ws.gameSystem)}`, 'the check refused the Dataset — read the lines above.'],
+        ]),
+      ],
     },
     {
       name: 'propose',
@@ -426,7 +428,7 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
       name: 'release',
       label: 'Publish a Release',
       hint: 'once the pull request is merged: takes in what was merged, freezes it under an immutable tag, and pushes it. Name the Dataslate above, or click once to be told which one to confirm',
-      needs: (w) => needsPush(w) ?? needsDataset(w) ?? publishRight(w.datasetDir),
+      needs: (w) => needsPush(w) ?? needsDataset(w) ?? rights.publishRight(w.datasetDir),
       cwd: TOOL_DIR,
       asks: [
         {
@@ -481,8 +483,14 @@ export function jobSpecs(ws: Workspace, body: Record<string, unknown> = {}): Job
 }
 
 /** Lance une tâche par son nom, après avoir vérifié ce qu'elle exige. */
-export function startJob(ws: Workspace, runner: JobRunner, name: string, body: Record<string, unknown> = {}) {
-  const spec = jobSpecs(ws, body).find((j) => j.name === name);
+export function startJob(
+  ws: Workspace,
+  runner: JobRunner,
+  name: string,
+  body: Record<string, unknown> = {},
+  rights?: { publishRight(datasetDir: string): string | null },
+) {
+  const spec = jobSpecs(ws, body, rights).find((j) => j.name === name);
   if (!spec) throw new ApiError(404, `unknown task: ${name}`);
   const missing = spec.needs?.(ws);
   if (missing) throw new ApiError(409, missing);

@@ -7,8 +7,9 @@
  */
 import type { CoreFile } from '@paintplanplay/dataset-schema';
 import { validateFile } from '@paintplanplay/dataset-schema/validate';
-import type { AuthoredCore } from '../src/authored.ts';
+import { fingerprint, type AuthoredCore } from '../src/authored.ts';
 import { build } from '../src/build.ts';
+import { makeReport, renderReport } from '../src/report.ts';
 import { openSnapshot } from '../src/snapshot.ts';
 import { check, fixture, section } from './check.ts';
 
@@ -80,3 +81,25 @@ const ab = (unit: string, name: string) => orksWith.units.find((u) => u.id === u
 check('un Effect écrit par le projet remplace celui de l\'amont', ab('u-boyz', 'Mob Fixture').effectSource === 'project' && ab('u-boyz', 'Mob Fixture').effect?.type === 'feel-no-pain');
 check('un résumé seul s\'ajoute sans toucher à l\'Effect', ab('u-warboss', 'Da Boss Fixture').summary === 'Short line.' && ab('u-warboss', 'Da Boss Fixture').effectSource === '40kdc');
 check('hors format : écarté et signalé ; cible inconnue : signalée', withEffects.droppedEffects.some((d) => d.army === 'authored' && d.where === 'u-warboss::ability:Leader') && withEffects.unresolvedAuthored.includes('u-nobody::ability:Nothing'));
+
+section('Contributions (ADR 0010) : priment sur 40kdc-data, un changement amont est signalé');
+const plainOrks = (bare.files.get('wh40k-11e/armies/orks.json') as typeof orksWith).units;
+const bossUpstream = plainOrks.find((u) => u.id === 'u-warboss')!.abilities.find((a) => a.name === 'Da Boss Fixture')!;
+const ours = { type: 'feel-no-pain', target: 'unit', modifier: { threshold: 5 } };
+const contribution = (upstream: string) =>
+  build({
+    snapshot: openSnapshot(fixture('snapshot')),
+    authored: { battleSizes: [], referenceTargets: [], effects: [{ target: 'u-warboss::ability:Da Boss Fixture', effect: ours, reason: 'Ours.', upstream }] },
+  });
+const same = await contribution(fingerprint({ effect: bossUpstream.effect, summary: bossUpstream.summary }));
+const moved = await contribution('0123456789ab');
+const verdictOf = (o: typeof same) => o.contributions.find((c) => c.target === 'u-warboss::ability:Da Boss Fixture');
+const bossOf = (o: typeof same) =>
+  (o.files.get('wh40k-11e/armies/orks.json') as typeof orksWith).units.find((u) => u.id === 'u-warboss')!.abilities.find((a) => a.name === 'Da Boss Fixture')!;
+check('la Contribution prime sur l\'Effect de 40kdc-data', bossOf(same).effectSource === 'project' && JSON.stringify(bossOf(same).effect) === JSON.stringify(ours));
+check('amont inchangé depuis la rédaction : active', verdictOf(same)?.state === 'active', JSON.stringify(verdictOf(same)));
+check(
+  'amont changé depuis : signalée, jamais remplacée',
+  verdictOf(moved)?.state === 'flagged' && JSON.stringify(bossOf(moved).effect) === JSON.stringify(ours) && verdictOf(moved)!.upstreamNow === verdictOf(same)!.upstreamNow,
+);
+check('le rapport liste les Contributions à relire', /## Contributions to review \(1\)/.test(renderReport(makeReport(moved, undefined))));

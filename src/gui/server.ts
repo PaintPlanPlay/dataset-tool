@@ -10,25 +10,16 @@
  * ouverte à tous.
  */
 import { execFileSync } from 'node:child_process';
+import { readdirSync, readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import {
-  acceptProposal,
-  ApiError,
-  createCorrection,
-  datasetOf,
-  defaultReleaseUrl,
-  ghReady,
-  jobSpecs,
-  recordUpstreamPr,
-  refreshing,
-  startJob,
-  upstreamDraft,
-  writeAuthoredEffect,
-} from './api.ts';
+import { acceptProposal, ApiError, datasetOf, recordUpstreamPr, refreshing, startJob, upstreamDraft } from './api.ts';
 import { JobRunner } from './jobs.ts';
-import { PAGE } from './page.ts';
+import { defaultProbe, overview, type Probe } from './overview.ts';
+import { pendingChanges, pendingFingerprint, undoPending } from './pending.ts';
+import { checkDraft, deleteCorrection, listCorrections, saveSheet, sheetOf, suggestions } from './sheets.ts';
 import { inspect, search } from './provenance.ts';
+import type { UiFactory, UiHandle } from './ui.ts';
 import type { Workspace } from './workspace.ts';
 
 export interface GuiServer {
@@ -95,13 +86,38 @@ export interface GuiOptions {
   port?: number;
   /** Adresse d'écoute ; par défaut la boucle locale. Doit être privée. */
   host?: string;
+  /** Ce qui sort de la machine : têtes amont, droit de publier. Remplacé par les tests. */
+  probe?: Probe;
+  /** L'interface, servie hors de `/api/`. Sans elle, le serveur n'offre que son API (les tests). */
+  ui?: UiFactory;
+}
+
+/**
+ * Le schéma du Dataset et ceux, vendus, des Effects : le moteur de rendu de la
+ * nouvelle interface les parcourt pour savoir quoi afficher et comment.
+ */
+function schemas(): { dataset: unknown; vendor: unknown[] } {
+  const datasetUrl = new URL(import.meta.resolve('@paintplanplay/dataset-schema/dataset.schema.json'));
+  const vendor: unknown[] = [];
+  const walk = (dir: URL) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const url = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir);
+      if (entry.isDirectory()) walk(url);
+      else if (entry.name.endsWith('.schema.json')) vendor.push(JSON.parse(readFileSync(url, 'utf8')));
+    }
+  };
+  walk(new URL('vendor/', datasetUrl));
+  return { dataset: JSON.parse(readFileSync(datasetUrl, 'utf8')), vendor };
 }
 
 export async function startGui(ws: Workspace, options: GuiOptions | number = {}): Promise<GuiServer> {
-  const { port = 4173, host = '127.0.0.1' } = typeof options === 'number' ? { port: options } : options;
+  const { port = 4173, host = '127.0.0.1', probe = defaultProbe, ui: makeUi } = typeof options === 'number' ? { port: options } : options;
   if (!privateAddress(host)) throw new Error(`${host} is not a private address: the interface has no authentication`);
   // Une seule tâche longue à la fois, partagée par toutes les requêtes.
   const runner = new JobRunner();
+  /** Les Pending Changes qu'a vues le dernier build lancé : Propose n'ouvre qu'après qu'il a réussi. */
+  let buildSaw: string | null = null;
+  const built = () => (runner.current?.name === 'build' && runner.current.state === 'ok' ? buildSaw : null);
 
   const server = createServer((req, res) => {
     void handle(req, res).catch((err: unknown) => {
@@ -109,6 +125,7 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
       else send(res, 500, { error: (err as Error).message });
     });
   });
+  const ui: UiHandle | null = makeUi ? await makeUi(server) : null;
 
   async function handle(req: IncomingMessage, res: ServerResponse) {
     const actual = (server.address() as AddressInfo).port;
@@ -121,34 +138,47 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
     const param = (name: string) => url.searchParams.get(name) ?? '';
 
     switch (route) {
-      case 'GET /':
-        return send(res, 200, PAGE, 'text/html; charset=utf-8');
       case 'GET /favicon.ico':
         // Réclamé par tout navigateur : on répond, plutôt que de laisser une erreur en console.
         res.writeHead(204);
         return res.end();
-      case 'GET /api/state':
-        // Ce que la page affiche avant tout : ce qu'on a sous la main, et ce qu'on peut lancer.
-        return send(res, 200, {
-          state: ws.state,
-          datasetDir: ws.datasetDir,
-          snapshotDir: ws.snapshotDir,
-          repository: ws.repository,
-          allowPush: ws.allowPush,
-          gh: ghReady(),
-          gameSystem: ws.gameSystem,
-          releaseUrl: defaultReleaseUrl(ws.datasetDir),
-          jobs: jobSpecs(ws).map(({ name, label, hint, asks, needs }) => ({ name, label, hint, asks: asks ?? [], blocked: needs?.(ws) ?? null })),
-        });
+      case 'GET /api/overview':
+        return send(res, 200, await overview(ws, probe, built()));
+      case 'GET /api/sheet':
+        return send(res, 200, sheetOf(ws, param('target')));
+      case 'POST /api/sheet/validate': {
+        const body = await readBody(req);
+        const found = inspect(datasetOf(ws), ws.bare, String(body.target ?? ''));
+        if (!found) throw new ApiError(404, `not found: ${String(body.target ?? '')}`);
+        return send(res, 200, checkDraft(found.kind, body.draft));
+      }
+      case 'POST /api/sheet/save': {
+        const body = await readBody(req);
+        return send(res, 201, await saveSheet(ws, { target: String(body.target ?? ''), draft: body.draft, reason: String(body.reason ?? '') }));
+      }
+      case 'GET /api/pending':
+        return send(res, 200, pendingChanges(ws));
+      case 'POST /api/pending/undo':
+        undoPending(ws, String((await readBody(req)).id ?? ''));
+        void refreshing(ws);
+        return send(res, 200, { ok: true });
+      case 'GET /api/corrections':
+        return send(res, 200, listCorrections(ws, param('sheet'), param('q')));
+      case 'POST /api/corrections/delete': {
+        const body = await readBody(req);
+        deleteCorrection(ws, { path: typeof body.path === 'string' ? body.path : undefined, target: typeof body.target === 'string' ? body.target : undefined });
+        return send(res, 200, { ok: true });
+      }
+      case 'GET /api/disagreements':
+        return send(res, 200, datasetOf(ws).conflicts ?? []);
+      case 'GET /api/suggest':
+        return send(res, 200, suggestions(ws, param('army'), param('unit')));
+      case 'GET /api/schema':
+        return send(res, 200, schemas());
       case 'GET /api/jobs':
         return send(res, 200, runner.report(Number(param('since')) || 0));
       case 'GET /api/search':
-        return send(res, 200, search(datasetOf(ws), param('q')));
-      case 'GET /api/inspect': {
-        const found = inspect(datasetOf(ws), ws.bare, param('target'));
-        if (!found) throw new ApiError(404, `not found: ${param('target')}`);
-        return send(res, 200, found);
-      }
+        return send(res, 200, search(datasetOf(ws), param('q'), 60, param('army')));
       case 'GET /api/upstream-draft':
         return send(res, 200, upstreamDraft(ws, param('path')));
       case 'POST /api/refresh':
@@ -156,10 +186,6 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
         // on en lance une, mais jamais deux en parallèle.
         await refreshing(ws);
         return send(res, 200, { state: ws.state });
-      case 'POST /api/corrections':
-        return send(res, 201, await createCorrection(ws, (await readBody(req)) as never));
-      case 'POST /api/effects':
-        return send(res, 201, await writeAuthoredEffect(ws, (await readBody(req)) as never));
       case 'POST /api/proposals/accept': {
         const body = await readBody(req);
         return send(res, 201, await acceptProposal(ws, String(body.target ?? ''), body.openPr === true));
@@ -172,10 +198,14 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
         // Les tâches : POST /api/jobs/<nom>.
         const job = /^POST \/api\/jobs\/([a-z-]+)$/.exec(route);
         if (job) {
-          const started = startJob(ws, runner, job[1], await readBody(req));
+          const started = startJob(ws, runner, job[1], await readBody(req), probe);
+          if (started.name === 'build') buildSaw = pendingFingerprint(ws);
           return send(res, 202, { job: { name: started.name, command: started.command, state: started.state } });
         }
-        throw new ApiError(404, `unknown route: ${route}`);
+        if (url.pathname.startsWith('/api/')) throw new ApiError(404, `unknown route: ${route}`);
+        // Hors de l'API : l'interface.
+        if (!ui) throw new ApiError(404, `unknown route: ${route}`);
+        return ui.handle(req, res, () => send(res, 404, { error: `not found: ${url.pathname}` }));
       }
     }
   }
@@ -184,6 +214,10 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
   const actual = (server.address() as AddressInfo).port;
   return {
     url: `http://${host}:${actual}/`,
-    close: () => new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve()))),
+    close: async () => {
+      runner.stop();
+      await ui?.close();
+      await new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
+    },
   };
 }
