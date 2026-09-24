@@ -139,11 +139,20 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
       {overview && (
         <p className={`freshness ${overview.upToDate === true ? 'ok' : overview.upToDate === false ? 'late' : 'unknown'}`}>
           {overview.upToDate === true
-            ? 'Up to date with the Upstream Sources'
+            ? 'Up to date with the Upstream Sources and the Dataset'
             : overview.upToDate === false
-              ? moved.length
-                ? `Out of date: ${moved.map((s) => s.id).join(', ')} moved`
-                : 'Out of date: no data yet'
+              ? !overview.workspace.dataset
+                ? 'Out of date: no data yet'
+                : `Out of date: ${[
+                    overview.dataset.branch && overview.dataset.branch !== 'main'
+                      ? `the Dataset folder is on the branch ${overview.dataset.branch}`
+                      : overview.dataset.behind
+                        ? 'the Dataset has merged changes you do not have yet'
+                        : '',
+                    moved.length ? `${moved.map((s) => s.id).join(', ')} moved` : '',
+                  ]
+                    .filter(Boolean)
+                    .join('; ')}`
               : 'Up-to-date status unknown (offline?)'}
         </p>
       )}
@@ -153,14 +162,13 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
           ORDER.map((name) => overview.buttons[name])
             .filter((b) => b.visible)
             .map((b) => (
-              <button
-                key={b.name}
-                disabled={!b.enabled || running}
-                title={b.reason ?? b.hint}
-                onClick={() => (b.asks.length ? setAsking(b) : void start(b))}
-              >
-                {LABEL[b.name]}
-              </button>
+              <div key={b.name} className="button-row">
+                <button disabled={!b.enabled || running} title={b.reason ?? b.hint} onClick={() => (b.asks.length ? setAsking(b) : void start(b))}>
+                  {LABEL[b.name]}
+                </button>
+                {/* Pourquoi c'est grisé se lit sans survoler : « relancer avec --allow-push » ne se devine pas. */}
+                {!b.enabled && b.reason && !running && <small className="button-reason">{b.reason}</small>}
+              </div>
             ))}
       </div>
       {startError && <p className="error">{startError}</p>}
