@@ -35,7 +35,7 @@ const authored: AuthoredCore = {
   },
 };
 
-const out = await build({ snapshot: openSnapshot(fixture('snapshot')), authored });
+const out = await build({ snapshot: openSnapshot(fixture('snapshot')), ruleFormatArmies: [], authored });
 const core = out.files.get('wh40k-11e/core.json') as CoreFile;
 const orks = (out.files.get('wh40k-11e/armies/orks.json') as { units: { id: string; name: string; maxModels: number; points: number }[] }).units;
 const boyz = orks.find((u) => u.name === 'Boyz')!;
@@ -58,13 +58,14 @@ check(
   JSON.stringify(core.sampleList),
 );
 check('core.json conforme au schéma', validateFile('core', core).length === 0, JSON.stringify(validateFile('core', core)));
-const bare = await build({ snapshot: openSnapshot(fixture('snapshot')) });
+const bare = await build({ snapshot: openSnapshot(fixture('snapshot')), ruleFormatArmies: [] });
 const bareCore = bare.files.get('wh40k-11e/core.json') as CoreFile;
 check('sans fichiers écrits par le projet : listes vides, pas de List d\'exemple', bareCore.battleSizes.length === 0 && bareCore.referenceTargets.length === 0 && !bareCore.sampleList);
 
 section('Écrit par le projet : Effects et résumés');
 const withEffects = await build({
   snapshot: openSnapshot(fixture('snapshot')),
+  ruleFormatArmies: [],
   authored: {
     battleSizes: [],
     referenceTargets: [],
@@ -89,6 +90,7 @@ const ours = { type: 'feel-no-pain', target: 'unit', modifier: { threshold: 5 } 
 const contribution = (upstream: string) =>
   build({
     snapshot: openSnapshot(fixture('snapshot')),
+    ruleFormatArmies: [],
     authored: { battleSizes: [], referenceTargets: [], effects: [{ target: 'u-warboss::ability:Da Boss Fixture', effect: ours, reason: 'Ours.', upstream }] },
   });
 const same = await contribution(fingerprint({ effect: bossUpstream.effect, summary: bossUpstream.summary }));

@@ -17,8 +17,8 @@ import { check, fixture, section } from './check.ts';
 
 const GS = 'wh40k-11e';
 const snapshot = openSnapshot(fixture('snapshot'));
-const first = await build({ snapshot });
-const second = await build({ snapshot, ids: first.ids });
+const first = await build({ snapshot, ruleFormatArmies: [] });
+const second = await build({ snapshot, ruleFormatArmies: [], ids: first.ids });
 
 const orks = (out: BuildOutput) => out.files.get(`${GS}/armies/orks.json`) as ArmyFile;
 const det = (out: BuildOutput, name: string) => orks(out).detachments.find((d) => d.name === name) as Detachment;
@@ -63,7 +63,7 @@ check('deux constructions donnent les mêmes identifiants de Detachment et d\'En
 check('l\'identifiant garde la référence 40kdc-data', first.ids.detachments.orks.some((e) => e.id === warHorde.id && e.keys.includes('40kdc:orks/war-horde')));
 const renamed = structuredClone(first.ids);
 renamed.detachments.orks.find((e) => e.id === warHorde.id)!.id = 'horde-de-guerre';
-check('un identifiant attribué survit, même si le nom amont en donnerait un autre', det(await build({ snapshot, ids: renamed }), 'War Horde').id === 'horde-de-guerre');
+check('un identifiant attribué survit, même si le nom amont en donnerait un autre', det(await build({ snapshot, ruleFormatArmies: [], ids: renamed }), 'War Horde').id === 'horde-de-guerre');
 
 section('Detachments : Corrections');
 const correction = (name: string, c: Omit<CorrectionFile, 'path' | 'source' | 'reason'>): CorrectionFile => ({ source: 'mfm', reason: 'test', path: `corrections/${GS}/orks/${name}.json`, ...c });

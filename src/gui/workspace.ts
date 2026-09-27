@@ -53,6 +53,8 @@ export interface WorkspaceOptions {
   gameSystem?: string;
   repository?: string;
   allowPush?: boolean;
+  /** Armies au format de Rule à nous ; par défaut celles de `RULE_FORMAT_ARMIES`. */
+  ruleFormatArmies?: string[];
 }
 
 export const DEFAULT_REPOSITORY = 'https://github.com/PaintPlanPlay/dataset.git';
@@ -81,6 +83,7 @@ export async function openWorkspace(options: WorkspaceOptions): Promise<Workspac
           gameSystem,
           ids: readRegistry(options.datasetDir, gameSystem),
           authored: readAuthored(options.datasetDir, gameSystem),
+          ...(options.ruleFormatArmies ? { ruleFormatArmies: options.ruleFormatArmies } : {}),
         };
         const [current, bare] = await Promise.all([
           build({ ...common, corrections: readCorrections(options.datasetDir, gameSystem) }),

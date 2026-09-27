@@ -14,10 +14,10 @@ import { createContext, useContext, useId, useState, type ReactNode } from 'reac
 import { canonicalWeaponKeyword, WEAPON_KEYWORDS } from '@paintplanplay/dataset-schema';
 import type { Mark } from '../../../src/gui/sheets.ts';
 import { branchLabel, HIDDEN, humanize, kindOf, type Located, type SchemaSet } from '../schema.ts';
-import { defaultOf, getAt, pointer, same, type Path } from './values.ts';
+import { addedFieldOf, defaultOf, getAt, pointer, same, type Path } from './values.ts';
 
 /** Champs dérivés au build : ils s'affichent, ils ne se saisissent pas. */
-const DERIVED = new Set(['points', 'costBrackets', 'minModels', 'maxModels', 'defaultModels', 'rangeInches', 'source', 'conditional']);
+const DERIVED = new Set(['points', 'costBrackets', 'minModels', 'maxModels', 'defaultModels', 'rangeInches', 'source', 'conditional', 'armyRuleIds', 'statuses']);
 
 export interface EditorContext {
   schemas: SchemaSet;
@@ -43,6 +43,8 @@ export interface Choices {
   options: string[];
   closed: boolean;
   picker?: 'weaponKeywords';
+  /** Pour une clé de Modifier : celles que la Simulation sait jouer. Une autre est acceptée, marquée « not simulated ». */
+  simulated?: string[];
 }
 
 export const Ctx = createContext<EditorContext | null>(null);
@@ -190,7 +192,7 @@ function CardField({ at, value, path, label, section }: FieldProps) {
         <select
           className="add-field"
           value=""
-          onChange={(e) => e.target.value && ctx.onChange([...path, e.target.value], defaultOf(ctx.schemas, child(e.target.value)))}
+          onChange={(e) => e.target.value && ctx.onChange([...path, e.target.value], addedFieldOf(ctx.schemas, child(e.target.value)))}
         >
           <option value="">+ add a field…</option>
           {missing.map((k) => (
@@ -230,7 +232,13 @@ function ListField({ at, value, path, label, section }: FieldProps) {
       )}
       <Notes path={path} />
       {items.length === 0 ? (
-        <p className="empty">—</p>
+        derived || !label ? (
+          <p className="empty">—</p>
+        ) : (
+          <button type="button" className="add-first" onClick={() => ctx.onChange(path, [defaultOf(ctx.schemas, itemAt)])}>
+            + Add {label.toLowerCase().replace(/s$/, '')}
+          </button>
+        )
       ) : (
         items.map((item, i) => (
           <div key={i} className="item">
@@ -379,6 +387,7 @@ function WeaponKeywordPicker({ onAdd }: { onAdd: (keyword: string) => void }) {
 
 function ScalarField({ at, value, path, label }: FieldProps) {
   const ctx = useEditor();
+  const listId = useId();
   const { schema } = at;
   const name = path[path.length - 1];
   const derived = typeof name === 'string' && DERIVED.has(name);
@@ -417,13 +426,29 @@ function ScalarField({ at, value, path, label }: FieldProps) {
     );
   else {
     const text = value === null || value === undefined ? '' : String(value);
+    const choices = ctx.choices?.(path);
     control = (
-      <input
-        readOnly={derived}
-        value={text}
-        size={Math.max(4, Math.min(48, text.length + 2))}
-        onChange={(e) => set(e.target.value === '' && nullable ? null : e.target.value)}
-      />
+      <>
+        <input
+          readOnly={derived}
+          value={text}
+          list={choices ? listId : undefined}
+          size={Math.max(4, Math.min(48, text.length + 2))}
+          onChange={(e) => set(e.target.value === '' && nullable ? null : e.target.value)}
+        />
+        {choices && (
+          <datalist id={listId}>
+            {choices.options.map((o) => (
+              <option key={o} value={o} />
+            ))}
+          </datalist>
+        )}
+        {choices?.simulated && text && !choices.simulated.includes(text) && (
+          <span className="note warning" title="The simulation does not play this key: fix the entry, or teach the simulator">
+            not simulated
+          </span>
+        )}
+      </>
     );
   }
   const limit = name === 'summary' ? 160 : undefined;

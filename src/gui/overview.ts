@@ -17,6 +17,8 @@ import { headCommit } from '../fetch.ts';
 import { ghReady, jobSpecs, publishRight, type JobField } from './api.ts';
 import { isRepository, pendingChanges, pendingFingerprint } from './pending.ts';
 import type { Workspace, WorkspaceState } from './workspace.ts';
+import { findUnsimulated } from '../rules.ts';
+import { toReviewCount } from './review.ts';
 
 export interface Probe {
   /** Le dernier commit de chaque Upstream Source, par identifiant de source. Rejette hors ligne. */
@@ -150,6 +152,10 @@ export interface Overview {
   disagreements: number;
   /** Effects proposés par l'analyse d'aptitudes, en attente de revue. */
   suggestions: number;
+  /** Clés de Modifier que la Simulation ne sait pas jouer. */
+  unsimulated: number;
+  /** Rules extraites qui attendent un humain : divergentes, ou d'une seule lecture. */
+  toReview: number;
   /** Les Armies du Dataset, pour le filtre de la recherche. */
   armies: { id: string; name: string }[];
 }
@@ -236,6 +242,8 @@ export async function overview(ws: Workspace, probe: Probe = defaultProbe, built
     pending,
     pullRequest: probe.pullRequest(ws.datasetDir),
     disagreements: ws.current?.conflicts?.length ?? 0,
+    unsimulated: findUnsimulated(ws.current?.files ?? new Map()).length,
+    toReview: existsSync(ws.datasetDir) ? toReviewCount(ws) : 0,
     suggestions: [...(ws.current?.files ?? new Map()).entries()]
       .filter(([p]) => p.startsWith(`${ws.gameSystem}/armies/`))
       .flatMap(([, f]) => (f as ArmyFile).units.filter((u) => !u.ally).flatMap((u) => u.abilities))

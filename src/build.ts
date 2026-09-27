@@ -39,6 +39,7 @@ import { kdcFactionFor } from './upstream/kdc.ts';
 import { unitAbilities } from './abilities.ts';
 import { applyAuthoredEffects, resolveAuthored, type AuthoredCore, type ContributionVerdict } from './authored.ts';
 import { applyMfm, mfmKey, type MfmConflict, type MfmFaction } from './upstream/mfm.ts';
+import { coreStatus, findUnsimulated, RULE_FORMAT_ARMIES, toRuleFormat, type UnsimulatedKey } from './rules.ts';
 
 export type { DroppedEffect, MissingEntity, SourceConflict } from './findings.ts';
 
@@ -51,6 +52,11 @@ export interface BuildInput {
   gameSystem?: string;
   /** Battle Sizes, cibles par défaut et List d'exemple écrites par le projet. */
   authored?: AuthoredCore;
+  /**
+   * Armies passées au format de Rule à nous (ADR 0011) ; par défaut
+   * `RULE_FORMAT_ARMIES`. Les contrôles de l'ancien chemin la vident.
+   */
+  ruleFormatArmies?: Iterable<string>;
 }
 
 export interface BuildOutput {
@@ -77,6 +83,10 @@ export interface BuildOutput {
   orphans: ApplyReport['orphans'];
   /** Verdict du contrôle « aucun texte de règles » sur les fichiers produits et les Corrections : vide = conforme. */
   textCheck: TextFinding[];
+  /** Clés de Modifier que la Simulation ne sait pas jouer : à corriger, dans la saisie ou dans le simulateur. */
+  unsimulated: UnsimulatedKey[];
+  /** Les Effects de 40kdc-data que les Armies au format de Rule ne publient plus, par adresse : la deuxième lecture de la revue. */
+  kdcEffects: Record<string, unknown>;
 }
 
 /**
@@ -114,6 +124,9 @@ export function mfmFactionOf(armyFile: string, loaded: string[], factions: MfmFa
  * Une datasheet aplatie, réduite à ce que le Dataset publie : aucun texte. Ses
  * aptitudes arrivent déjà résolues (`unitAbilities`) ; à défaut, leur nom seul.
  */
+/** Les règles Core d'une datasheet, en Modifiers de statut. */
+const statusesOf = (u: CatalogueUnit) => (u.coreRules ?? []).map(coreStatus).filter((m) => m !== undefined);
+
 export function toDatasetUnit(u: CatalogueUnit, abilities: Unit['abilities'] = u.abilities.map((a) => ({ name: a.name }))): Unit {
   return {
     id: u.id,
@@ -124,6 +137,7 @@ export function toDatasetUnit(u: CatalogueUnit, abilities: Unit['abilities'] = u
     keywords: u.keywords,
     factionKeywords: u.factionKeywords,
     armyRules: u.armyRules,
+    ...(statusesOf(u).length ? { statuses: statusesOf(u) } : {}),
     models: u.models,
     weapons: u.weapons,
     abilities,
@@ -185,6 +199,8 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   const system = GAME_SYSTEMS[gameSystem];
   if (!system) throw new Error(`unknown Game System: ${gameSystem}`);
   const corrections = input.corrections ?? [];
+  const ruleFormat = new Set(input.ruleFormatArmies ?? RULE_FORMAT_ARMIES);
+  const inRuleFormat = (armyId: string) => ruleFormat.has(armyId);
 
   const ids = structuredClone(input.ids ?? emptyRegistry());
   const files = new Map<string, unknown>();
@@ -193,6 +209,7 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   const armiesWithoutMfm: string[] = [];
   const missing: MissingEntity[] = [];
   const droppedEffects: DroppedEffect[] = [];
+  const kdcEffects: Record<string, unknown> = {};
 
   const all = snapshot.bsdataFiles();
   const mfm = snapshot.mfmFactions();
@@ -287,6 +304,10 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
         ),
       )
       .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+    // Les Army Rules, stockées une fois ; chaque Unit les désigne par identifiant.
+    const armyRuleNames = [...new Set(datasetUnits.flatMap((u) => u.armyRules))].sort((a, b) => a.localeCompare(b));
+    const armyRuleIds = assignIds(ids, 'rules', `${army.id}/army`, armyRuleNames, (name) => ({ keys: [`bsdata:${name}`], name }));
+    for (const u of datasetUnits) if (u.armyRules.length) u.armyRuleIds = u.armyRules.map((n) => armyRuleIds.get(n)!);
     const file: ArmyFile = {
       schemaVersion: SCHEMA_VERSION,
       gameSystem,
@@ -294,9 +315,11 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
       name: armyLabel(army.file),
       faction: armyFaction(army.file),
       units: datasetUnits,
+      ...(armyRuleNames.length ? { armyRules: armyRuleNames.map((name) => ({ id: armyRuleIds.get(name)!, name })) } : {}),
       detachments: dets.detachments,
       stratagems: strats.stratagems,
     };
+    if (inRuleFormat(army.id)) Object.assign(kdcEffects, toRuleFormat(file));
     files.set(armyPath(gameSystem, army.id), file);
     unitsByArmy.set(army.id, datasetUnits);
     summaries.push({
@@ -346,7 +369,7 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   files.set(corePath(gameSystem), coreFile);
 
   // Les Effects et résumés écrits par le projet, par-dessus tout le reste.
-  const authoredEffects = applyAuthoredEffects(files, gameSystem, input.authored?.effects ?? []);
+  const authoredEffects = applyAuthoredEffects(files, gameSystem, input.authored?.effects ?? [], inRuleFormat);
   authored.unresolved.push(...authoredEffects.unresolved);
   for (const r of authoredEffects.rejected) droppedEffects.push({ army: 'authored', where: r.target, reason: r.reason });
 
@@ -357,5 +380,7 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   return {
     gameSystem, files, ids, conflicts, unmatched, armiesWithoutMfm, missing, droppedEffects,
     unresolvedAuthored: authored.unresolved, corrections: verdicts, contributions: authoredEffects.contributions, orphans, textCheck,
+    unsimulated: findUnsimulated(files),
+    kdcEffects,
   };
 }

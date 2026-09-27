@@ -35,7 +35,7 @@ let pullRequest: { url: string; state: string } | null = null;
 /** Ce que le dépôt publié du Dataset dit de ses références ; `null` : on ne le sait pas (hors ligne). */
 let remote: Record<string, string> | null = null;
 const snapshotHeads = Object.fromEntries((JSON.parse(readFileSync(join(snap, 'sources.json'), 'utf8')) as { id: string; commit: string }[]).map((s) => [s.id, s.commit]));
-const ws = await openWorkspace({ datasetDir: dir, snapshotDir: snap, allowPush: true });
+const ws = await openWorkspace({ datasetDir: dir, snapshotDir: snap, allowPush: true, ruleFormatArmies: [] });
 const gui = await startGui(ws, {
   port: 0,
   probe: { upstreamHeads: async () => snapshotHeads, publishRight: () => null, pullRequest: () => pullRequest, remoteRefs: async () => remote },

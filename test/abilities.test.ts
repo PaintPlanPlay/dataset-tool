@@ -13,7 +13,7 @@ import { openSnapshot } from '../src/snapshot.ts';
 import { check, fixture, section } from './check.ts';
 
 const GS = 'wh40k-11e';
-const out = await build({ snapshot: openSnapshot(fixture('snapshot')) });
+const out = await build({ snapshot: openSnapshot(fixture('snapshot')), ruleFormatArmies: [] });
 const army = (id: string) => out.files.get(`${GS}/armies/${id}.json`) as ArmyFile;
 const unit = (armyId: string, name: string) => army(armyId).units.find((u) => u.name === name) as Unit;
 const ability = (u: Unit, name: string) => u.abilities.find((a) => a.name === name)!;

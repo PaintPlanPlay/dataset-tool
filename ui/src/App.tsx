@@ -6,16 +6,18 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError, type DraftCheck, type Inspection, type Mark, type Overview, type PendingChange, type Sheet, type Suggestions } from './api.ts';
-import { CorrectionsDialog, DisagreementsDialog, LeaveDialog, SaveDialog } from './Dialogs.tsx';
+import { CorrectionsDialog, DisagreementsDialog, LeaveDialog, ReviewDialog, SaveDialog, UnsimulatedDialog } from './Dialogs.tsx';
 import { Ctx, Field, type EditorContext } from './editor/Editor.tsx';
 import { same, setAt, type Path } from './editor/values.ts';
 import { SchemaSet, type Located } from './schema.ts';
 import { SheetBar } from './SheetBar.tsx';
 import { unitWidget } from './sheets/UnitSheet.tsx';
+import { toast, Toasts } from './Toast.tsx';
 import { StatusColumn } from './StatusColumn.tsx';
 
 /** Le schéma d'une fiche, d'après son genre. */
 function sheetSchema(schemas: SchemaSet, kind: Inspection['kind']): Located {
+  if (kind === 'armyRule') return schemas.def('rule');
   if (kind !== 'core') return schemas.def(kind);
   // L'entrée Core : les Battle Sizes et les Stratagems Core de `core.json`.
   const core = schemas.def('coreFile');
@@ -82,7 +84,13 @@ function choicesFor(kind: Inspection['kind'], draft: unknown, s: Suggestions | n
       if (key === 'enhancements.*.leaderTo' || key === 'enhancements.*.supportTo') return { options: units, closed: true };
       if (key === 'enhancements.*.requires.*' || key === 'enhancements.*.excludes') return { options: words, closed: false };
     }
-    if (/(^|\.)target\.(allOf|anyOf|noneOf)$/.test(key)) return { options: words, closed: false };
+    if (/(^|\.)(target|keywords|eligibility)\.(allOf|anyOf|noneOf)$/.test(key)) return { options: words, closed: false };
+    if (/(^|\.)modifiers\.\*\.key$/.test(key)) {
+      const keys = s?.modifierKeys ?? [];
+      return { options: keys.map((k) => k.key), closed: false, simulated: keys.filter((k) => k.simulated).map((k) => k.key) };
+    }
+    // Une Condition que la Simulation n'évalue pas n'est pas une erreur : c'est une Situation, posée par le joueur.
+    if (/(^|\.)conditions\.\*\.key$/.test(key)) return { options: (s?.conditionKeys ?? []).map((k) => k.key), closed: false };
     return undefined;
   };
 }
@@ -104,12 +112,10 @@ export function App() {
   const [suggestions, setSuggestions] = useState<Suggestions | null>(null);
   const [pending, setPending] = useState<PendingChange[]>([]);
   const [corrections, setCorrections] = useState(0);
-  const [dialog, setDialog] = useState<null | 'save' | 'corrections' | 'all' | 'disagreements'>(null);
+  const [dialog, setDialog] = useState<null | 'save' | 'corrections' | 'all' | 'disagreements' | 'unsimulated' | 'review'>(null);
   const [leaving, setLeaving] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [findings, setFindings] = useState<string[]>([]);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [rebuilding, setRebuilding] = useState(false);
 
   const dirty = sheet !== null && !same(draft, sheet.value);
 
@@ -158,13 +164,20 @@ export function App() {
    * suffit) ; la fiche attend que le serveur ait reconstruit le Dataset, ce qui
    * prend une vingtaine de secondes sur le vrai.
    */
-  const afterWrite = useCallback(async () => {
-    api.pending().then(setPending, () => undefined);
-    setRebuilding(true);
-    await api.refresh().catch(() => undefined);
-    setRebuilding(false);
-    onChanged();
-  }, [onChanged]);
+  const afterWrite = useCallback(
+    async (done = 'Up to date', detail?: string, id?: number) => {
+      api.pending().then(setPending, () => undefined);
+      const t = toast.busy('Rebuilding the Dataset with your change…', id);
+      try {
+        await api.refresh();
+        toast.ok(done, detail, t);
+      } catch (err) {
+        toast.error('The Dataset could not be rebuilt', (err as Error).message, t);
+      }
+      onChanged();
+    },
+    [onChanged],
+  );
 
   // Chaque modification est contrôlée en direct, avec un délai : schéma et texte de règles.
   useEffect(() => {
@@ -191,11 +204,12 @@ export function App() {
     if (!sheet) return;
     setSaving(true);
     setFindings([]);
+    const t = toast.busy(`Saving ${sheet.name}…`);
     try {
       const out = await api.save(sheet.target, draft, reason);
       setDialog(null);
-      setNotice(`${out.files.length} file(s): ${out.files.map((f) => `${f.path}${f.action === 'deleted' ? ' (removed)' : ''}`).join(', ')}`);
-      await afterWrite();
+      const files = out.files.map((f) => `${f.path}${f.action === 'deleted' ? ' (removed)' : ''}`).join(', ');
+      await afterWrite(`${sheet.name} saved`, `${out.files.length} file(s): ${files}`, t);
       if (leaving) {
         const next = leaving;
         setLeaving(null);
@@ -203,7 +217,9 @@ export function App() {
         loadSheet(next);
       }
     } catch (err) {
-      setFindings(err instanceof ApiError && err.findings.length ? err.findings : [(err as Error).message]);
+      const found = err instanceof ApiError && err.findings.length ? err.findings : [(err as Error).message];
+      setFindings(found);
+      toast.error(`${sheet.name} not saved`, found[0], t);
     } finally {
       setSaving(false);
     }
@@ -216,12 +232,12 @@ export function App() {
 
   const accept = async (ability: string) => {
     if (!sheet) return;
+    const t = toast.busy(`Accepting the suggested Effect of ${ability}…`);
     try {
       await api.accept(`${sheet.target}::ability:${ability}`);
-      setNotice(`Suggested Effect of ${ability} accepted as a Contribution.`);
-      await afterWrite();
+      await afterWrite(`Suggested Effect of ${ability} accepted as a Contribution`, undefined, t);
     } catch (err) {
-      setNotice((err as Error).message);
+      toast.error(`Suggested Effect of ${ability} not accepted`, (err as Error).message, t);
     }
   };
 
@@ -242,18 +258,26 @@ export function App() {
 
   return (
     <div className="layout">
+      <Toasts />
       <StatusColumn
         overview={overview}
         error={overviewError}
         pending={pending}
         onChanged={onChanged}
         onUndo={async (id) => {
-          await api.undo(id).catch((e: Error) => setNotice(e.message));
-          await afterWrite();
+          const t = toast.busy('Undoing the change…');
+          try {
+            await api.undo(id);
+            await afterWrite('Change undone', undefined, t);
+          } catch (e) {
+            toast.error('The change could not be undone', (e as Error).message, t);
+          }
         }}
         onOpen={open}
         onCorrections={() => setDialog('all')}
         onDisagreements={() => setDialog('disagreements')}
+        onUnsimulated={() => setDialog('unsimulated')}
+        onReview={() => setDialog('review')}
       />
       <main className="sheet">
         <SheetBar
@@ -268,12 +292,6 @@ export function App() {
           }}
           onCorrections={() => setDialog('corrections')}
         />
-        {rebuilding && <p className="notice busy">Rebuilding the Dataset with your change…</p>}
-        {notice && (
-          <p className="notice" onClick={() => setNotice(null)}>
-            {notice}
-          </p>
-        )}
         {sheetError && <p className="error">{sheetError}</p>}
         {sheet && ctx ? (
           <div className="sheet-body">
@@ -303,6 +321,26 @@ export function App() {
             open(s);
           }}
           onChanged={() => void afterWrite()}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === 'review' && (
+        <ReviewDialog
+          armies={overview?.armies ?? []}
+          onOpen={(s) => {
+            setDialog(null);
+            open(s);
+          }}
+          onChanged={() => void afterWrite()}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === 'unsimulated' && (
+        <UnsimulatedDialog
+          onOpen={(s) => {
+            setDialog(null);
+            open(s);
+          }}
           onClose={() => setDialog(null)}
         />
       )}
