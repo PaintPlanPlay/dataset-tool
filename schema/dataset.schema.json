@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://paint-plan-play.github.io/schemas/dataset.schema.json",
   "title": "Paint Plan Play Dataset",
-  "description": "Files of the Paint Plan Play Dataset. No rules text anywhere: a rule is carried by its name, its structured fields, its Modifiers (or, until its Army moves to them, its 40kdc-data Effect) and a short Description written by the project.",
+  "description": "Files of the Paint Plan Play Dataset. No rules text anywhere: a rule is carried by its name, its structured fields, its Modifiers and a short Description written by the project.",
   "$defs": {
     "id": {
       "type": "string",
@@ -424,12 +424,6 @@
         "name": {
           "$ref": "#/$defs/name"
         },
-        "effect": {
-          "$ref": "#/$defs/effect"
-        },
-        "scope": {
-          "$ref": "#/$defs/effectScope"
-        },
         "modifiers": {
           "$ref": "#/$defs/modifiers"
         },
@@ -442,16 +436,6 @@
         },
         "summary": {
           "$ref": "#/$defs/summary"
-        },
-        "effectSource": {
-          "enum": [
-            "40kdc",
-            "analysis",
-            "project"
-          ]
-        },
-        "conditional": {
-          "type": "boolean"
         }
       },
       "required": [
@@ -738,17 +722,13 @@
           "items": {
             "$ref": "#/$defs/armySummary"
           }
-        },
-        "effectFormat": {
-          "$ref": "#/$defs/effectFormat"
         }
       },
       "required": [
         "schemaVersion",
         "gameSystem",
         "sources",
-        "armies",
-        "effectFormat"
+        "armies"
       ],
       "additionalProperties": false
     },
@@ -809,30 +789,6 @@
       ],
       "additionalProperties": false
     },
-    "effectFormat": {
-      "type": "object",
-      "properties": {
-        "repository": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
-        },
-        "commit": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{7,40}$"
-        }
-      },
-      "required": [
-        "repository",
-        "commit"
-      ],
-      "additionalProperties": false
-    },
-    "effect": {
-      "$ref": "https://40kdc.dev/schemas/enrichment/ability-dsl/effect.schema.json"
-    },
-    "effectScope": {
-      "$ref": "https://40kdc.dev/schemas/enrichment/ability-dsl/scope.schema.json"
-    },
     "summary": {
       "type": "string",
       "minLength": 1,
@@ -859,12 +815,6 @@
         },
         "eligibility": {
           "$ref": "#/$defs/keywordFilter"
-        },
-        "effect": {
-          "$ref": "#/$defs/effect"
-        },
-        "scope": {
-          "$ref": "#/$defs/effectScope"
         },
         "modifiers": {
           "$ref": "#/$defs/modifiers"
@@ -929,12 +879,6 @@
           "items": {
             "$ref": "#/$defs/name"
           }
-        },
-        "effect": {
-          "$ref": "#/$defs/effect"
-        },
-        "scope": {
-          "$ref": "#/$defs/effectScope"
         },
         "modifiers": {
           "$ref": "#/$defs/modifiers"
@@ -1096,12 +1040,6 @@
         },
         "target": {
           "$ref": "#/$defs/stratagemTarget"
-        },
-        "effect": {
-          "$ref": "#/$defs/effect"
-        },
-        "scope": {
-          "$ref": "#/$defs/effectScope"
         },
         "modifiers": {
           "$ref": "#/$defs/modifiers"

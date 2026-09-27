@@ -23,7 +23,7 @@ import { openWorkspace } from '../src/gui/workspace.ts';
 import { check, fixture, section } from './check.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'dataset-gui-'));
-const ws = await openWorkspace({ datasetDir: dir, snapshotDir: fixture('snapshot'), ruleFormatArmies: [] });
+const ws = await openWorkspace({ datasetDir: dir, snapshotDir: fixture('snapshot') });
 const gui = await startGui(ws, 0);
 const base = new URL(gui.url);
 
@@ -84,8 +84,8 @@ try {
 
   const boss = (await get<Sheet>('/api/sheet?target=u-warboss')).body;
   check(
-    'Unit : chaque champ dit sa source — MFM pour le coût, BSData pour le profil, 40kdc-data pour l\'Effect',
-    ['mfm', 'bsdata'].includes(originOf(boss, 'points')?.origin ?? '') && originOf(boss, 'models')?.origin === 'bsdata' && originOf(boss, 'abilities › Da Boss Fixture')?.origin === '40kdc',
+    'Unit : chaque champ dit sa source — MFM pour le coût, BSData pour le profil et le nom d\'une aptitude sans Modifiers',
+    ['mfm', 'bsdata'].includes(originOf(boss, 'points')?.origin ?? '') && originOf(boss, 'models')?.origin === 'bsdata' && originOf(boss, 'abilities › Da Boss Fixture')?.detail === 'name only',
     JSON.stringify(boss.origins),
   );
   const det = (await get<Sheet>(`/api/sheet?target=${encodeURIComponent(warHorde!.target)}`)).body;
@@ -127,20 +127,12 @@ try {
   const summary = await post<{ files: unknown[] }>('/api/sheet/save', { target: 'u-warboss', draft: shortDraft, reason: 'Résumé de test.' });
   await post('/api/refresh', {});
   const bossAfter = (await get<Sheet>('/api/sheet?target=u-warboss')).body;
-  const bossAbility = (bossAfter.value as { abilities: { name: string; summary?: string; effectSource?: string }[] }).abilities.find((a) => a.name === 'Da Boss Fixture');
+  const bossAbility = (bossAfter.value as { abilities: { name: string; summary?: string }[] }).abilities.find((a) => a.name === 'Da Boss Fixture');
   check(
-    'un résumé passe le contrôle « aucun texte » avant d\'être écrit ; il s\'ajoute sans toucher l\'Effect',
-    longSummary.status === 400 && summary.status === 201 && bossAbility?.summary === '+1 to wound in melee.' && bossAbility.effectSource === '40kdc',
+    'un résumé passe le contrôle « aucun texte » avant d\'être écrit, puis dit que l\'aptitude est à nous',
+    longSummary.status === 400 && summary.status === 201 && bossAbility?.summary === '+1 to wound in melee.' && originOf(bossAfter, 'abilities › Da Boss Fixture')?.origin === 'project',
   );
-
-  check('les propositions de l\'analyse sont consultables', boyz.proposals.some((p) => p.ability === 'Mob Fixture'));
-  const accepted = await post<{ path: string }>('/api/proposals/accept', { target: 'u-boyz::ability:Mob Fixture' });
-  await post('/api/refresh', {});
-  const boyzAfter = (await get<Sheet>('/api/sheet?target=u-boyz')).body;
-  check(
-    'accepter une proposition : elle devient un Effect écrit par le projet',
-    accepted.status === 201 && originOf(boyzAfter, 'abilities › Mob Fixture')?.origin === 'project' && boyzAfter.proposals.length === 0,
-  );
+  check('plus aucune proposition d\'analyse à accepter', (await post('/api/proposals/accept', { target: 'u-boyz::ability:Mob Fixture' })).status === 404);
 
   const draft = await get<{ repository: string; url: string }>(`/api/upstream-draft?path=${encodeURIComponent(path)}`);
   const pr = await post<{ path: string }>('/api/corrections/upstream-pr', { path, url: 'https://github.com/BSData/wh40k-11e-mfm/pull/12' });
@@ -376,10 +368,10 @@ try {
     const core = await at<Sheet>('/api/sheet?target=core');
     const coreValue = core.value as { battleSizes: unknown[]; stratagems: unknown[] };
     check('la fiche Core porte les Battle Sizes et les Stratagems Core', core.kind === 'core' && Array.isArray(coreValue.battleSizes) && coreValue.stratagems.length > 0);
-    const schema = await at<{ dataset: { $defs: Record<string, unknown> }; vendor: { $id: string }[] }>('/api/schema');
+    const schema = await at<{ dataset: { $defs: Record<string, unknown> } }>('/api/schema');
     check(
-      'le schéma du Dataset est servi au moteur de rendu, avec les schémas d\'Effect',
-      ['unit', 'detachment', 'stratagem', 'coreFile'].every((d) => d in schema.dataset.$defs) && schema.vendor.some((v) => v.$id.includes('effect')),
+      'le schéma du Dataset est servi au moteur de rendu, Modifiers compris',
+      ['unit', 'detachment', 'stratagem', 'coreFile', 'modifier', 'rule'].every((d) => d in schema.dataset.$defs),
     );
   } finally {
     await guiOverview.close();

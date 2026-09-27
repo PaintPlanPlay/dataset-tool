@@ -8,11 +8,9 @@
  * On joint sur le nom normalisé ; une sous-faction sans données propres dans
  * 40kdc-data (un Chapitre) prend celles de sa faction parente.
  */
-import { validateEffect } from '@paintplanplay/dataset-schema/validate';
-import type { Detachment, Enhancement, Phase, PlayerTurn, Rule, RuleBody, Stratagem, StratagemTarget, StratagemTiming } from '@paintplanplay/dataset-schema';
-import type { DroppedEffect, MissingEntity, SourceConflict } from './findings.ts';
+import type { Detachment, Enhancement, Phase, PlayerTurn, Rule, Stratagem, StratagemTarget, StratagemTiming } from '@paintplanplay/dataset-schema';
+import type { MissingEntity, SourceConflict } from './findings.ts';
 import { assignIds, slugify, type IdRegistry } from './ids.ts';
-import { findRulesText } from './notext.ts';
 import { kdcKey, type KdcAbility, type KdcData, type KdcDetachment, type KdcEnhancement, type KdcFaction, type KdcStratagem } from './upstream/kdc.ts';
 import type { MfmDetachment, MfmEnhancement, MfmFaction } from './upstream/mfm.ts';
 
@@ -30,7 +28,8 @@ export interface DetachmentsOutput {
   stratagems: Stratagem[];
   conflicts: SourceConflict[];
   missing: MissingEntity[];
-  droppedEffects: DroppedEffect[];
+  /** Les Effects de 40kdc-data, par adresse de Rule : la deuxième lecture de la revue, jamais publiée. */
+  kdcEffects: Record<string, unknown>;
 }
 
 /** Force Disposition du MFM (« TAKE AND HOLD ») en identifiant 40kdc-data (« take-and-hold »). */
@@ -40,7 +39,7 @@ const sameSet = (a: string[], b: string[]) => [...a].sort().join('|') === [...b]
 
 export function buildDetachments(input: DetachmentsInput): DetachmentsOutput {
   const { armyId, mfm, kdc, kdcFaction, ids } = input;
-  const out: DetachmentsOutput = { detachments: [], stratagems: [], conflicts: [], missing: [], droppedEffects: [] };
+  const out: DetachmentsOutput = { detachments: [], stratagems: [], conflicts: [], missing: [], kdcEffects: {} };
   if (!mfm) return out;
 
   const parent = kdcFaction?.parent_faction_id ? kdc?.factions.find((f) => f.id === kdcFaction.parent_faction_id) : undefined;
@@ -56,7 +55,9 @@ export function buildDetachments(input: DetachmentsInput): DetachmentsOutput {
     return undefined;
   };
 
-  const bodyOf = (ability: KdcAbility | undefined, where: string) => effectBody(ability, (reason) => out.droppedEffects.push({ army: armyId, where, reason }));
+  const record = (target: string, ability: KdcAbility | undefined) => {
+    if (ability?.effect !== undefined) out.kdcEffects[target] = ability.effect;
+  };
 
   const detIds = assignIds(ids, 'detachments', armyId, mfm.detachments, (d) => {
     const hit = kdc && kdcDetachmentOf(d.name);
@@ -71,7 +72,7 @@ export function buildDetachments(input: DetachmentsInput): DetachmentsOutput {
     const forceDispositions = d.objectives.map(dispositionId);
     if (hit) conflictsOfDetachment(out, armyId, id, d, hit.det, forceDispositions);
 
-    if (hit) out.stratagems.push(...stratagemsOf(hit, id, d.name));
+    if (hit) out.stratagems.push(...stratagemsOf(hit, id));
     out.detachments.push({
       id,
       name: d.name,
@@ -94,11 +95,15 @@ export function buildDetachments(input: DetachmentsInput): DetachmentsOutput {
   out.stratagems.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
   return out;
 
-  function stratagemsOf(hit: { det: KdcDetachment; faction: KdcFaction }, detId: string, detName: string): Stratagem[] {
+  function stratagemsOf(hit: { det: KdcDetachment; faction: KdcFaction }, detId: string): Stratagem[] {
     const own = kdc!.stratagems(hit.faction.id).filter((s) => s.detachment_id === hit.det.id);
     const list = own.length || !parent ? own : kdc!.stratagems(parent.id).filter((s) => s.detachment_id === hit.det.id);
     const stratIds = assignIds(ids, 'stratagems', armyId, list, (s) => ({ keys: [`40kdc:${hit.det.id}/${s.id}`], name: s.name }));
-    return list.map((s) => toStratagem(s, stratIds.get(s)!, detId, kdc!.ability(s.ability_id ?? '', factionIds), `${detName} › ${s.name}`, bodyOf));
+    return list.map((s) => {
+      const ability = kdc!.ability(s.ability_id ?? '', factionIds);
+      record(`${armyId}::stratagem:${stratIds.get(s)}`, ability);
+      return toStratagem(s, stratIds.get(s)!, detId, ability);
+    });
   }
 
   function rulesOf(hit: { det: KdcDetachment; faction: KdcFaction }, detName: string): Rule[] {
@@ -109,9 +114,12 @@ export function buildDetachments(input: DetachmentsInput): DetachmentsOutput {
       ruleIds = fromParent?.detachment_rule_ids ?? (fromParent?.detachment_rule_id ? [fromParent.detachment_rule_id] : []);
     }
     const abilities = ruleIds.map((rid) => kdc!.ability(rid, factionIds)).filter((a): a is KdcAbility => Boolean(a));
-    const scope = `${armyId}/${detIds.get(mfm!.detachments.find((x) => x.name === detName)!)}`;
-    const ruleIdsAssigned = assignIds(ids, 'rules', scope, abilities, (a) => ({ keys: [`40kdc:${a.ability_id}`], name: a.name }));
-    return abilities.map((a) => ({ id: ruleIdsAssigned.get(a)!, name: a.name, ...bodyOf(a, `${detName} › ${a.name}`) }));
+    const detId = detIds.get(mfm!.detachments.find((x) => x.name === detName)!);
+    const ruleIdsAssigned = assignIds(ids, 'rules', `${armyId}/${detId}`, abilities, (a) => ({ keys: [`40kdc:${a.ability_id}`], name: a.name }));
+    return abilities.map((a) => {
+      record(`${armyId}::rule:${detId}|${ruleIdsAssigned.get(a)}`, a);
+      return { id: ruleIdsAssigned.get(a)!, name: a.name };
+    });
   }
 
   function enhancementsOf(d: MfmDetachment, detId: string, hit: { det: KdcDetachment; faction: KdcFaction } | undefined): Enhancement[] {
@@ -127,6 +135,7 @@ export function buildDetachments(input: DetachmentsInput): DetachmentsOutput {
       const k = matchOf(e);
       if (hit && !k) out.missing.push({ army: armyId, entity: 'enhancement', name: `${d.name} › ${e.name}`, missingIn: '40kdc', published: true });
       if (k) conflictsOfEnhancement(out, armyId, id, d.name, e, k);
+      if (k?.ability_id) record(`${armyId}::enhancement:${detId}|${id}`, kdc!.ability(k.ability_id, factionIds));
       const groups = k?.keyword_restriction_groups ?? (k?.keyword_restrictions?.length ? [k.keyword_restrictions] : []);
       return {
         id,
@@ -139,7 +148,6 @@ export function buildDetachments(input: DetachmentsInput): DetachmentsOutput {
         excludes: k?.exclusion_keywords ?? [],
         ...(e.leaderTo ? { leaderTo: e.leaderTo } : {}),
         ...(e.supportTo ? { supportTo: e.supportTo } : {}),
-        ...(k?.ability_id ? bodyOf(kdc!.ability(k.ability_id, factionIds), `${d.name} › ${e.name}`) : {}),
       };
     });
 
@@ -175,22 +183,6 @@ function conflictsOfEnhancement(out: DetachmentsOutput, army: string, id: string
   if (typeof k.upgrade_tag === 'boolean' && k.upgrade_tag !== (e.appliesTo === 'unit')) push('appliesTo', e.appliesTo, k.upgrade_tag ? 'unit' : 'character');
 }
 
-/** Un Effect amont, s'il est conforme au format figé et exempt de texte ; `drop` dit pourquoi sinon. */
-export function effectBody(ability: KdcAbility | undefined, drop: (reason: string) => void): RuleBody {
-  if (!ability?.effect) return {};
-  const errors = validateEffect(ability.effect, ability.scope);
-  if (errors.length) {
-    drop(`outside the frozen format: ${errors[0]}`);
-    return {};
-  }
-  const text = findRulesText({ effect: ability.effect, scope: ability.scope });
-  if (text.length) {
-    drop(`carries text: ${text[0].reason}`);
-    return {};
-  }
-  return { effect: ability.effect as RuleBody['effect'], ...(ability.scope ? { scope: ability.scope as RuleBody['scope'] } : {}) };
-}
-
 const PHASES = new Set<Phase>(['command', 'movement', 'shooting', 'charge', 'fight']);
 const PHASE_ORDER: Phase[] = ['command', 'movement', 'shooting', 'charge', 'fight'];
 
@@ -213,8 +205,6 @@ export function toStratagem(
   id: string,
   detachmentId: string | null,
   ability: KdcAbility | undefined,
-  where: string,
-  bodyOf: (ability: KdcAbility | undefined, where: string) => RuleBody,
 ): Stratagem {
   const phases = PHASE_ORDER.filter((p) => s.phases.includes(p) && PHASES.has(p));
   const target = targetOf(s, ability);
@@ -228,6 +218,5 @@ export function toStratagem(
     timing: (['once-per-phase', 'once-per-turn', 'once-per-battle', 'unlimited'].includes(s.timing) ? s.timing : 'once-per-phase') as StratagemTiming,
     ...(s.type ? { category: s.type } : {}),
     ...(target ? { target } : {}),
-    ...bodyOf(ability, where),
   };
 }

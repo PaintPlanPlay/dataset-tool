@@ -7,7 +7,7 @@
  * sources et l'état des Corrections, et le bruit en dernier.
  */
 import type { ArmyFile, DatasetIndex, Unit } from '@paintplanplay/dataset-schema';
-import type { BuildOutput, DroppedEffect, MissingEntity, SourceConflict } from './build.ts';
+import type { BuildOutput, MissingEntity, SourceConflict } from './build.ts';
 import type { ContributionVerdict } from './authored.ts';
 import { STATE_LABEL, type CorrectionVerdict } from './corrections/lifecycle.ts';
 
@@ -44,7 +44,8 @@ export interface DriftReport {
   orphans: { target: string; why: string }[];
   unmatched: BuildOutput['unmatched'];
   missing: MissingEntity[];
-  droppedEffects: DroppedEffect[];
+  /** Les Contributions refusées : hors schéma, porteuses de texte, ou à l'ancien format. */
+  rejectedContributions: ContributionVerdict[];
   unsimulated: BuildOutput['unsimulated'];
   sources: DatasetIndex['sources'];
   previousSources: DatasetIndex['sources'];
@@ -162,7 +163,7 @@ export function makeReport(out: BuildOutput, previous: Map<string, unknown> | un
     orphans: out.orphans,
     unmatched: out.unmatched,
     missing: out.missing,
-    droppedEffects: out.droppedEffects,
+    rejectedContributions: out.contributions.filter((c) => c.state === 'rejected'),
     unsimulated: out.unsimulated,
     sources: index.sources,
     previousSources: previousIndex?.sources ?? [],
@@ -246,9 +247,9 @@ export function renderReport(r: DriftReport): string {
     L.push(...bounded(r.missing, 60, (m) => `- ${m.entity} **${m.name}** · ${m.army} — missing from ${m.missingIn}, ${m.published ? 'published' : 'set aside'}`), '');
   }
 
-  if (r.droppedEffects.length) {
-    L.push(`## Effects set aside (${r.droppedEffects.length})`, '');
-    L.push(...bounded(r.droppedEffects, 40, (e) => `- ${e.where} · ${e.army} — ${e.reason}`), '');
+  if (r.rejectedContributions.length) {
+    L.push(`## Contributions set aside (${r.rejectedContributions.length})`, '');
+    L.push(...bounded(r.rejectedContributions, 40, (c) => `- ${c.target} — ${c.note}`), '');
   }
 
   if (r.unsimulated.length) {

@@ -10,10 +10,10 @@
  * ouverte à tous.
  */
 import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { acceptProposal, ApiError, datasetOf, recordUpstreamPr, refreshing, startJob, upstreamDraft } from './api.ts';
+import { ApiError, datasetOf, recordUpstreamPr, refreshing, startJob, upstreamDraft } from './api.ts';
 import { JobRunner } from './jobs.ts';
 import { defaultProbe, overview, type Probe } from './overview.ts';
 import { pendingChanges, pendingFingerprint, undoPending } from './pending.ts';
@@ -96,22 +96,10 @@ export interface GuiOptions {
   ui?: UiFactory;
 }
 
-/**
- * Le schéma du Dataset et ceux, vendus, des Effects : le moteur de rendu de la
- * nouvelle interface les parcourt pour savoir quoi afficher et comment.
- */
-function schemas(): { dataset: unknown; vendor: unknown[] } {
+/** Le schéma du Dataset : le moteur de rendu de l'interface le parcourt pour savoir quoi afficher et comment. */
+function schemas(): { dataset: unknown } {
   const datasetUrl = new URL(import.meta.resolve('@paintplanplay/dataset-schema/dataset.schema.json'));
-  const vendor: unknown[] = [];
-  const walk = (dir: URL) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const url = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir);
-      if (entry.isDirectory()) walk(url);
-      else if (entry.name.endsWith('.schema.json')) vendor.push(JSON.parse(readFileSync(url, 'utf8')));
-    }
-  };
-  walk(new URL('vendor/', datasetUrl));
-  return { dataset: JSON.parse(readFileSync(datasetUrl, 'utf8')), vendor };
+  return { dataset: JSON.parse(readFileSync(datasetUrl, 'utf8')) };
 }
 
 export async function startGui(ws: Workspace, options: GuiOptions | number = {}): Promise<GuiServer> {
@@ -202,10 +190,6 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
         // on en lance une, mais jamais deux en parallèle.
         await refreshing(ws);
         return send(res, 200, { state: ws.state });
-      case 'POST /api/proposals/accept': {
-        const body = await readBody(req);
-        return send(res, 201, await acceptProposal(ws, String(body.target ?? ''), body.openPr === true));
-      }
       case 'POST /api/corrections/upstream-pr': {
         const body = await readBody(req);
         return send(res, 200, await recordUpstreamPr(ws, String(body.path ?? ''), String(body.url ?? '')));

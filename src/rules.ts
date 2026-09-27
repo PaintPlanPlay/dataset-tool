@@ -1,14 +1,10 @@
 /**
- * Le format de Rule à nous (ADR 0011), Army par Army.
- *
- * Une Army passée à ce format ne publie plus aucun Effect de 40kdc-data : ce
- * que font ses Rules vient des seuls Modifiers de ses Contributions. Les autres
- * gardent l'ancien chemin jusqu'à la bascule.
+ * Le format de Rule à nous (ADR 0011) : ce que font les Rules vient des seuls
+ * Modifiers de leurs Contributions ; les règles Core deviennent des statuts ;
+ * les clés que la Simulation ne sait pas jouer sont relevées.
  */
-import { SIMULATED_MODIFIERS, type ArmyFile, type CoreFile, type Modifier, type RuleBody, type UnitAbility } from '@paintplanplay/dataset-schema';
+import { SIMULATED_MODIFIERS, type ArmyFile, type CoreFile, type Modifier, type RuleBody } from '@paintplanplay/dataset-schema';
 import { CORE_ROOT } from './corrections/apply.ts';
-
-export const RULE_FORMAT_ARMIES: ReadonlySet<string> = new Set(['orks']);
 
 /**
  * Les règles Core qu'une datasheet porte comme un statut, par leur nom BSData :
@@ -40,32 +36,6 @@ export function coreStatus(raw: string): Modifier | undefined {
   const rest = raw.trim().slice(name.length).trim().replace(/["”]$/, '');
   const value = /^\d+$/.test(rest) ? Number(rest) : rest || undefined;
   return { key: CORE_STATUSES[name], ...(value !== undefined ? { value } : {}), target: 'self' };
-}
-
-const strip = (body: RuleBody & Partial<Pick<UnitAbility, 'effectSource' | 'conditional'>>) => {
-  delete body.effect;
-  delete body.scope;
-  delete body.effectSource;
-  delete body.conditional;
-};
-
-/**
- * Retire d'une Army au nouveau format tout ce qui vient de l'ancien : Effects
- * amont et analyse d'aptitudes. Rend les Effects de 40kdc-data retirés, par
- * adresse de Rule : ils restent la deuxième lecture de la revue.
- */
-export function toRuleFormat(army: ArmyFile): Record<string, unknown> {
-  const kdc: Record<string, unknown> = {};
-  for (const r of rulesIn(new Map([['armies', army]]))) {
-    const body = r.body as RuleBody & Partial<Pick<UnitAbility, 'effectSource'>>;
-    // Une aptitude n'a de lecture 40kdc-data que si son Effect en vient, pas de l'analyse.
-    if (body.effect !== undefined && (r.type !== 'ability' || body.effectSource === '40kdc')) kdc[r.target] = body.effect;
-  }
-  for (const s of army.stratagems) strip(s);
-  for (const r of army.armyRules ?? []) strip(r);
-  for (const d of army.detachments) for (const el of [...d.rules, ...d.enhancements]) strip(el);
-  for (const u of army.units) for (const a of u.abilities) strip(a);
-  return kdc;
 }
 
 /** Un Modifier du Dataset, avec l'adresse de la Rule qui le porte (celle d'une Contribution). */

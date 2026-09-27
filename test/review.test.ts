@@ -39,8 +39,8 @@ try {
       { target: 'orks::enhancement:war-horde|follow-me-ladz', modifiers: [{ key: 'hit', value: 1, target: 'self' }], summary: 'Leader\'s unit gets +1 to Hit.' },
       // 40kdc-data : +1 pour blesser et Lethal Hits en mêlée ; la lecture oublie Lethal Hits.
       { target: 'u-warboss::ability:Da Boss Fixture', modifiers: [{ key: 'wound', value: 1, target: 'self', conditions: melee }] },
-      // Rien chez 40kdc-data : seule l'analyse par regex en proposait un.
-      { target: 'u-boyz::ability:Mob Fixture', modifiers: [{ key: 'hit', value: 1, target: 'self', conditions: melee }] },
+      // Rien chez 40kdc-data.
+      { target: 'orks::enhancement:da-big-hunt|glory-hog', modifiers: [{ key: 'hit', value: 1, target: 'self', conditions: melee }] },
       { target: 'orks::stratagem:unbridled-carnage', modifiers: [{ key: 'A', value: 1, target: 'self' }], summary: 'Each time a model in this unit makes an attack, add 1 to the Attacks characteristic of that weapon.' },
       { target: 'orks::stratagem:nowhere', modifiers: [{ key: 'A', value: 1, target: 'self' }] },
     ],
@@ -49,18 +49,18 @@ try {
   const status = (target: string) => effects().find((e) => e.target === target)?.review;
   check('deux lectures d\'accord : concordant', status('orks::rule:war-horde|get-stuck-in') === 'concordant' && status('orks::enhancement:war-horde|follow-me-ladz') === 'concordant');
   check('deux lectures qui diffèrent : divergent', status('u-warboss::ability:Da Boss Fixture') === 'divergent');
-  check('une seule lecture (l\'analyse ne compte pas) : seul', status('u-boyz::ability:Mob Fixture') === 'seul');
+  check('une seule lecture : seul', status('orks::enhancement:da-big-hunt|glory-hog') === 'seul');
   check('une Description qui recopie du texte est refusée, rien n\'en est écrit', imported.body.rejected.some((r) => r.target === 'orks::stratagem:unbridled-carnage') && status('orks::stratagem:unbridled-carnage') === undefined);
   check('une Rule introuvable est refusée', imported.body.rejected.some((r) => r.target === 'orks::stratagem:nowhere'));
   check('chaque Rule importée est une Contribution, avec sa raison', effects().every((e) => e.reason.trim().length > 0) && imported.body.written === 4);
 
   section('Page de revue : ce qui attend un humain');
   const list = (await get<ReviewItem[]>('/api/review?army=orks')).body;
-  check('seules les Rules divergent et seul y sont', list.map((i) => `${i.target}:${i.status}`).sort().join() === 'u-boyz::ability:Mob Fixture:seul,u-warboss::ability:Da Boss Fixture:divergent', JSON.stringify(list.map((i) => i.target)));
+  check('seules les Rules divergent et seul y sont', list.map((i) => `${i.target}:${i.status}`).sort().join() === 'orks::enhancement:da-big-hunt|glory-hog:seul,u-warboss::ability:Da Boss Fixture:divergent', JSON.stringify(list.map((i) => i.target)));
   const boss = list.find((i) => i.status === 'divergent')!;
   check('une Rule divergente montre les deux lectures', boss.ours.length === 1 && Array.isArray(boss.kdc) && boss.kdc.some((m) => m.key === 'lethal-hits'), JSON.stringify(boss));
   check('chacune dit sa fiche, son type et son Army', boss.sheet === 'u-warboss' && boss.type === 'ability' && boss.army === 'orks');
-  check('filtrable par type de Rule', (await get<ReviewItem[]>('/api/review?army=orks&type=rule')).body.length === 0 && (await get<ReviewItem[]>('/api/review?army=orks&type=ability')).body.length === 2);
+  check('filtrable par type de Rule', (await get<ReviewItem[]>('/api/review?army=orks&type=rule')).body.length === 0 && (await get<ReviewItem[]>('/api/review?army=orks&type=ability')).body.length === 1);
   check('filtrable par Army', (await get<ReviewItem[]>('/api/review?army=adeptus-custodes')).body.length === 0);
   const everything = (await get<ReviewItem[]>('/api/review?army=orks&all=1')).body;
   check('les concordantes restent consultables, marquées comme validées automatiquement', everything.some((i) => i.status === 'concordant' && i.target === 'orks::rule:war-horde|get-stuck-in'));

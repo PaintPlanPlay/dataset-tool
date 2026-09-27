@@ -31,14 +31,14 @@ export interface Located {
  * Ce que la fiche ne montre jamais : les identifiants, la mécanique interne de
  * BattleScribe (`tree`, `parent`, `slot`) et la provenance d'un Effect.
  */
-export const HIDDEN = new Set(['id', 'detachmentId', 'tree', 'parent', 'slot', 'effectSource']);
+export const HIDDEN = new Set(['id', 'detachmentId', 'tree', 'parent', 'slot']);
 
 export class SchemaSet {
   private readonly docs = new Map<string, JsonSchema>();
   readonly root: Located;
 
-  constructor(dataset: JsonSchema, vendor: JsonSchema[]) {
-    for (const doc of [dataset, ...vendor]) if (doc.$id) this.docs.set(doc.$id, doc);
+  constructor(dataset: JsonSchema) {
+    if (dataset.$id) this.docs.set(dataset.$id, dataset);
     this.root = { schema: dataset, base: dataset.$id ?? '' };
   }
 

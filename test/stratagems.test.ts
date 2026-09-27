@@ -15,8 +15,8 @@ import { check, fixture, section } from './check.ts';
 
 const GS = 'wh40k-11e';
 const snapshot = openSnapshot(fixture('snapshot'));
-const first = await build({ snapshot, ruleFormatArmies: [] });
-const second = await build({ snapshot, ruleFormatArmies: [], ids: first.ids });
+const first = await build({ snapshot });
+const second = await build({ snapshot, ids: first.ids });
 
 const orks = (out: BuildOutput) => out.files.get(`${GS}/armies/orks.json`) as ArmyFile;
 const core = (out: BuildOutput) => out.files.get(`${GS}/core.json`) as CoreFile;
@@ -30,8 +30,12 @@ check('chaque Stratagem désigne son Detachment par son identifiant', orks(first
 const ereWeGo = strat(first, "'ERE WE GO");
 check('CP, phases dans l\'ordre du tour, tour et moment', ereWeGo.cp === 1 && ereWeGo.phases.join() === 'movement,charge' && ereWeGo.playerTurn === 'your-turn' && ereWeGo.timing === 'once-per-phase');
 check('la catégorie est reprise', ereWeGo.category === 'strategic-ploy');
-check('l\'Effect est repris', ereWeGo.effect?.type === 'charge-roll-modifier');
-check('les Stratagems Core vivent dans core.json, sans Detachment', core(first).stratagems.length === 1 && core(first).stratagems[0].detachmentId === null && core(first).stratagems[0].effect?.type === 're-roll');
+check('l\'Effect de 40kdc-data est gardé pour la revue, jamais publié', (first.kdcEffects[`orks::stratagem:${ereWeGo.id}`] as { type?: string } | undefined)?.type === 'charge-roll-modifier' && !('effect' in ereWeGo));
+check(
+  'les Stratagems Core vivent dans core.json, sans Detachment',
+  core(first).stratagems.length === 1 && core(first).stratagems[0].detachmentId === null &&
+    (first.kdcEffects[`core::stratagem:${core(first).stratagems[0].id}`] as { type?: string } | undefined)?.type === 're-roll',
+);
 
 section('Stratagems : restrictions de cible');
 const carnage = strat(first, 'UNBRIDLED CARNAGE');

@@ -24,27 +24,10 @@ const DEFS: Record<FileKind, string> = {
 
 let compiled: Map<FileKind, ValidateFunction> | null = null;
 let datasetId = '';
-let effectValidators: { effect: ValidateFunction; scope: ValidateFunction } | null = null;
-
-function vendoredSchemas(): Record<string, unknown>[] {
-  const out: Record<string, unknown>[] = [];
-  const walk = (dir: URL) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const url = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir);
-      if (entry.isDirectory()) walk(url);
-      else if (entry.name.endsWith('.schema.json')) out.push(readJson(url));
-    }
-  };
-  walk(new URL('vendor/', root));
-  return out;
-}
 
 function validators(): Map<FileKind, ValidateFunction> {
   if (compiled) return compiled;
-  // `strict: false` : les schémas vendus de 40kdc-data portent des mots-clés
-  // d'annotation (`$comment` imbriqués, `x-*`) qu'Ajv refuserait en mode strict.
   const ajv = new Ajv2020({ allErrors: true, strict: false });
-  for (const s of vendoredSchemas()) ajv.addSchema(s);
   const schema = readJson(new URL('dataset.schema.json', root));
   ajv.addSchema(schema);
   const id = schema.$id as string;
@@ -52,10 +35,6 @@ function validators(): Map<FileKind, ValidateFunction> {
   compiled = new Map(
     (Object.keys(DEFS) as FileKind[]).map((kind) => [kind, ajv.getSchema(`${id}#/$defs/${DEFS[kind]}`)!]),
   );
-  effectValidators = {
-    effect: ajv.getSchema(`${id}#/$defs/effect`)!,
-    scope: ajv.getSchema(`${id}#/$defs/effectScope`)!,
-  };
   return compiled;
 }
 
@@ -84,13 +63,13 @@ let editorAjv: { ajv: Ajv2020; docs: Record<string, unknown>[]; defs: Map<string
 function editor() {
   if (editorAjv) return editorAjv;
   const ajv = new Ajv2020({ allErrors: true, strict: false, verbose: true });
-  const docs = [...vendoredSchemas(), readJson(new URL('dataset.schema.json', root))];
+  const docs = [readJson(new URL('dataset.schema.json', root))];
   for (const d of docs) ajv.addSchema(d);
   editorAjv = { ajv, docs, defs: new Map() };
   return editorAjv;
 }
 
-/** Le document vendu qui contient un sous-schéma (par identité), pour résoudre ses `$ref` relatives. */
+/** Le document qui contient un sous-schéma (par identité), pour résoudre ses `$ref` relatives. */
 function docOf(docs: Record<string, unknown>[], target: unknown): string | undefined {
   const contains = (node: unknown): boolean =>
     node === target || (node !== null && typeof node === 'object' && Object.values(node as Record<string, unknown>).some(contains));
@@ -105,8 +84,8 @@ const at = (data: unknown, pointer: string) =>
 
 /**
  * Un `oneOf` en échec produit les erreurs de toutes ses branches, et l'éditeur
- * les afficherait toutes sur le nœud : un Effect « choice » se ferait réclamer
- * les champs d'un « sequence ». Quand la valeur désigne sa branche par son
+ * les afficherait toutes sur le nœud : une branche se ferait réclamer les champs
+ * d'une autre. Quand la valeur désigne sa branche par son
  * `type`, on ne garde que les erreurs de celle-là.
  */
 function refine(validate: ValidateFunction, data: unknown, prefix = '', depth = 0): FieldError[] {
@@ -156,15 +135,6 @@ export function validateDef(def: string, data: unknown): FieldError[] {
     const key = `${e.path}|${e.message}`;
     return seen.has(key) ? false : (seen.add(key), true);
   });
-}
-
-/**
- * Un Effect seul, contre le format figé de 40kdc-data : le Dataset Tool écarte
- * un Effect amont qui ne s'y conforme pas plutôt que de refuser la construction.
- */
-export function validateEffect(effect: unknown, scope?: unknown): string[] {
-  validators();
-  return [...errorsOf(effectValidators!.effect, effect), ...(scope === undefined ? [] : errorsOf(effectValidators!.scope, scope))];
 }
 
 /**

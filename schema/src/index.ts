@@ -6,11 +6,12 @@
  * Dataset contient, et `dataset.schema.json` en est la version exécutable.
  *
  * Aucun texte de règles n'y a sa place : une règle n'est portée que par son
- * nom, ses champs structurés et, quand il existe, son Effect.
+ * nom, ses champs structurés, ses Modifiers et une Description écrite par le
+ * projet (ADR 0011).
  */
 
 /** Version du schéma à laquelle un fichier se conforme. */
-export const SCHEMA_VERSION = '1.1.0';
+export const SCHEMA_VERSION = '2.0.0';
 
 /** Un wargame à une édition donnée. Le Dataset est rangé par Game System. */
 export interface GameSystem {
@@ -34,20 +35,6 @@ export interface SourceRef {
   version?: string;
 }
 
-/**
- * Le format des Effects : le DSL d'aptitudes de 40kdc-data (CC0), adopté tel
- * quel à cette version. Ses schémas sont vendus dans `vendor/40kdc`.
- */
-export interface EffectFormat {
-  repository: string;
-  commit: string;
-}
-
-export const EFFECT_FORMAT: EffectFormat = {
-  repository: 'wn-mitch/40kdc-data',
-  commit: '6a2aa2d284cd677bb963a9e3d228d9964212991e',
-};
-
 // ------------------------------------------------------------------ Fichiers
 
 /** `<gameSystem>/index.json` : ce que contient une construction du Dataset. */
@@ -55,7 +42,6 @@ export interface DatasetIndex {
   schemaVersion: string;
   gameSystem: GameSystem;
   sources: SourceRef[];
-  effectFormat: EffectFormat;
   armies: ArmySummary[];
 }
 
@@ -160,13 +146,7 @@ export interface SampleList {
   units: SampleUnit[];
 }
 
-// ------------------------------------------------------------------ Effects
-
-/** Un Effect : un nœud du DSL d'aptitudes de 40kdc-data, repris tel quel. */
-export type Effect = { type?: string } & Record<string, unknown>;
-
-/** Portée d'un Effect, au même format. */
-export type EffectScope = Record<string, unknown>;
+// -------------------------------------------------------------------- Rules
 
 /**
  * À qui un Modifier s'applique (ADR 0011) : l'Unit qui porte la Rule, l'Unit
@@ -255,14 +235,11 @@ export const SIMULATED_CONDITIONS: Record<string, { label: string }> = {
 };
 
 /**
- * Ce qui dit ce que fait une règle, sans texte : ses Modifiers (ADR 0011) ou,
- * tant qu'une Army n'est pas passée au format à nous, son Effect 40kdc-data ;
- * et un résumé court écrit par nous, sa Description. Sans rien de tout ça, la
+ * Ce qui dit ce que fait une règle, sans texte (ADR 0011) : ses Modifiers, et
+ * un résumé court écrit par nous, sa Description. Sans l'un ni l'autre, la
  * règle s'affiche par son nom et renvoie au codex du joueur.
  */
 export interface RuleBody {
-  effect?: Effect;
-  scope?: EffectScope;
   /** Ce que fait la Rule, en Modifiers. */
   modifiers?: Modifier[];
   /** Les choix exclusifs d'une Rule à choix, chacun avec ses Modifiers. */
@@ -435,25 +412,9 @@ export interface PriceBand {
   costs: { models: number; points: number; desc?: string; addon?: boolean }[];
 }
 
-/** D'où vient l'Effect d'une aptitude d'Unit. */
-export type EffectSource = '40kdc' | 'analysis' | 'project';
-
-/**
- * Une aptitude d'Unit. Son texte n'est jamais publié : ce qu'elle fait se dit
- * par son Effect, repris de 40kdc-data quand l'Unit y est rattachée par sa
- * référence BSData (`effectSource: '40kdc'`), sinon proposé par l'analyse
- * d'aptitudes du Dataset Tool (`effectSource: 'analysis'`), ou écrit par le projet
- * (`effectSource: 'project'`, `authored/<gameSystem>/effects.json`). Sans Effect,
- * l'aptitude n'a que son nom.
- */
+/** Une aptitude d'Unit : son nom, et ce qu'elle fait en Modifiers. Son texte n'est jamais publié. */
 export interface UnitAbility extends RuleBody {
   name: string;
-  effectSource?: EffectSource;
-  /**
-   * L'analyse a reconnu le bonus mais lu une condition qu'elle ne sait pas
-   * exprimer (Waaagh!, objectif tenu…) : au joueur de la poser.
-   */
-  conditional?: boolean;
 }
 
 export interface Unit {
@@ -472,8 +433,8 @@ export interface Unit {
   factionKeywords: string[];
   /**
    * Army Rules dont l'Unit bénéficie, par nom : « Waaagh! ». Appartenir à une
-   * Army ne les donne pas, chaque Unit liste les siennes. Leur Effect n'est pas
-   * répété ici.
+   * Army ne les donne pas, chaque Unit liste les siennes. Ce qu'elles font vit
+   * dans `ArmyFile.armyRules`.
    */
   armyRules: string[];
   /** Les mêmes Army Rules, par identifiant dans `ArmyFile.armyRules`. */

@@ -1,6 +1,6 @@
 /**
  * Le format de Rule à nous (ADR 0011), sur le point de test de construction :
- * les Rules des Orks sont publiées sans Effect 40kdc-data, et leurs Modifiers
+ * les Rules sont publiées sans Effect 40kdc-data, et leurs Modifiers
  * viennent des seules Contributions.
  *
  *   npx tsx test/rules.test.ts
@@ -21,16 +21,11 @@ const warHorde = orks.detachments.find((d) => d.name === 'War Horde')!;
 const ereWeGo = orks.stratagems.find((s) => s.name === "'ERE WE GO")!;
 const warboss = orks.units.find((u) => u.name === 'Warboss')!;
 
-section('Rules des Orks : plus aucun Effect 40kdc-data');
-const bodies = [
-  ...orks.stratagems,
-  ...orks.detachments.flatMap((d) => [...d.rules, ...d.enhancements]),
-  ...orks.units.filter((u) => !u.ally).flatMap((u) => u.abilities),
-];
-check('ni Effect ni portée amont sur les Rules Orks', bodies.every((b) => b.effect === undefined && b.scope === undefined));
-check('ni source d\'Effect ni condition d\'analyse sur les aptitudes Orks', warboss.abilities.every((a) => !a.effectSource && !a.conditional));
+section('Rules : plus aucun Effect 40kdc-data, dans aucune Army');
+const published = [...bare.files.values()].map((f) => JSON.stringify(f));
+check('aucun Effect, portée ou source d\'Effect publié, dans aucun fichier', published.every((j) => !/"(effect|scope|effectSource|conditional)":/.test(j)));
 check('les champs structurés des Stratagems restent', ereWeGo.cp === 1 && ereWeGo.phases.length > 0 && ereWeGo.target !== undefined);
-check('les Stratagems Core ne changent pas encore de format', (bare.files.get(`${GS}/core.json`) as CoreFile).stratagems.some((s) => s.effect !== undefined));
+check('les Stratagems Core non plus', (bare.files.get(`${GS}/core.json`) as CoreFile).stratagems.every((s) => !('effect' in s)));
 check('l\'Army des Orks reste conforme au schéma', validateFile('army', orks).length === 0, validateFile('army', orks).join(' | '));
 
 section('Rules des Orks : les Modifiers viennent des Contributions');
@@ -72,9 +67,8 @@ check('les Modifiers d\'une Contribution sont publiés', JSON.stringify(strat.mo
 check('sa Description aussi', strat.summary === 'Adds 2 to Advance and Charge rolls.');
 const ability = withMods.units.find((u) => u.id === warboss.id)!.abilities.find((a) => a.modifiers)!;
 check('une valeur peut être un nombre, un seuil ou une relance', ability.modifiers?.map((m) => m.value).join() === '1,5+,1');
-check('une aptitude qui a des Modifiers vient du projet', ability.effectSource === undefined && ability.effect === undefined);
 const rule = withMods.detachments.find((d) => d.id === warHorde.id)!.rules[0];
-check('un Effect à l\'ancien format n\'est plus publié sur une Rule Orks', rule.effect === undefined);
+check('un Effect à l\'ancien format n\'est jamais publié', !('effect' in rule));
 const oldFormat = out.contributions.find((c) => c.target.includes('::rule:'))!;
 check('la Contribution à l\'ancien format est rejetée, avec sa raison', oldFormat.state === 'rejected' && /Modifiers/.test(oldFormat.note), oldFormat.note);
 const badTarget = out.contributions.filter((c) => c.target.includes('::stratagem:'));

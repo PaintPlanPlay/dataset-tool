@@ -1,7 +1,7 @@
 /**
  * La fiche d'Unit : le moteur de rendu, avec une mise en page dédiée — les
  * figurines et leur effectif, la grille de prix, les étiquettes, les Abilities
- * et leurs Effects suggérés. Ce qui se déduit au build (coût de base, paliers,
+ * et ce qu'elles font. Ce qui se déduit au build (coût de base, paliers,
  * effectifs) s'affiche sans se saisir.
  */
 import type { ReactNode } from 'react';
@@ -20,19 +20,17 @@ const SOURCE_LABEL: Record<string, string> = { bsdata: 'BSData', mfm: 'MFM', '40
 
 interface Props {
   sources: Record<string, string>;
-  /** Accepter l'Effect que l'analyse propose pour une Ability. */
-  onAccept: (ability: string) => void;
 }
 
 /** Le `widget` de l'éditeur pour une fiche d'Unit : la racine seule, le reste reste générique. */
-export function unitWidget({ sources, onAccept }: Props) {
+export function unitWidget({ sources }: Props) {
   return (props: FieldProps): ReactNode | undefined => {
     if (props.path.length !== 0) return undefined;
-    return <UnitLayout at={props.at} unit={props.value as Unit} sources={sources} onAccept={onAccept} />;
+    return <UnitLayout at={props.at} unit={props.value as Unit} sources={sources} />;
   };
 }
 
-function UnitLayout({ at, unit, sources, onAccept }: { at: Located; unit: Unit; sources: Record<string, string>; onAccept: (ability: string) => void }) {
+function UnitLayout({ at, unit, sources }: { at: Located; unit: Unit; sources: Record<string, string> }) {
   const ctx = useEditor();
   const child = (k: string): Located => ({ schema: at.schema.properties?.[k] ?? {}, base: at.base });
   const section = (k: string) => SOURCE_LABEL[sources[k]] ?? sources[k];
@@ -55,7 +53,7 @@ function UnitLayout({ at, unit, sources, onAccept }: { at: Located; unit: Unit; 
 
       {SECTIONS.map((k) => {
         if (k === 'pricing') return <PriceGrid key={k} unit={unit} section={section('pricing')} />;
-        if (k === 'abilities') return <AbilitiesSection key={k} unit={unit} at={child('abilities')} section={section('abilities')} onAccept={onAccept} />;
+        if (k === 'abilities') return <AbilitiesSection key={k} unit={unit} at={child('abilities')} section={section('abilities')} />;
         const value = (unit as unknown as Record<string, unknown>)[k];
         return <Field key={k} at={child(k)} value={value ?? (k === 'wargear' || k === 'optionGroups' || k === 'defaultLoadout' ? [] : value)} path={[k]} label={humanize(k)} section={section(k)} />;
       })}
@@ -232,11 +230,8 @@ function PriceGrid({ unit, section }: { unit: Unit; section: string }) {
   );
 }
 
-/**
- * Les Abilities : un nom, un résumé d'une ligne écrit par nous, un Effect. Un
- * Effect proposé par l'analyse d'aptitudes s'accepte sur place.
- */
-function AbilitiesSection({ unit, at, section, onAccept }: { unit: Unit; at: Located; section: string; onAccept: (ability: string) => void }) {
+/** Les Abilities : un nom, une Description d'une ligne écrite par nous, des Modifiers. */
+function AbilitiesSection({ unit, at, section }: { unit: Unit; at: Located; section: string }) {
   const ctx = useEditor();
   const itemAt: Located = { schema: at.schema.items ?? {}, base: at.base };
   return (
@@ -251,14 +246,6 @@ function AbilitiesSection({ unit, at, section, onAccept }: { unit: Unit; at: Loc
       {unit.abilities.map((a, i) => (
         <div key={i} className="item">
           <div className="ability">
-            {a.effectSource === 'analysis' && a.effect && (
-              <p className="suggestion">
-                Suggested Effect, from the ability analysis{a.conditional ? ' (its condition is for you to set)' : ''}.{' '}
-                <button type="button" className="primary" onClick={() => onAccept(a.name)}>
-                  Accept
-                </button>
-              </p>
-            )}
             <Field at={itemAt} value={a} path={['abilities', i]} />
           </div>
           <button type="button" className="remove" title="Remove this ability" onClick={() => ctx.onChange(['abilities'], unit.abilities.filter((_x, j) => j !== i))}>

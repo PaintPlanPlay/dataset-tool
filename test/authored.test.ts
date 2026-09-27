@@ -35,7 +35,7 @@ const authored: AuthoredCore = {
   },
 };
 
-const out = await build({ snapshot: openSnapshot(fixture('snapshot')), ruleFormatArmies: [], authored });
+const out = await build({ snapshot: openSnapshot(fixture('snapshot')), authored });
 const core = out.files.get('wh40k-11e/core.json') as CoreFile;
 const orks = (out.files.get('wh40k-11e/armies/orks.json') as { units: { id: string; name: string; maxModels: number; points: number }[] }).units;
 const boyz = orks.find((u) => u.name === 'Boyz')!;
@@ -58,50 +58,52 @@ check(
   JSON.stringify(core.sampleList),
 );
 check('core.json conforme au schéma', validateFile('core', core).length === 0, JSON.stringify(validateFile('core', core)));
-const bare = await build({ snapshot: openSnapshot(fixture('snapshot')), ruleFormatArmies: [] });
+const bare = await build({ snapshot: openSnapshot(fixture('snapshot')) });
 const bareCore = bare.files.get('wh40k-11e/core.json') as CoreFile;
 check('sans fichiers écrits par le projet : listes vides, pas de List d\'exemple', bareCore.battleSizes.length === 0 && bareCore.referenceTargets.length === 0 && !bareCore.sampleList);
 
-section('Écrit par le projet : Effects et résumés');
+section('Écrit par le projet : Modifiers et Descriptions');
 const withEffects = await build({
   snapshot: openSnapshot(fixture('snapshot')),
-  ruleFormatArmies: [],
   authored: {
     battleSizes: [],
     referenceTargets: [],
     effects: [
-      { target: 'u-boyz::ability:Mob Fixture', effect: { type: 'feel-no-pain', target: 'unit', modifier: { threshold: 6 } }, reason: 'Test.' },
+      { target: 'u-boyz::ability:Mob Fixture', modifiers: [{ key: 'feel-no-pain', value: '6+', target: 'self' }], reason: 'Test.' },
       { target: 'u-warboss::ability:Da Boss Fixture', summary: 'Short line.', reason: 'Test.' },
-      { target: 'u-warboss::ability:Leader', effect: { type: 'roll-modifier' }, reason: 'Hors format.' },
+      { target: 'u-warboss::ability:Leader', effect: { type: 'roll-modifier' }, reason: 'Ancien format.' },
       { target: 'u-nobody::ability:Nothing', summary: 'Short.', reason: 'Test.' },
     ],
   },
 });
-const orksWith = withEffects.files.get('wh40k-11e/armies/orks.json') as { units: { id: string; abilities: { name: string; effectSource?: string; summary?: string; effect?: { type: string } }[] }[] };
+const orksWith = withEffects.files.get('wh40k-11e/armies/orks.json') as { units: { id: string; abilities: { name: string; summary?: string; modifiers?: { key: string }[] }[] }[] };
 const ab = (unit: string, name: string) => orksWith.units.find((u) => u.id === unit)!.abilities.find((a) => a.name === name)!;
-check('un Effect écrit par le projet remplace celui de l\'amont', ab('u-boyz', 'Mob Fixture').effectSource === 'project' && ab('u-boyz', 'Mob Fixture').effect?.type === 'feel-no-pain');
-check('un résumé seul s\'ajoute sans toucher à l\'Effect', ab('u-warboss', 'Da Boss Fixture').summary === 'Short line.' && ab('u-warboss', 'Da Boss Fixture').effectSource === '40kdc');
-check('hors format : écarté et signalé ; cible inconnue : signalée', withEffects.droppedEffects.some((d) => d.army === 'authored' && d.where === 'u-warboss::ability:Leader') && withEffects.unresolvedAuthored.includes('u-nobody::ability:Nothing'));
+check('les Modifiers d\'une Contribution sont publiés', ab('u-boyz', 'Mob Fixture').modifiers?.[0].key === 'feel-no-pain');
+check('une Description seule s\'ajoute', ab('u-warboss', 'Da Boss Fixture').summary === 'Short line.' && !ab('u-warboss', 'Da Boss Fixture').modifiers);
+const rejected = withEffects.contributions.find((c) => c.target === 'u-warboss::ability:Leader');
+check(
+  'un Effect à l\'ancien format est refusé, avec sa raison ; une cible inconnue est signalée',
+  rejected?.state === 'rejected' && /Modifiers/.test(rejected.note) && withEffects.unresolvedAuthored.includes('u-nobody::ability:Nothing'),
+  JSON.stringify(rejected),
+);
+check('le rapport liste les Contributions écartées', /## Contributions set aside \(1\)/.test(renderReport(makeReport(withEffects, undefined))));
 
-section('Contributions (ADR 0010) : priment sur 40kdc-data, un changement amont est signalé');
-const plainOrks = (bare.files.get('wh40k-11e/armies/orks.json') as typeof orksWith).units;
-const bossUpstream = plainOrks.find((u) => u.id === 'u-warboss')!.abilities.find((a) => a.name === 'Da Boss Fixture')!;
-const ours = { type: 'feel-no-pain', target: 'unit', modifier: { threshold: 5 } };
+section('Contributions (ADR 0010) : un changement de 40kdc-data est signalé, jamais appliqué');
+const upstreamOfBoss = bare.kdcEffects['u-warboss::ability:Da Boss Fixture'];
+const ours = [{ key: 'feel-no-pain', value: '5+', target: 'self' as const }];
 const contribution = (upstream: string) =>
   build({
     snapshot: openSnapshot(fixture('snapshot')),
-    ruleFormatArmies: [],
-    authored: { battleSizes: [], referenceTargets: [], effects: [{ target: 'u-warboss::ability:Da Boss Fixture', effect: ours, reason: 'Ours.', upstream }] },
+    authored: { battleSizes: [], referenceTargets: [], effects: [{ target: 'u-warboss::ability:Da Boss Fixture', modifiers: ours, reason: 'Ours.', upstream }] },
   });
-const same = await contribution(fingerprint({ effect: bossUpstream.effect, summary: bossUpstream.summary }));
+const same = await contribution(fingerprint({ effect: upstreamOfBoss, summary: undefined }));
 const moved = await contribution('0123456789ab');
 const verdictOf = (o: typeof same) => o.contributions.find((c) => c.target === 'u-warboss::ability:Da Boss Fixture');
 const bossOf = (o: typeof same) =>
   (o.files.get('wh40k-11e/armies/orks.json') as typeof orksWith).units.find((u) => u.id === 'u-warboss')!.abilities.find((a) => a.name === 'Da Boss Fixture')!;
-check('la Contribution prime sur l\'Effect de 40kdc-data', bossOf(same).effectSource === 'project' && JSON.stringify(bossOf(same).effect) === JSON.stringify(ours));
-check('amont inchangé depuis la rédaction : active', verdictOf(same)?.state === 'active', JSON.stringify(verdictOf(same)));
+check('40kdc-data inchangé depuis la rédaction : active', verdictOf(same)?.state === 'active', JSON.stringify(verdictOf(same)));
 check(
-  'amont changé depuis : signalée, jamais remplacée',
-  verdictOf(moved)?.state === 'flagged' && JSON.stringify(bossOf(moved).effect) === JSON.stringify(ours) && verdictOf(moved)!.upstreamNow === verdictOf(same)!.upstreamNow,
+  '40kdc-data changé depuis : signalée, jamais remplacée',
+  verdictOf(moved)?.state === 'flagged' && JSON.stringify(bossOf(moved).modifiers) === JSON.stringify(ours) && verdictOf(moved)!.upstreamNow === verdictOf(same)!.upstreamNow,
 );
 check('le rapport liste les Contributions à relire', /## Contributions to review \(1\)/.test(renderReport(makeReport(moved, undefined))));

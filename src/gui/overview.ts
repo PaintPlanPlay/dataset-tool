@@ -10,7 +10,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { indexPath, manifestPath, type ArmyFile, type DatasetIndex, type Manifest, type SourceRef } from '@paintplanplay/dataset-schema';
+import { indexPath, manifestPath, type DatasetIndex, type Manifest, type SourceRef } from '@paintplanplay/dataset-schema';
 import { authoredDir, EFFECTS_FILE } from '../authored.ts';
 import { readCorrections } from '../corrections/files.ts';
 import { headCommit } from '../fetch.ts';
@@ -150,8 +150,6 @@ export interface Overview {
   pullRequest: PullRequest | null;
   /** Désaccords entre Upstream Sources, où la source qui fait autorité l'a emporté. */
   disagreements: number;
-  /** Effects proposés par l'analyse d'aptitudes, en attente de revue. */
-  suggestions: number;
   /** Clés de Modifier que la Simulation ne sait pas jouer. */
   unsimulated: number;
   /** Rules extraites qui attendent un humain : divergentes, ou d'une seule lecture. */
@@ -244,10 +242,6 @@ export async function overview(ws: Workspace, probe: Probe = defaultProbe, built
     disagreements: ws.current?.conflicts?.length ?? 0,
     unsimulated: findUnsimulated(ws.current?.files ?? new Map()).length,
     toReview: existsSync(ws.datasetDir) ? toReviewCount(ws) : 0,
-    suggestions: [...(ws.current?.files ?? new Map()).entries()]
-      .filter(([p]) => p.startsWith(`${ws.gameSystem}/armies/`))
-      .flatMap(([, f]) => (f as ArmyFile).units.filter((u) => !u.ally).flatMap((u) => u.abilities))
-      .filter((a) => a.effectSource === 'analysis' && a.effect).length,
     armies: (index?.armies ?? []).map((a) => ({ id: a.id, name: a.name })).sort((a, b) => a.name.localeCompare(b.name)),
   };
 }
