@@ -26,7 +26,7 @@ function storeFilter(army: string): void {
   }
 }
 
-const KIND: Record<SearchHit['kind'], string> = { unit: 'Unit', detachment: 'Detachment', stratagem: 'Stratagem', core: 'Core' };
+const KIND: Record<SearchHit['kind'], string> = { unit: 'Unit', detachment: 'Detachment', stratagem: 'Stratagem', armyRule: 'Army Rule', core: 'Core' };
 
 interface Props {
   armies: { id: string; name: string }[];
@@ -123,8 +123,14 @@ export function SheetBar({ armies, open, onOpen, dirty, corrections, onSave, onC
           <button type="button" onClick={onCorrections} title="The Corrections and Contributions applied to this sheet">
             Corrections ({corrections})
           </button>
-          <button type="button" className="primary" disabled={!dirty} onClick={onSave}>
-            Save
+          <button
+            type="button"
+            className="primary"
+            disabled={!dirty}
+            onClick={onSave}
+            title="Writes this sheet's change into the Dataset repository. Save & Build, on the left, then rebuilds the Dataset files and checks them before you propose."
+          >
+            Save sheet
           </button>
         </div>
       )}

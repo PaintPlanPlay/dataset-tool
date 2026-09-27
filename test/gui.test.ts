@@ -23,7 +23,7 @@ import { openWorkspace } from '../src/gui/workspace.ts';
 import { check, fixture, section } from './check.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'dataset-gui-'));
-const ws = await openWorkspace({ datasetDir: dir, snapshotDir: fixture('snapshot') });
+const ws = await openWorkspace({ datasetDir: dir, snapshotDir: fixture('snapshot'), ruleFormatArmies: [] });
 const gui = await startGui(ws, 0);
 const base = new URL(gui.url);
 

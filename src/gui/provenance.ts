@@ -25,6 +25,8 @@ export interface DatasetView {
   conflicts?: SourceConflict[];
   /** Ce que sont devenues les Contributions à la construction. */
   contributions?: ContributionVerdict[];
+  /** Les Effects de 40kdc-data retirés des Armies au format de Rule : la deuxième lecture de la revue. */
+  kdcEffects?: Record<string, unknown>;
 }
 
 export interface FieldOrigin {
@@ -40,7 +42,7 @@ export interface Proposal {
 }
 
 export interface Inspection {
-  kind: 'unit' | 'detachment' | 'stratagem' | 'core';
+  kind: 'unit' | 'detachment' | 'stratagem' | 'armyRule' | 'core';
   army: string;
   target: string;
   name: string;
@@ -147,6 +149,14 @@ export function inspect(current: DatasetView, bare: DatasetView | null, target: 
     return { kind: 'detachment', army: root, target: key, name: detachment.name, value: detachment, origins, corrections: verdicts, proposals: [] };
   }
 
+  if (entity === 'armyrule') {
+    const pick = (out: DatasetView) => armiesOf(out).find((a) => a.id === root)?.armyRules?.find((r) => r.id === name);
+    const rule = pick(current);
+    if (!rule) return null;
+    const origins = Object.keys(rule).map((field) => ({ field, origin: (bare ? (field === 'name' || field === 'id' ? 'bsdata' : 'project') : 'published') as Origin }));
+    return { kind: 'armyRule', army: root, target, name: rule.name, value: rule, origins, corrections: [], proposals: [] };
+  }
+
   if (entity === 'stratagem') {
     const pick = (out: DatasetView): Stratagem | undefined =>
       (root === CORE_ROOT ? coreOf(out)?.stratagems : armiesOf(out).find((a) => a.id === root)?.stratagems)?.find((s) => s.id === name);
@@ -195,6 +205,7 @@ export function search(current: DatasetView, query: string, limit = 60, army = '
     for (const u of a.units) if (!u.ally) push({ kind: 'unit', ...of, name: u.name, target: u.id });
     for (const d of a.detachments) push({ kind: 'detachment', ...of, name: d.name, target: `${a.id}::detachment:${d.id}` });
     for (const s of a.stratagems) push({ kind: 'stratagem', ...of, name: s.name, target: `${a.id}::stratagem:${s.id}` });
+    for (const r of a.armyRules ?? []) push({ kind: 'armyRule', ...of, name: r.name, target: `${a.id}::armyrule:${r.id}` });
   }
   const core = coreOf(current);
   if (core) {

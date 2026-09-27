@@ -10,7 +10,7 @@
  */
 
 /** Version du schéma à laquelle un fichier se conforme. */
-export const SCHEMA_VERSION = '1.0.0';
+export const SCHEMA_VERSION = '1.1.0';
 
 /** Un wargame à une édition donnée. Le Dataset est rangé par Game System. */
 export interface GameSystem {
@@ -87,6 +87,8 @@ export interface ArmyFile {
   name: string;
   faction: string;
   units: Unit[];
+  /** Les Army Rules de l'Army, stockées une fois ; les Units les désignent par identifiant. */
+  armyRules?: Rule[];
   detachments: Detachment[];
   /** Les Stratagems des Detachments de l'Army. Les Stratagems Core vivent dans `core.json`. */
   stratagems: Stratagem[];
@@ -167,14 +169,105 @@ export type Effect = { type?: string } & Record<string, unknown>;
 export type EffectScope = Record<string, unknown>;
 
 /**
- * Ce qui dit ce que fait une règle, sans texte : son Effect quand il existe,
- * et à défaut un résumé court écrit par nous. Sans l'un ni l'autre, la règle
- * s'affiche par son nom et renvoie au codex du joueur.
+ * À qui un Modifier s'applique (ADR 0011) : l'Unit qui porte la Rule, l'Unit
+ * à laquelle elle est attachée (Leader ↔ Bodyguard), les Units amies à portée
+ * d'aura, ou l'ennemi — celui qui l'attaque, ou qu'elle attaque.
+ */
+export type ModifierTarget = 'self' | 'attached' | 'aura' | 'enemy';
+
+/**
+ * Filtre de Keywords : tous ceux de `allOf`, au moins un de `anyOf` quand il
+ * n'est pas vide, aucun de `noneOf`.
+ */
+export interface KeywordFilter {
+  allOf: string[];
+  anyOf: string[];
+  noneOf: string[];
+}
+
+/** Ce qui doit être vrai pour qu'un Modifier s'applique : « melee », « target-keyword: Vehicle ». */
+export interface Condition {
+  key: string;
+  value?: number | string;
+}
+
+/**
+ * Un changement que fait une Rule : à une caractéristique, à un jet de dés, ou
+ * un statut accordé. La clé est libre (vocabulaire ouvert) ; `SIMULATED_MODIFIERS`
+ * dit celles que la Simulation sait jouer.
+ */
+export interface Modifier {
+  key: string;
+  /** Un nombre, une expression de dés (« D3 », « D6+1 »), un seuil (« 5+ »), « 1 » ou « all » pour une relance ; absent pour un statut. */
+  value?: number | string;
+  target: ModifierTarget;
+  /** Portée d'une aura, en pouces. */
+  range?: number;
+  /** Units concernées parmi la cible. */
+  keywords?: KeywordFilter;
+  /** Toutes doivent être vraies. */
+  conditions?: Condition[];
+}
+
+/** Un choix exclusif d'une Rule, avec ses propres Modifiers. */
+export interface RuleOption {
+  name: string;
+  modifiers: Modifier[];
+}
+
+/**
+ * Les clés de Modifier que la Simulation sait jouer. `attack` : elles changent
+ * les attaques de l'Unit visée ; `defence` : elles changent ce qu'elle encaisse.
+ */
+export const SIMULATED_MODIFIERS: Record<string, { label: string; side: 'attack' | 'defence' }> = {
+  hit: { label: 'to Hit', side: 'attack' },
+  wound: { label: 'to Wound', side: 'attack' },
+  A: { label: 'Attacks', side: 'attack' },
+  S: { label: 'Strength', side: 'attack' },
+  AP: { label: 'AP', side: 'attack' },
+  D: { label: 'Damage', side: 'attack' },
+  'reroll-hit': { label: 're-roll Hit', side: 'attack' },
+  'reroll-wound': { label: 're-roll Wound', side: 'attack' },
+  'crit-hit': { label: 'critical Hit on', side: 'attack' },
+  'crit-wound': { label: 'critical Wound on', side: 'attack' },
+  'lethal-hits': { label: 'Lethal Hits', side: 'attack' },
+  'sustained-hits': { label: 'Sustained Hits', side: 'attack' },
+  'devastating-wounds': { label: 'Devastating Wounds', side: 'attack' },
+  'twin-linked': { label: 'Twin-linked', side: 'attack' },
+  'ignores-cover': { label: 'Ignores Cover', side: 'attack' },
+  'feel-no-pain': { label: 'Feel No Pain', side: 'defence' },
+  'damage-reduction': { label: 'Damage taken', side: 'defence' },
+  stealth: { label: 'Stealth', side: 'defence' },
+  cover: { label: 'Benefit of Cover', side: 'defence' },
+};
+
+/**
+ * Les Conditions que la Simulation évalue elle-même. Toute autre est une
+ * Situation : le joueur la pose une fois pour toute la simulation.
+ */
+export const SIMULATED_CONDITIONS: Record<string, { label: string }> = {
+  melee: { label: 'in melee' },
+  ranged: { label: 'when shooting' },
+  'target-keyword': { label: 'target is' },
+  charged: { label: 'after charging' },
+  stationary: { label: 'remained stationary' },
+  'half-range': { label: 'within half range' },
+};
+
+/**
+ * Ce qui dit ce que fait une règle, sans texte : ses Modifiers (ADR 0011) ou,
+ * tant qu'une Army n'est pas passée au format à nous, son Effect 40kdc-data ;
+ * et un résumé court écrit par nous, sa Description. Sans rien de tout ça, la
+ * règle s'affiche par son nom et renvoie au codex du joueur.
  */
 export interface RuleBody {
   effect?: Effect;
   scope?: EffectScope;
-  /** Résumé en une ligne, écrit par le projet, jamais recopié. */
+  /** Ce que fait la Rule, en Modifiers. */
+  modifiers?: Modifier[];
+  /** Les choix exclusifs d'une Rule à choix, chacun avec ses Modifiers. */
+  options?: RuleOption[];
+  /** Description en une ligne, écrite par le projet, jamais recopiée. */
   summary?: string;
 }
 
@@ -182,6 +275,8 @@ export interface RuleBody {
 export interface Rule extends RuleBody {
   id: string;
   name: string;
+  /** Les Units qui en bénéficient ; absente, toutes celles de la List. */
+  eligibility?: KeywordFilter;
 }
 
 // --------------------------------------------------------------- Detachments
@@ -381,6 +476,10 @@ export interface Unit {
    * répété ici.
    */
   armyRules: string[];
+  /** Les mêmes Army Rules, par identifiant dans `ArmyFile.armyRules`. */
+  armyRuleIds?: string[];
+  /** Règles Core portées comme statuts : « feel-no-pain: 5+ », « deep-strike ». */
+  statuses?: Modifier[];
   models: Profile[];
   weapons: Weapon[];
   abilities: UnitAbility[];

@@ -11,7 +11,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { canonicalWeaponKeyword, type ArmyFile, type BattleSize, type CoreFile, type Detachment, type Enhancement, type Stratagem, type Unit, type Weapon } from '@paintplanplay/dataset-schema';
+import { canonicalWeaponKeyword, SIMULATED_CONDITIONS, SIMULATED_MODIFIERS, type ArmyFile, type BattleSize, type CoreFile, type Detachment, type Enhancement, type Stratagem, type Unit, type Weapon } from '@paintplanplay/dataset-schema';
 import { validateDef, validateFile, type FieldError } from '@paintplanplay/dataset-schema/validate';
 import { authoredDir, authoredEffectProblems, EFFECTS_FILE, fingerprint, type AuthoredEffect } from '../authored.ts';
 import { parseRangeInches } from '../bsdata/flatten.ts';
@@ -22,6 +22,7 @@ import { sameValue } from '../corrections/lifecycle.ts';
 import { normalizeModel, normalizeProfile } from '../corrections/normalize.ts';
 import { toJson } from '../dataset.ts';
 import { findRulesText, inspectString } from '../notext.ts';
+import { modifiersIn } from '../rules.ts';
 import { ApiError, datasetOf, refreshing } from './api.ts';
 import { inspect, type DatasetView, type Inspection, type Origin } from './provenance.ts';
 import { sheetOfTarget } from './targets.ts';
@@ -43,8 +44,9 @@ const SECTION_SOURCES: Record<Inspection['kind'], Record<string, Origin>> = {
   detachment: { name: 'mfm', dp: 'mfm', forceDispositions: 'mfm', uniqueTag: 'mfm', rules: 'project', enhancements: '40kdc' },
   stratagem: {
     name: '40kdc', cp: '40kdc', phases: '40kdc', playerTurn: '40kdc', timing: '40kdc', category: '40kdc', target: '40kdc',
-    effect: 'project', scope: 'project', summary: 'project',
+    effect: 'project', scope: 'project', modifiers: 'project', options: 'project', summary: 'project',
   },
+  armyRule: { name: 'bsdata', modifiers: 'project', options: 'project', summary: 'project' },
   core: { battleSizes: 'project', stratagems: '40kdc' },
 };
 
@@ -62,7 +64,7 @@ const STRATAGEM_FIELDS: Record<string, Source> = {
   name: '40kdc', cp: '40kdc', phases: '40kdc', playerTurn: '40kdc', timing: '40kdc', category: '40kdc', target: '40kdc',
 };
 /** Ce qu'une Contribution porte : ce qu'une règle fait, jamais ses chiffres. */
-const RULE_BODY = ['effect', 'scope', 'summary'] as const;
+const RULE_BODY = ['effect', 'scope', 'modifiers', 'options', 'eligibility', 'summary'] as const;
 
 // -------------------------------------------------------------------- lire
 
@@ -110,7 +112,7 @@ function pathOf(kind: Inspection['kind'], value: Value, target: string): string 
     if (entity === 'enhancement') return at('enhancements', indexBy(d.enhancements, (e) => e.id, elementId));
     if (entity === 'rule') return at('rules', indexBy(d.rules, (r) => r.id, elementId));
   }
-  if (kind === 'stratagem') return '';
+  if (kind === 'stratagem' || kind === 'armyRule') return '';
   if (kind === 'core' && entity === 'stratagem') return at('stratagems', indexBy((value as unknown as CoreFile).stratagems, (s) => s.id, name));
   return null;
 }
@@ -164,7 +166,7 @@ export function checkDraft(kind: Inspection['kind'], draft: unknown): DraftCheck
       ...(Array.isArray(core.battleSizes) ? core.battleSizes.flatMap((b, i) => validateDef('battleSize', b).map((e) => ({ ...e, path: `/battleSizes/${i}${e.path}` }))) : [{ path: '/battleSizes', message: 'must be array' }]),
       ...(Array.isArray(core.stratagems) ? core.stratagems.flatMap((s, i) => validateDef('stratagem', s).map((e) => ({ ...e, path: `/stratagems/${i}${e.path}` }))) : [{ path: '/stratagems', message: 'must be array' }]),
     ];
-  } else errors = validateDef(kind, draft);
+  } else errors = validateDef(kind === 'armyRule' ? 'rule' : kind, draft);
   const warnings = findRulesText(draft).map((f) => ({ path: f.where === '/' ? '' : f.where, message: f.reason }));
   return { errors, warnings };
 }
@@ -347,6 +349,13 @@ function stratagemPlan(root: string, current: Stratagem, upstream: Stratagem | u
   };
 }
 
+/** Une Army Rule : son nom vient de BSData ; ce qu'elle fait est une Contribution. */
+function armyRulePlan(target: string, current: Value, draft: Value): Plan {
+  if (!same(draft.name, current.name)) throw new ApiError(400, 'the name of an Army Rule comes from BSData: correct it on its Units');
+  const body = bodyChange(target, current, draft);
+  return { corrections: [], contributions: body ? [body] : [] };
+}
+
 function corePlan(current: CoreFile, upstream: CoreFile | undefined, draft: CoreFile): Plan {
   const plan: Plan = { corrections: [], contributions: [] };
   if (!same(current.battleSizes, draft.battleSizes)) plan.battleSizes = draft.battleSizes;
@@ -416,9 +425,9 @@ function danglingReferences(kind: Inspection['kind'], view: DatasetView, army: s
 
 // ----------------------------------------------------------------- écrire
 
-const effectsPath = (ws: Workspace) => `${authoredDir(ws.gameSystem)}/${EFFECTS_FILE}`;
+export const effectsPath = (ws: Workspace) => `${authoredDir(ws.gameSystem)}/${EFFECTS_FILE}`;
 
-function readEffects(ws: Workspace): AuthoredEffect[] {
+export function readEffects(ws: Workspace): AuthoredEffect[] {
   const abs = join(ws.datasetDir, effectsPath(ws));
   return existsSync(abs) ? (JSON.parse(readFileSync(abs, 'utf8')) as AuthoredEffect[]) : [];
 }
@@ -461,7 +470,9 @@ export async function saveSheet(ws: Workspace, input: SaveInput): Promise<{ file
         ? detachmentPlan(found.army, current as unknown as Detachment, upstream as unknown as Detachment, draft as unknown as Detachment)
         : found.kind === 'stratagem'
           ? stratagemPlan(found.army, current as unknown as Stratagem, upstream as unknown as Stratagem, draft as unknown as Stratagem)
-          : corePlan(current as unknown as CoreFile, upstream as unknown as CoreFile, draft as unknown as CoreFile);
+          : found.kind === 'armyRule'
+            ? armyRulePlan(found.target, current, draft)
+            : corePlan(current as unknown as CoreFile, upstream as unknown as CoreFile, draft as unknown as CoreFile);
 
   // Tout se prépare et se contrôle avant la première écriture : tout ou rien.
   const writes: { path: string; content: string | null; kind: SavedFile['kind'] }[] = [];
@@ -480,7 +491,15 @@ export async function saveSheet(ws: Workspace, input: SaveInput): Promise<{ file
     for (const c of plan.contributions) {
       const was = byTarget.get(c.target);
       const upstreamNow = verdicts.get(c.target)?.upstreamNow ?? fingerprint({ effect: c.current?.effect, summary: c.current?.summary });
-      const entry: AuthoredEffect = { ...(was ? without(was as unknown as Value, 'reason', 'upstream') : {}), ...c.body, target: c.target, reason, upstream: upstreamNow } as AuthoredEffect;
+      // Retoucher une Rule extraite, c'est l'avoir revue.
+      const entry: AuthoredEffect = {
+        ...(was ? without(was as unknown as Value, 'reason', 'upstream') : {}),
+        ...c.body,
+        target: c.target,
+        reason,
+        upstream: upstreamNow,
+        ...(was?.review ? { review: 'revu' } : {}),
+      } as AuthoredEffect;
       const problems = authoredEffectProblems(entry);
       if (problems.length) throw new ApiError(400, `${c.target}: refused`, problems);
       byTarget.set(c.target, entry);
@@ -648,6 +667,13 @@ export interface Suggestions {
   units: { id: string; name: string }[];
   /** Les Weapons de l'Unit, en clés « kind|name » : les seules qu'une option puisse équiper. */
   weapons: string[];
+  /**
+   * Les clés de Modifier : celles que la Simulation sait jouer d'abord, puis
+   * celles déjà utilisées dans le Dataset. Une clé neuve reste permise.
+   */
+  modifierKeys: { key: string; simulated: boolean }[];
+  /** Les clés de Condition : celles que la Simulation évalue, puis les Situations déjà utilisées. */
+  conditionKeys: { key: string; simulated: boolean }[];
 }
 
 export function suggestions(ws: Workspace, army: string, unitId = ''): Suggestions {
@@ -659,5 +685,21 @@ export function suggestions(ws: Workspace, army: string, unitId = ''): Suggestio
     armyRules: all((u) => u.armyRules),
     units: units.map((u) => ({ id: u.id, name: u.name })).sort((a, b) => a.name.localeCompare(b.name)),
     weapons: (units.find((u) => u.id === unitId)?.weapons ?? []).map(weaponRef),
+    modifierKeys: modifierKeys(datasetOf(ws).files),
+    conditionKeys: conditionKeys(datasetOf(ws).files),
   };
+}
+
+function modifierKeys(files: Map<string, unknown>): Suggestions['modifierKeys'] {
+  const simulated = Object.keys(SIMULATED_MODIFIERS);
+  const used = [...new Set(modifiersIn(files).map((m) => m.modifier.key))].filter((k) => !(k in SIMULATED_MODIFIERS)).sort((a, b) => a.localeCompare(b));
+  return [...simulated.map((key) => ({ key, simulated: true })), ...used.map((key) => ({ key, simulated: false }))];
+}
+
+function conditionKeys(files: Map<string, unknown>): Suggestions['conditionKeys'] {
+  const evaluated = Object.keys(SIMULATED_CONDITIONS);
+  const used = [...new Set(modifiersIn(files).flatMap((m) => (m.modifier.conditions ?? []).map((c) => c.key)))]
+    .filter((k) => !(k in SIMULATED_CONDITIONS))
+    .sort((a, b) => a.localeCompare(b));
+  return [...evaluated.map((key) => ({ key, simulated: true })), ...used.map((key) => ({ key, simulated: false }))];
 }

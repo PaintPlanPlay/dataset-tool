@@ -4,7 +4,9 @@
  * tout le Dataset), et les désaccords entre sources.
  */
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import type { Modifier } from '@paintplanplay/dataset-schema';
 import { api, type CorrectionItem, type SourceConflict } from './api.ts';
+import { toast } from './Toast.tsx';
 
 function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   useEffect(() => {
@@ -89,8 +91,7 @@ export function CorrectionsDialog({ sheet, onOpen, onChanged, onClose }: { sheet
   const [items, setItems] = useState<CorrectionItem[] | null>(null);
   const [q, setQ] = useState('');
   const [confirm, setConfirm] = useState<CorrectionItem | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const load = useCallback(() => api.corrections(sheet, q).then(setItems, (e: Error) => setError(e.message)), [sheet, q]);
+  const load = useCallback(() => api.corrections(sheet, q).then(setItems, (e: Error) => toast.error('Corrections could not be listed', e.message)), [sheet, q]);
   useEffect(() => void load(), [load]);
 
   const remove = async (item: CorrectionItem) => {
@@ -100,7 +101,7 @@ export function CorrectionsDialog({ sheet, onOpen, onChanged, onClose }: { sheet
       await load();
       onChanged();
     } catch (e) {
-      setError((e as Error).message);
+      toast.error(`${item.target}: not removed`, (e as Error).message);
     }
   };
 
@@ -112,7 +113,6 @@ export function CorrectionsDialog({ sheet, onOpen, onChanged, onClose }: { sheet
   return (
     <Modal title={sheet ? `Corrections (${items?.length ?? '…'})` : 'All Corrections and Contributions'} onClose={onClose} wide>
       {!sheet && <input type="search" placeholder="Filter by target, file or reason…" value={q} onChange={(e) => setQ(e.target.value)} />}
-      {error && <p className="error">{error}</p>}
       {items?.length === 0 && <p className="empty">Nothing here: every value comes from the Upstream Sources as they are.</p>}
       <ul className="corrections">
         {items?.map((c) => (
@@ -151,10 +151,11 @@ export function CorrectionsDialog({ sheet, onOpen, onChanged, onClose }: { sheet
                         const url = e.currentTarget.value.trim();
                         void api.recordPr(c.path, url).then(
                           () => {
+                            toast.ok('Upstream link recorded');
                             void load();
                             onChanged();
                           },
-                          (err: Error) => setError(err.message),
+                          (err: Error) => toast.error('Upstream link not recorded', err.message),
                         );
                       }}
                     />
@@ -212,6 +213,134 @@ export function DisagreementsDialog({ onOpen, onClose }: { onOpen: (sheet: strin
             <p>
               {c.field}: {c.authority} <code>{c.kept}</code> kept, {c.other.source} <code>{c.other.value}</code> set aside
             </p>
+          </li>
+        ))}
+      </ul>
+    </Modal>
+  );
+}
+
+/** Les clés de Modifier que la Simulation ne sait pas jouer : une saisie à reprendre, ou un oubli du simulateur. */
+export function UnsimulatedDialog({ onOpen, onClose }: { onOpen: (sheet: string) => void; onClose: () => void }) {
+  const [items, setItems] = useState<Awaited<ReturnType<typeof api.unsimulated>> | null>(null);
+  useEffect(() => void api.unsimulated().then(setItems), []);
+  return (
+    <Modal title={`Modifier keys the simulation does not play (${items?.length ?? '…'})`} onClose={onClose} wide>
+      <p className="hint">Either the key is misspelt — fix it on its Rule — or the simulator has yet to learn it.</p>
+      <ul className="corrections">
+        {items?.map((u, i) => (
+          <li key={i} className="correction">
+            <div className="correction-head">
+              <code>{u.key}</code>{' '}
+              <button type="button" className="link" onClick={() => onOpen(u.sheet)}>
+                {u.rule}
+              </button>
+              <span className="muted"> · {u.target}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Modal>
+  );
+}
+
+/** Un Modifier en une ligne, tel qu'on le saisit : « hit 1 · self · if melee ». */
+const modifierLine = (m: Modifier) =>
+  [`${m.key}${m.value !== undefined ? ` ${m.value}` : ''}`, m.target, ...(m.conditions?.length ? [`if ${m.conditions.map((c) => `${c.key}${c.value !== undefined ? ` ${c.value}` : ''}`).join(', ')}`] : [])].join(' · ');
+
+const RULE_TYPES = ['', 'ability', 'armyrule', 'rule', 'enhancement', 'stratagem'];
+
+/**
+ * Les Rules extraites qui attendent un humain : celles dont la lecture diffère
+ * de 40kdc-data, côte à côte, et celles qui n'ont que la nôtre. Valider les
+ * passe en « revu » ; les retoucher se fait sur leur fiche. Un lot extrait
+ * s'importe ici, en JSON.
+ */
+export function ReviewDialog({ armies, onOpen, onChanged, onClose }: { armies: { id: string; name: string }[]; onOpen: (sheet: string) => void; onChanged: () => void; onClose: () => void }) {
+  const [army, setArmy] = useState('');
+  const [type, setType] = useState('');
+  const [items, setItems] = useState<Awaited<ReturnType<typeof api.review>> | null>(null);
+  const reload = useCallback(() => void api.review(army, type).then(setItems), [army, type]);
+  useEffect(reload, [reload]);
+  const importFile = async (file: File) => {
+    const t = toast.busy(`Importing ${file.name}…`);
+    try {
+      const rules = JSON.parse(await file.text()) as unknown[];
+      const r = await api.importReview(rules);
+      const refused = r.rejected.map((x) => `${x.target} (${x.reason})`).join('; ');
+      if (r.rejected.length) toast.error(`${r.written} Rule(s) imported, ${r.rejected.length} refused`, refused, t);
+      else toast.ok(`${r.written} Rule(s) imported`, undefined, t);
+      onChanged();
+      reload();
+    } catch (e) {
+      toast.error(`${file.name} not imported`, (e as Error).message, t);
+    }
+  };
+  return (
+    <Modal title={`Rules to review (${items?.length ?? '…'})`} onClose={onClose} wide>
+      <div className="review-bar">
+        <select value={army} onChange={(e) => setArmy(e.target.value)}>
+          <option value="">All armies</option>
+          {armies.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+        <select value={type} onChange={(e) => setType(e.target.value)}>
+          {RULE_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t || 'All Rules'}
+            </option>
+          ))}
+        </select>
+        <label className="link">
+          Import extracted Rules…
+          <input type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && void importFile(e.target.files[0])} />
+        </label>
+      </div>
+      <ul className="corrections">
+        {items?.map((i) => (
+          <li key={i.target} className="correction">
+            <div className="correction-head">
+              <span className="kind">{i.status === 'divergent' ? 'differs' : 'one reading'}</span>
+              <button type="button" className="link" onClick={() => onOpen(i.sheet)}>
+                {i.rule}
+              </button>
+              <span className="muted">
+                {' '}
+                · {i.type} · {i.army}
+              </span>
+              <button
+                type="button"
+                className="link"
+                style={{ marginLeft: 'auto' }}
+                onClick={() =>
+                  void api.validateReview(i.target).then(
+                    () => {
+                      toast.ok(`${i.rule} validated`);
+                      onChanged();
+                      reload();
+                    },
+                    (e: Error) => toast.error(`${i.rule} not validated`, e.message),
+                  )
+                }
+              >
+                Validate
+              </button>
+            </div>
+            <div className="review-readings">
+              <div>
+                <strong>Ours</strong>
+                <ul>{i.ours.map((m, k) => <li key={k}>{modifierLine(m)}</li>)}</ul>
+              </div>
+              {i.status === 'divergent' && (
+                <div>
+                  <strong>40kdc-data</strong>
+                  {i.kdc ? <ul>{i.kdc.map((m, k) => <li key={k}>{modifierLine(m)}</li>)}</ul> : <pre>{JSON.stringify(i.kdcEffect, null, 1)}</pre>}
+                </div>
+              )}
+            </div>
           </li>
         ))}
       </ul>

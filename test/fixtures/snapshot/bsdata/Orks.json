@@ -5,6 +5,8 @@
     "library": false,
     "rules": [
       { "id": "r-waaagh", "name": "Waaagh!", "description": "FIXTURE-RULES-TEXT-WAAAGH Once per battle, this army can call a Waaagh!" },
+      { "id": "r-fnp", "name": "Feel No Pain", "description": "FIXTURE-RULES-TEXT-FNP Core rule, as the Game System would define it." },
+      { "id": "r-deepstrike", "name": "Deep Strike", "description": "FIXTURE-RULES-TEXT-DS Core rule, as the Game System would define it." },
       {
         "id": "r-pride",
         "name": "Freebooter Pride",
@@ -173,7 +175,11 @@
         "type": "model",
         "costs": [{ "name": "pts", "typeId": "pts", "value": 65 }],
         "categoryLinks": [{ "name": "Character" }, { "name": "Infantry" }, { "name": "Warboss" }, { "name": "Faction: Orks" }],
-        "infoLinks": [{ "id": "il-warboss-waaagh", "name": "Waaagh!", "targetId": "r-waaagh", "type": "rule" }],
+        "infoLinks": [
+          { "id": "il-warboss-waaagh", "name": "Waaagh!", "targetId": "r-waaagh", "type": "rule" },
+          { "id": "il-warboss-fnp", "name": "Feel No Pain", "targetId": "r-fnp", "type": "rule", "modifiers": [{ "field": "name", "type": "append", "value": "5+" }] },
+          { "id": "il-warboss-ds", "name": "Deep Strike", "targetId": "r-deepstrike", "type": "rule" }
+        ],
         "selectionEntryGroups": [
           {
             "id": "g-warboss-gun",

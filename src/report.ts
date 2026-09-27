@@ -45,6 +45,7 @@ export interface DriftReport {
   unmatched: BuildOutput['unmatched'];
   missing: MissingEntity[];
   droppedEffects: DroppedEffect[];
+  unsimulated: BuildOutput['unsimulated'];
   sources: DatasetIndex['sources'];
   previousSources: DatasetIndex['sources'];
 }
@@ -162,6 +163,7 @@ export function makeReport(out: BuildOutput, previous: Map<string, unknown> | un
     unmatched: out.unmatched,
     missing: out.missing,
     droppedEffects: out.droppedEffects,
+    unsimulated: out.unsimulated,
     sources: index.sources,
     previousSources: previousIndex?.sources ?? [],
   };
@@ -247,6 +249,12 @@ export function renderReport(r: DriftReport): string {
   if (r.droppedEffects.length) {
     L.push(`## Effects set aside (${r.droppedEffects.length})`, '');
     L.push(...bounded(r.droppedEffects, 40, (e) => `- ${e.where} · ${e.army} — ${e.reason}`), '');
+  }
+
+  if (r.unsimulated.length) {
+    L.push(`## Modifier keys the simulation does not play (${r.unsimulated.length})`, '');
+    L.push('Either the entry is misspelt, or the simulator has yet to learn the key.', '');
+    L.push(...bounded(r.unsimulated, 40, (u) => `- \`${u.key}\` · ${u.rule} — ${u.target}`), '');
   }
 
   if (r.unmatched.length) {

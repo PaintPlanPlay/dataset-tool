@@ -8,6 +8,7 @@
  * caractéristiques et l'arsenal possible d'une datasheet.
  */
 import { parseAbilities } from './abilities.ts';
+import { isCoreRule } from '../rules.ts';
 import { weaponRef, type Ability, type CatalogueUnit, type OptionGroup, type Statline, type Weapon, type WeaponKind, type WeaponOption, type WeaponProfile } from './types.ts';
 
 interface BsNode {
@@ -235,6 +236,8 @@ interface Collected {
   keywords: Set<string>;
   /** Army Rules désignées par les liens de règle de la datasheet. */
   armyRules: Set<string>;
+  /** Règles Core désignées par les liens de règle de la datasheet, valeur comprise. */
+  coreRules: Set<string>;
   /** Identifiants des règles définies par un catalogue d'Army, et non par le Game System. */
   armyRuleIds: Set<string>;
   /** Catalogue principal de l'Army composée, que visent les conditions « primary-catalogue ». */
@@ -410,6 +413,17 @@ function collect(
      * Strike, Leader — vivent dans le Game System. C'est la datasheet qui pose
      * le lien : appartenir à l'Army ne suffit pas.
      */
+    /*
+     * Une règle Core (Feel No Pain, Deep Strike…) se reconnaît à son nom ; sa
+     * valeur, BSData l'ajoute au nom du lien (« 5+ »).
+     */
+    if (link.type === 'rule' && own && node.type && target.name && isCoreRule(target.name)) {
+      if (!hiddenFor(link, acc.primaryId)) {
+        const suffix = (link.modifiers ?? []).filter((m) => m.field === 'name' && m.type === 'append').map((m) => String(m.value ?? '').trim());
+        acc.coreRules.add([target.name.trim(), ...suffix].filter(Boolean).join(' '));
+      }
+      continue;
+    }
     if (link.type === 'rule' && own && target.name && acc.armyRuleIds.has(target.id ?? '')) {
       // Seule la datasheet pose le lien : celui d'un groupe d'infos (« Detachment Rules ») n'en est pas un.
       if (node.type && !hiddenFor(link, acc.primaryId) && !hiddenFor(target, acc.primaryId)) acc.armyRules.add(target.name.trim());
@@ -811,7 +825,7 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
       if (!name) continue;
 
       const acc: Collected = {
-        models: [], weapons: [], abilities: [], keywords: new Set(), armyRules: new Set(), armyRuleIds, primaryId,
+        models: [], weapons: [], abilities: [], keywords: new Set(), armyRules: new Set(), coreRules: new Set(), armyRuleIds, primaryId,
         defaults: new Map(), composition: new Map(), slots: new Map(),
       };
       collect(root, byId, acc, new Set([visitKey('e', root.id, '', true)]), 0);
@@ -919,6 +933,7 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
         keywords: allKeywords.filter((k) => !FACTION.test(k)),
         factionKeywords: allKeywords.filter((k) => FACTION.test(k)).map((k) => k.replace(FACTION, '').trim()),
         armyRules: [...acc.armyRules],
+        ...(acc.coreRules.size ? { coreRules: [...acc.coreRules] } : {}),
         abilities,
         parsedAbilities,
         leaderTargets,

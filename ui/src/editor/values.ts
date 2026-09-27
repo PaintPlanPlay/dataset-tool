@@ -40,6 +40,19 @@ export const same = (a: unknown, b: unknown) => canonical(a) === canonical(b);
  * la première branche d'un choix, le premier élément d'un enum. Assez pour que
  * le formulaire montre les bons champs, que l'utilisateur remplit ensuite.
  */
+/**
+ * La valeur posée quand on ajoute un champ absent : sa valeur la plus simple,
+ * sauf pour une liste d'objets (Modifiers, Options, Conditions), qui arrive
+ * avec un premier élément — une liste vide ne montrerait aucun champ à remplir.
+ */
+export function addedFieldOf(schemas: SchemaSet, at: Located): unknown {
+  const value = defaultOf(schemas, at);
+  const { schema, base } = schemas.resolve(at);
+  if (!Array.isArray(value) || !schema.items) return value;
+  const item = schemas.resolve({ schema: schema.items, base }).schema;
+  return item.type === 'object' || item.properties ? [defaultOf(schemas, { schema: schema.items, base })] : value;
+}
+
 export function defaultOf(schemas: SchemaSet, at: Located, depth = 0): unknown {
   const { schema, base } = schemas.resolve(at);
   if (depth > 8) return undefined;

@@ -6,6 +6,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { api, type ButtonName, type ButtonState, type JobReport, type Overview, type PendingChange } from './api.ts';
+import { toast } from './Toast.tsx';
 
 const LABEL: Record<ButtonName, string> = {
   update: 'Update data',
@@ -29,15 +30,16 @@ interface Props {
   onOpen: (sheet: string) => void;
   onCorrections: () => void;
   onDisagreements: () => void;
+  onUnsimulated: () => void;
+  onReview: () => void;
 }
 
 const ACTION: Record<PendingChange['action'], string> = { added: 'new', modified: 'changed', deleted: 'removed' };
 
-export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOpen, onCorrections, onDisagreements }: Props) {
+export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOpen, onCorrections, onDisagreements, onUnsimulated, onReview }: Props) {
   const [report, setReport] = useState<JobReport | null>(null);
   const [lines, setLines] = useState<string[]>([]);
   const [asking, setAsking] = useState<ButtonState | null>(null);
-  const [startError, setStartError] = useState<string | null>(null);
   const since = useRef(0);
   const running = report?.job?.state === 'running';
 
@@ -45,6 +47,9 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
   useEffect(() => {
     let stop = false;
     let wasRunning = false;
+    /** La notification de la tâche en cours : elle tourne, puis dit comment la tâche a fini. */
+    let jobToast: number | undefined;
+    let lastLine = '';
     const tick = async () => {
       try {
         const r = await api.jobs(since.current);
@@ -53,7 +58,16 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
         else if (r.lines.length) setLines((l) => [...l, ...r.lines]);
         since.current = r.next;
         setReport(r);
+        lastLine = r.lines.filter((l) => l.trim()).at(-1) ?? lastLine;
         const now = r.job?.state === 'running';
+        const label = r.job ? (LABEL[r.job.name as ButtonName] ?? r.job.name) : '';
+        if (now && !wasRunning) jobToast = toast.busy(`${label}…`, jobToast);
+        if (wasRunning && !now && r.job) {
+          if (r.job.state === 'ok') toast.ok(`${label}: done`, lastLine || undefined, jobToast);
+          else toast.error(`${label}: failed`, lastLine ? `${lastLine} — the log is in the left column` : 'The log is in the left column', jobToast);
+          jobToast = undefined;
+          lastLine = '';
+        }
         if (wasRunning && !now) {
           /*
            * Seules les tâches qui changent les sources ou les Corrections du
@@ -79,14 +93,13 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
   }, [onChanged]);
 
   const start = async (button: ButtonState, body: Record<string, string> = {}) => {
-    setStartError(null);
     setAsking(null);
     try {
       setLines([]);
       since.current = 0;
       await api.startJob(button.name, body);
     } catch (err) {
-      setStartError((err as Error).message);
+      toast.error(`${LABEL[button.name]} could not start`, (err as Error).message);
     }
   };
 
@@ -120,6 +133,18 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
         <dd>
           <button type="button" className="link" onClick={onDisagreements} title="Where two Upstream Sources disagree and the authoritative one won">
             {overview?.disagreements ?? '—'}
+          </button>
+        </dd>
+        <dt>To review</dt>
+        <dd>
+          <button type="button" className="link" onClick={onReview} title="Extracted Rules whose reading differs from 40kdc-data, or has no second reading">
+            {overview?.toReview ?? '—'}
+          </button>
+        </dd>
+        <dt>Unsimulated keys</dt>
+        <dd>
+          <button type="button" className="link" onClick={onUnsimulated} title="Modifier keys the simulation does not play: fix the entry, or teach the simulator">
+            {overview?.unsimulated ?? '—'}
           </button>
         </dd>
         <dt>Suggested Effects</dt>
@@ -171,7 +196,6 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
               </div>
             ))}
       </div>
-      {startError && <p className="error">{startError}</p>}
       {overview && !overview.gh && (
         <p className="hint-line">
           The GitHub CLI is not usable by this interface: Propose and Publish need it. Run <code>gh auth login</code>, and check that <code>gh</code> is on the PATH.

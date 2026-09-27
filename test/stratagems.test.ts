@@ -15,8 +15,8 @@ import { check, fixture, section } from './check.ts';
 
 const GS = 'wh40k-11e';
 const snapshot = openSnapshot(fixture('snapshot'));
-const first = await build({ snapshot });
-const second = await build({ snapshot, ids: first.ids });
+const first = await build({ snapshot, ruleFormatArmies: [] });
+const second = await build({ snapshot, ruleFormatArmies: [], ids: first.ids });
 
 const orks = (out: BuildOutput) => out.files.get(`${GS}/armies/orks.json`) as ArmyFile;
 const core = (out: BuildOutput) => out.files.get(`${GS}/core.json`) as CoreFile;

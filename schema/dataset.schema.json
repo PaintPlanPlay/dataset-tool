@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://paint-plan-play.github.io/schemas/dataset.schema.json",
   "title": "Paint Plan Play Dataset",
-  "description": "Files of the Paint Plan Play Dataset. No rules text anywhere: a rule is carried by its name, its structured fields and, when it exists, its Effect.",
+  "description": "Files of the Paint Plan Play Dataset. No rules text anywhere: a rule is carried by its name, its structured fields, its Modifiers (or, until its Army moves to them, its 40kdc-data Effect) and a short Description written by the project.",
   "$defs": {
     "id": {
       "type": "string",
@@ -430,6 +430,16 @@
         "scope": {
           "$ref": "#/$defs/effectScope"
         },
+        "modifiers": {
+          "$ref": "#/$defs/modifiers"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/ruleOption"
+          }
+        },
         "summary": {
           "$ref": "#/$defs/summary"
         },
@@ -485,6 +495,15 @@
           "items": {
             "$ref": "#/$defs/name"
           }
+        },
+        "armyRuleIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "statuses": {
+          "$ref": "#/$defs/modifiers"
         },
         "models": {
           "type": "array",
@@ -759,6 +778,12 @@
             "$ref": "#/$defs/unit"
           }
         },
+        "armyRules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rule"
+          }
+        },
         "detachments": {
           "type": "array",
           "items": {
@@ -832,11 +857,24 @@
         "name": {
           "$ref": "#/$defs/name"
         },
+        "eligibility": {
+          "$ref": "#/$defs/keywordFilter"
+        },
         "effect": {
           "$ref": "#/$defs/effect"
         },
         "scope": {
           "$ref": "#/$defs/effectScope"
+        },
+        "modifiers": {
+          "$ref": "#/$defs/modifiers"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/ruleOption"
+          }
         },
         "summary": {
           "$ref": "#/$defs/summary"
@@ -897,6 +935,16 @@
         },
         "scope": {
           "$ref": "#/$defs/effectScope"
+        },
+        "modifiers": {
+          "$ref": "#/$defs/modifiers"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/ruleOption"
+          }
         },
         "summary": {
           "$ref": "#/$defs/summary"
@@ -1054,6 +1102,16 @@
         },
         "scope": {
           "$ref": "#/$defs/effectScope"
+        },
+        "modifiers": {
+          "$ref": "#/$defs/modifiers"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/ruleOption"
+          }
         },
         "summary": {
           "$ref": "#/$defs/summary"
@@ -1393,6 +1451,125 @@
         "current",
         "offered",
         "dataslates"
+      ],
+      "additionalProperties": false
+    },
+    "modifierKey": {
+      "type": "string",
+      "pattern": "^[a-z0-9A-Z][A-Za-z0-9-]*$",
+      "maxLength": 40
+    },
+    "modifierValue": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string",
+          "pattern": "^(\\d*D\\d+(\\+\\d+)?|\\d+\\+|\\d+|all)$",
+          "maxLength": 16
+        }
+      ]
+    },
+    "keywordFilter": {
+      "type": "object",
+      "properties": {
+        "allOf": {
+          "$ref": "#/$defs/keywords"
+        },
+        "anyOf": {
+          "$ref": "#/$defs/keywords"
+        },
+        "noneOf": {
+          "$ref": "#/$defs/keywords"
+        }
+      },
+      "required": [
+        "allOf",
+        "anyOf",
+        "noneOf"
+      ],
+      "additionalProperties": false
+    },
+    "condition": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/modifierKey"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/$defs/keyword"
+            }
+          ]
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "additionalProperties": false
+    },
+    "modifier": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/modifierKey"
+        },
+        "value": {
+          "$ref": "#/$defs/modifierValue"
+        },
+        "target": {
+          "enum": [
+            "self",
+            "attached",
+            "aura",
+            "enemy"
+          ]
+        },
+        "range": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 48
+        },
+        "keywords": {
+          "$ref": "#/$defs/keywordFilter"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/condition"
+          }
+        }
+      },
+      "required": [
+        "key",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "modifiers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/modifier"
+      }
+    },
+    "ruleOption": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "modifiers": {
+          "$ref": "#/$defs/modifiers"
+        }
+      },
+      "required": [
+        "name",
+        "modifiers"
       ],
       "additionalProperties": false
     }

@@ -1,0 +1,103 @@
+/**
+ * Le format de Rule à nous (ADR 0011), sur le point de test de construction :
+ * les Rules des Orks sont publiées sans Effect 40kdc-data, et leurs Modifiers
+ * viennent des seules Contributions.
+ *
+ *   npx tsx test/rules.test.ts
+ */
+import type { ArmyFile, CoreFile } from '@paintplanplay/dataset-schema';
+import { validateFile } from '@paintplanplay/dataset-schema/validate';
+import type { AuthoredCore } from '../src/authored.ts';
+import { build } from '../src/build.ts';
+import { openSnapshot } from '../src/snapshot.ts';
+import { check, fixture, section } from './check.ts';
+
+const GS = 'wh40k-11e';
+const snapshot = openSnapshot(fixture('snapshot'));
+const bare = await build({ snapshot });
+const orksOf = (files: Map<string, unknown>) => files.get(`${GS}/armies/orks.json`) as ArmyFile;
+const orks = orksOf(bare.files);
+const warHorde = orks.detachments.find((d) => d.name === 'War Horde')!;
+const ereWeGo = orks.stratagems.find((s) => s.name === "'ERE WE GO")!;
+const warboss = orks.units.find((u) => u.name === 'Warboss')!;
+
+section('Rules des Orks : plus aucun Effect 40kdc-data');
+const bodies = [
+  ...orks.stratagems,
+  ...orks.detachments.flatMap((d) => [...d.rules, ...d.enhancements]),
+  ...orks.units.filter((u) => !u.ally).flatMap((u) => u.abilities),
+];
+check('ni Effect ni portée amont sur les Rules Orks', bodies.every((b) => b.effect === undefined && b.scope === undefined));
+check('ni source d\'Effect ni condition d\'analyse sur les aptitudes Orks', warboss.abilities.every((a) => !a.effectSource && !a.conditional));
+check('les champs structurés des Stratagems restent', ereWeGo.cp === 1 && ereWeGo.phases.length > 0 && ereWeGo.target !== undefined);
+check('les Stratagems Core ne changent pas encore de format', (bare.files.get(`${GS}/core.json`) as CoreFile).stratagems.some((s) => s.effect !== undefined));
+check('l\'Army des Orks reste conforme au schéma', validateFile('army', orks).length === 0, validateFile('army', orks).join(' | '));
+
+section('Rules des Orks : les Modifiers viennent des Contributions');
+const authored: AuthoredCore = {
+  battleSizes: [],
+  referenceTargets: [],
+  effects: [
+    {
+      target: `orks::stratagem:${ereWeGo.id}`,
+      modifiers: [{ key: 'charge', value: 2, target: 'self' }],
+      summary: 'Adds 2 to Advance and Charge rolls.',
+      reason: 'Premier Effect au format à nous.',
+    },
+    {
+      target: `${warboss.id}::ability:${warboss.abilities.find((a) => a.name !== 'Leader')!.name}`,
+      modifiers: [
+        { key: 'hit', value: 1, target: 'self' },
+        { key: 'crit-hit', value: '5+', target: 'self' },
+        { key: 'reroll-wound', value: '1', target: 'self' },
+      ],
+      reason: 'Valeurs de dés : nombre, seuil, relance.',
+    },
+    {
+      target: `orks::rule:${warHorde.id}|${warHorde.rules[0].id}`,
+      effect: { type: 'stat-modifier', target: 'unit', modifier: { stat: 'S', operation: 'add', value: 1 } },
+      reason: 'Ancien format, sur une Rule Orks.',
+    },
+    {
+      target: `orks::stratagem:${ereWeGo.id}`,
+      modifiers: [{ key: 'hit', value: 1, target: 'somewhere' as 'self' }],
+      reason: 'Cible inconnue.',
+    },
+  ],
+};
+const out = await build({ snapshot, authored });
+const withMods = orksOf(out.files);
+const strat = withMods.stratagems.find((s) => s.id === ereWeGo.id)!;
+check('les Modifiers d\'une Contribution sont publiés', JSON.stringify(strat.modifiers) === JSON.stringify([{ key: 'charge', value: 2, target: 'self' }]), JSON.stringify(strat.modifiers));
+check('sa Description aussi', strat.summary === 'Adds 2 to Advance and Charge rolls.');
+const ability = withMods.units.find((u) => u.id === warboss.id)!.abilities.find((a) => a.modifiers)!;
+check('une valeur peut être un nombre, un seuil ou une relance', ability.modifiers?.map((m) => m.value).join() === '1,5+,1');
+check('une aptitude qui a des Modifiers vient du projet', ability.effectSource === undefined && ability.effect === undefined);
+const rule = withMods.detachments.find((d) => d.id === warHorde.id)!.rules[0];
+check('un Effect à l\'ancien format n\'est plus publié sur une Rule Orks', rule.effect === undefined);
+const oldFormat = out.contributions.find((c) => c.target.includes('::rule:'))!;
+check('la Contribution à l\'ancien format est rejetée, avec sa raison', oldFormat.state === 'rejected' && /Modifiers/.test(oldFormat.note), oldFormat.note);
+const badTarget = out.contributions.filter((c) => c.target.includes('::stratagem:'));
+check('un Modifier hors schéma rejette sa Contribution', badTarget.some((c) => c.state === 'rejected') && badTarget.some((c) => c.state === 'active'), JSON.stringify(badTarget));
+check('l\'Army reste conforme au schéma', validateFile('army', withMods).length === 0, validateFile('army', withMods).join(' | '));
+
+section('Rules des Orks : règles Core en statuts, Army Rules par identifiant');
+check(
+  'les règles Core de BSData deviennent des Modifiers de statut sur l\'Unit, avec leur valeur',
+  JSON.stringify(warboss.statuses) === JSON.stringify([{ key: 'feel-no-pain', value: '5+', target: 'self' }, { key: 'deep-strike', target: 'self' }]),
+  JSON.stringify(warboss.statuses),
+);
+check('une règle Core n\'est ni une Army Rule ni une aptitude', !warboss.armyRules.includes('Feel No Pain') && !warboss.abilities.some((a) => /Feel No Pain|Deep Strike/.test(a.name)));
+const waaagh = orks.armyRules?.find((r) => r.name === 'Waaagh!');
+check('les Army Rules sont stockées une fois dans l\'Army', orks.armyRules?.length === 1 && waaagh !== undefined, JSON.stringify(orks.armyRules));
+check('chaque Unit les désigne par identifiant', warboss.armyRuleIds?.join() === waaagh?.id && orks.units.find((u) => u.name === 'Boyz' && !u.ally)?.armyRuleIds?.join() === waaagh?.id);
+const withArmyRule = orksOf(
+  (
+    await build({
+      snapshot,
+      authored: { battleSizes: [], referenceTargets: [], effects: [{ target: `orks::armyrule:${waaagh?.id}`, modifiers: [{ key: 'hit', value: 1, target: 'self', conditions: [{ key: 'waaagh' }] }], reason: 'Army Rule au format à nous.' }] },
+    })
+  ).files,
+);
+check('une Contribution pose les Modifiers d\'une Army Rule', withArmyRule.armyRules?.[0].modifiers?.[0].key === 'hit');
+check('l\'Army et ses Army Rules restent conformes au schéma', validateFile('army', withArmyRule).length === 0, validateFile('army', withArmyRule).join(' | '));

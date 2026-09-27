@@ -152,6 +152,8 @@ export interface CatalogueUnit {
   factionKeywords: string[];
   /** Army Rules que la datasheet désigne par ses liens de règle : « Waaagh! ». */
   armyRules: string[];
+  /** Règles Core que la datasheet désigne, avec leur valeur : « Feel No Pain 5+ », « Deep Strike ». */
+  coreRules?: string[];
   abilities: Ability[];
   /** Aptitudes analysées : effets déduits et cibles de l'aptitude « Leader ». */
   parsedAbilities: ParsedAbility[];

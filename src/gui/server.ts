@@ -21,6 +21,10 @@ import { checkDraft, deleteCorrection, listCorrections, saveSheet, sheetOf, sugg
 import { inspect, search } from './provenance.ts';
 import type { UiFactory, UiHandle } from './ui.ts';
 import type { Workspace } from './workspace.ts';
+import { findUnsimulated } from '../rules.ts';
+import type { ExtractedRule } from '../review.ts';
+import { importExtracted, reviewList, validateReview } from './review.ts';
+import { sheetOfTarget } from './targets.ts';
 
 export interface GuiServer {
   url: string;
@@ -169,6 +173,18 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
         deleteCorrection(ws, { path: typeof body.path === 'string' ? body.path : undefined, target: typeof body.target === 'string' ? body.target : undefined });
         return send(res, 200, { ok: true });
       }
+      case 'POST /api/review/import': {
+        const body = await readBody(req);
+        if (!Array.isArray(body.rules)) throw new ApiError(400, 'expected { rules: [...] }');
+        return send(res, 200, importExtracted(ws, body.rules as ExtractedRule[]));
+      }
+      case 'GET /api/review':
+        return send(res, 200, reviewList(ws, param('army'), param('type'), param('all') === '1'));
+      case 'POST /api/review/validate':
+        validateReview(ws, String((await readBody(req)).target ?? ''));
+        return send(res, 200, { ok: true });
+      case 'GET /api/unsimulated':
+        return send(res, 200, findUnsimulated(datasetOf(ws).files).map((u) => ({ ...u, sheet: sheetOfTarget(u.target) })));
       case 'GET /api/disagreements':
         return send(res, 200, datasetOf(ws).conflicts ?? []);
       case 'GET /api/suggest':
