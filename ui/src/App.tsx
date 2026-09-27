@@ -147,7 +147,7 @@ export function App() {
   useEffect(() => {
     loadOverview();
     api.schema().then(
-      (s) => setSchemas(new SchemaSet(s.dataset, s.vendor)),
+      (s) => setSchemas(new SchemaSet(s.dataset)),
       (err: Error) => setSheetError(err.message),
     );
   }, [loadOverview]);
@@ -230,17 +230,6 @@ export function App() {
     [sheet?.kind],
   );
 
-  const accept = async (ability: string) => {
-    if (!sheet) return;
-    const t = toast.busy(`Accepting the suggested Effect of ${ability}…`);
-    try {
-      await api.accept(`${sheet.target}::ability:${ability}`);
-      await afterWrite(`Suggested Effect of ${ability} accepted as a Contribution`, undefined, t);
-    } catch (err) {
-      toast.error(`Suggested Effect of ${ability} not accepted`, (err as Error).message, t);
-    }
-  };
-
   const ctx: EditorContext | null = useMemo(() => {
     if (!sheet || !schemas) return null;
     return {
@@ -252,7 +241,7 @@ export function App() {
       warnings: byPointer(check.warnings, (w) => w.message),
       marks: sheet.marks.reduce((m, x) => m.set(x.path, [...(m.get(x.path) ?? []), x]), new Map<string, Mark[]>()),
       choices: choicesFor(sheet.kind, draft, suggestions),
-      ...(sheet.kind === 'unit' ? { widget: unitWidget({ sources: sheet.sources, onAccept: (a) => void accept(a) }) } : {}),
+      ...(sheet.kind === 'unit' ? { widget: unitWidget({ sources: sheet.sources }) } : {}),
     };
   }, [sheet, schemas, draft, check, suggestions, onChange]);
 

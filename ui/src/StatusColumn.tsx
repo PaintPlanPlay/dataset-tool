@@ -147,8 +147,6 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
             {overview?.unsimulated ?? '—'}
           </button>
         </dd>
-        <dt>Suggested Effects</dt>
-        <dd title="Effects the ability analysis proposes, waiting for review on their Unit">{overview?.suggestions ?? '—'}</dd>
       </dl>
 
       {overview?.pullRequest && (

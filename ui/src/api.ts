@@ -45,7 +45,7 @@ export interface JobReport {
 
 export const api = {
   overview: () => call<Overview>('/api/overview'),
-  schema: () => call<{ dataset: JsonSchema; vendor: JsonSchema[] }>('/api/schema'),
+  schema: () => call<{ dataset: JsonSchema }>('/api/schema'),
   search: (q: string, army: string) => call<SearchHit[]>(`/api/search?q=${encodeURIComponent(q)}&army=${encodeURIComponent(army)}`),
   startJob: (name: ButtonName, body: Record<string, string>) => post<{ job: Omit<Job, 'log'> }>(`/api/jobs/${name}`, body),
   jobs: (since: number) => call<JobReport>(`/api/jobs?since=${since}`),
@@ -63,7 +63,6 @@ export const api = {
   review: (army: string, type: string) => call<ReviewItem[]>(`/api/review?army=${encodeURIComponent(army)}&type=${encodeURIComponent(type)}`),
   importReview: (rules: unknown[]) => post<ImportResult>('/api/review/import', { rules }),
   validateReview: (target: string) => post('/api/review/validate', { target }),
-  accept: (target: string) => post('/api/proposals/accept', { target }),
   recordPr: (path: string, url: string) => post('/api/corrections/upstream-pr', { path, url }),
   upstreamDraft: (path: string) => call<{ repository: string; url: string }>(`/api/upstream-draft?path=${encodeURIComponent(path)}`),
 };

@@ -11,8 +11,8 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ArmyFile, BattleSize, CoreFile, Effect, EffectScope, KeywordFilter, Modifier, ReferenceTarget, RuleOption, SampleList, SampleSection, SampleUnit, Unit, WargearCount } from '@paintplanplay/dataset-schema';
-import { validateDef, validateEffect } from '@paintplanplay/dataset-schema/validate';
+import type { ArmyFile, BattleSize, CoreFile, KeywordFilter, Modifier, ReferenceTarget, RuleOption, SampleList, SampleSection, SampleUnit, Unit, WargearCount } from '@paintplanplay/dataset-schema';
+import { validateDef } from '@paintplanplay/dataset-schema/validate';
 import { CORE_ROOT, parseTarget } from './corrections/apply.ts';
 import { inspectString } from './notext.ts';
 
@@ -25,18 +25,16 @@ export interface AuthoredSampleUnit {
 }
 
 /**
- * Une Contribution (ADR 0010) : ce que fait une règle, en Modifiers (ADR 0011)
- * ou, pour une Army pas encore passée à ce format, en Effect 40kdc-data, et sa
- * Description — jamais un texte recopié. Elle prime définitivement sur 40kdc-data.
+ * Une Contribution (ADR 0010) : ce que fait une règle, en Modifiers (ADR 0011),
+ * et sa Description — jamais un texte recopié.
  * Adresses : `<unitId>::ability:<nom>`, `<armyId>::rule:<detachmentId>|<ruleId>`,
  * `<armyId>::enhancement:<detachmentId>|<enhancementId>`, `<armyId>::stratagem:<id>`,
- * `core::stratagem:<id>`.
+ * `<armyId>::armyrule:<id>`, `core::stratagem:<id>`.
  */
 export interface AuthoredEffect {
   target: string;
+  /** L'ancien format d'Effect 40kdc-data : il n'est plus accepté, seulement signalé. */
   effect?: unknown;
-  /** Portée de l'Effect (range, durée), au format de 40kdc-data. */
-  scope?: unknown;
   modifiers?: Modifier[];
   options?: RuleOption[];
   /** Les Units qui bénéficient d'une Detachment Rule. */
@@ -50,7 +48,7 @@ export interface AuthoredEffect {
    */
   review?: 'concordant' | 'divergent' | 'seul' | 'revu';
   /**
-   * Empreinte de ce que disait l'amont (Effect et résumé) quand on l'a écrite.
+   * Empreinte de ce que disait 40kdc-data (Effect et résumé) quand on l'a écrite.
    * Un amont qui a bougé depuis est signalé, jamais appliqué.
    */
   upstream?: string;
@@ -74,7 +72,11 @@ export interface ContributionVerdict {
 export const fingerprint = (value: unknown) => createHash('sha1').update(JSON.stringify(value ?? null)).digest('hex').slice(0, 12);
 
 /** Ce qu'on retient de l'amont d'une règle : son Effect et son résumé. */
-const upstreamOf = (el: { effect?: unknown; summary?: string }) => fingerprint({ effect: el.effect, summary: el.summary });
+/**
+ * Ce qu'on retient de l'amont d'une règle : l'Effect que 40kdc-data lui donne,
+ * sous la même forme qu'avant la bascule (aucun résumé amont n'existe).
+ */
+const upstreamOf = (kdcEffect: unknown) => fingerprint({ effect: kdcEffect, summary: undefined });
 
 export interface AuthoredCore {
   effects?: AuthoredEffect[];
@@ -166,9 +168,9 @@ export function resolveAuthored(authored: AuthoredCore | undefined, armies: Map<
 export function authoredEffectProblems(e: AuthoredEffect): string[] {
   const problems: string[] = [];
   if (e.eligibility !== undefined) problems.push(...validateDef('keywordFilter', e.eligibility).map((f) => `eligibility${f.path}: ${f.message}`));
-  if (e.effect === undefined && e.modifiers === undefined && e.options === undefined && e.summary === undefined && e.eligibility === undefined)
-    problems.push('neither Modifiers, Effect nor summary');
-  if (e.effect !== undefined) problems.push(...validateEffect(e.effect, e.scope).map((m) => `Effect outside the frozen format: ${m}`));
+  if (e.effect !== undefined) problems.push('an Effect in the retired 40kdc-data format: write it as Modifiers (ADR 0011)');
+  else if (e.modifiers === undefined && e.options === undefined && e.summary === undefined && e.eligibility === undefined)
+    problems.push('neither Modifiers nor summary');
   if (e.modifiers !== undefined) problems.push(...validateDef('modifiers', e.modifiers).map((f) => `Modifiers${f.path}: ${f.message}`));
   if (e.options !== undefined)
     problems.push(...(e.options.length < 2 ? ['a Rule with Options has at least two'] : []), ...e.options.flatMap((o, i) => validateDef('ruleOption', o).map((f) => `Options/${i}${f.path}: ${f.message}`)));
@@ -179,17 +181,16 @@ export function authoredEffectProblems(e: AuthoredEffect): string[] {
 }
 
 /**
- * Pose les Modifiers, Effects et résumés écrits par le projet sur les fichiers
- * construits. Des Modifiers remplacent tout Effect amont ; un Effect remplace
- * celui de l'amont (une aptitude passe en `effectSource: 'project'`) ; un
- * résumé seul s'ajoute sans toucher au reste. Une Army au format de Rule
- * (`ruleFormat`) refuse l'ancien format d'Effect.
+ * Pose les Modifiers, Options, Eligibility et Descriptions écrits par le projet
+ * sur les fichiers construits. `kdcEffects` donne, par adresse, la lecture de
+ * 40kdc-data : c'est elle que l'empreinte d'une Contribution compare, pour
+ * signaler qu'elle a bougé depuis.
  */
 export function applyAuthoredEffects(
   files: Map<string, unknown>,
   gameSystem: string,
   effects: AuthoredEffect[],
-  ruleFormat: (armyId: string) => boolean = () => false,
+  kdcEffects: Record<string, unknown> = {},
 ): { unresolved: string[]; rejected: { target: string; reason: string }[]; contributions: ContributionVerdict[] } {
   const unresolved: string[] = [];
   const rejected: { target: string; reason: string }[] = [];
@@ -197,58 +198,28 @@ export function applyAuthoredEffects(
   const armies = [...files].filter(([p]) => p.startsWith(`${gameSystem}/armies/`)).map(([, f]) => f as ArmyFile);
   const core = files.get(`${gameSystem}/core.json`) as CoreFile | undefined;
 
-  /** L'Army d'une adresse : sa racine, ou l'Army qui possède l'Unit d'une aptitude. */
-  const armyOf = (root: string, entity: string) =>
-    entity === 'ability' ? armies.find((a) => a.units.some((u) => u.id === root && !u.ally))?.id : root;
-
   for (const e of effects) {
     const problems = authoredEffectProblems(e);
-    const { root: targetRoot, entity: targetEntity } = parseTarget(e.target);
-    const army = armyOf(targetRoot, targetEntity);
-    if (e.effect !== undefined && army && ruleFormat(army))
-      problems.unshift('this Army uses Modifiers now: write this Effect as Modifiers (ADR 0011)');
     if (problems.length) {
       rejected.push({ target: e.target, reason: problems[0] });
       contributions.push({ target: e.target, reason: e.reason, state: 'rejected', note: problems[0] });
       continue;
     }
     const body = {
-      ...(e.effect !== undefined ? { effect: e.effect as Effect } : {}),
-      ...(e.scope !== undefined ? { scope: e.scope as EffectScope } : {}),
       ...(e.modifiers !== undefined ? { modifiers: e.modifiers } : {}),
       ...(e.options !== undefined ? { options: e.options } : {}),
       ...(e.eligibility !== undefined ? { eligibility: e.eligibility } : {}),
       ...(e.summary !== undefined ? { summary: e.summary } : {}),
     };
-    const newFormat = e.modifiers !== undefined || e.options !== undefined;
     const { root, entity, name } = parseTarget(e.target);
     let hits = 0;
-    // L'amont se lit avant d'être recouvert : c'est lui que l'empreinte compare.
-    let upstreamNow: string | undefined;
-    const take = (el: { effect?: unknown; scope?: unknown; summary?: string }) => {
-      upstreamNow ??= upstreamOf(el);
-      if (newFormat) {
-        delete el.effect;
-        delete el.scope;
-      }
+    const upstreamNow = upstreamOf(kdcEffects[e.target]);
+    const take = (el: object) => {
       Object.assign(el, body);
       hits++;
     };
     if (entity === 'ability') {
-      for (const a of armies)
-        for (const u of a.units)
-          if (u.id === root)
-            for (const ab of u.abilities)
-              if (ab.name === name) {
-                take(ab);
-                if (newFormat) {
-                  delete ab.effectSource;
-                  delete ab.conditional;
-                } else if (e.effect !== undefined) {
-                  ab.effectSource = 'project';
-                  delete ab.conditional;
-                }
-              }
+      for (const a of armies) for (const u of a.units) if (u.id === root) for (const ab of u.abilities) if (ab.name === name) take(ab);
     } else if (entity === 'rule' || entity === 'enhancement') {
       const [detachmentId, elementId] = name.split('|');
       for (const a of armies)

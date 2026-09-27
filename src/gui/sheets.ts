@@ -4,7 +4,7 @@
  *
  * Enregistrer, c'est comparer le brouillon à l'état construit et découper
  * l'écart : une Correction par élément visé et par Upstream Source qui fait
- * autorité sur le champ (ADR 0007), une Contribution par Effect ou résumé
+ * autorité sur le champ (ADR 0007), une Contribution pour ce que fait une règle
  * (ADR 0010). Le mainteneur ne choisit jamais : c'est le domaine du champ qui
  * décide. Les fichiers sont nommés ici, contrôlés (schéma, aucun texte de
  * règles), puis écrits tout ou rien.
@@ -44,7 +44,7 @@ const SECTION_SOURCES: Record<Inspection['kind'], Record<string, Origin>> = {
   detachment: { name: 'mfm', dp: 'mfm', forceDispositions: 'mfm', uniqueTag: 'mfm', rules: 'project', enhancements: '40kdc' },
   stratagem: {
     name: '40kdc', cp: '40kdc', phases: '40kdc', playerTurn: '40kdc', timing: '40kdc', category: '40kdc', target: '40kdc',
-    effect: 'project', scope: 'project', modifiers: 'project', options: 'project', summary: 'project',
+    modifiers: 'project', options: 'project', summary: 'project',
   },
   armyRule: { name: 'bsdata', modifiers: 'project', options: 'project', summary: 'project' },
   core: { battleSizes: 'project', stratagems: '40kdc' },
@@ -64,7 +64,7 @@ const STRATAGEM_FIELDS: Record<string, Source> = {
   name: '40kdc', cp: '40kdc', phases: '40kdc', playerTurn: '40kdc', timing: '40kdc', category: '40kdc', target: '40kdc',
 };
 /** Ce qu'une Contribution porte : ce qu'une règle fait, jamais ses chiffres. */
-const RULE_BODY = ['effect', 'scope', 'modifiers', 'options', 'eligibility', 'summary'] as const;
+const RULE_BODY = ['modifiers', 'options', 'eligibility', 'summary'] as const;
 
 // -------------------------------------------------------------------- lire
 
@@ -216,8 +216,6 @@ function bodyChange(target: string, current: Value | undefined, draft: Value): C
   const body: ContributionChange['body'] = {};
   for (const k of RULE_BODY) if (!same(draft[k], current?.[k]) && draft[k] !== undefined) body[k] = draft[k];
   if (!Object.keys(body).length) return null;
-  // Une portée seule ne dit rien : elle accompagne son Effect.
-  if (body.scope !== undefined && body.effect === undefined && draft.effect !== undefined) body.effect = draft.effect;
   return { target, body, current };
 }
 
@@ -490,7 +488,7 @@ export async function saveSheet(ws: Workspace, input: SaveInput): Promise<{ file
     const verdicts = new Map((view.contributions ?? []).map((v) => [v.target, v]));
     for (const c of plan.contributions) {
       const was = byTarget.get(c.target);
-      const upstreamNow = verdicts.get(c.target)?.upstreamNow ?? fingerprint({ effect: c.current?.effect, summary: c.current?.summary });
+      const upstreamNow = verdicts.get(c.target)?.upstreamNow ?? fingerprint({ effect: view.kdcEffects?.[c.target], summary: undefined });
       // Retoucher une Rule extraite, c'est l'avoir revue.
       const entry: AuthoredEffect = {
         ...(was ? without(was as unknown as Value, 'reason', 'upstream') : {}),

@@ -6,16 +6,14 @@
  * demande.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { indexPath, manifestPath, type Correction, type DatasetIndex, type Manifest, type Unit } from '@paintplanplay/dataset-schema';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { indexPath, manifestPath, type Correction, type DatasetIndex, type Manifest } from '@paintplanplay/dataset-schema';
 import { proposeDataslate, type DataslateProposal } from '../release.ts';
-import { authoredDir, authoredEffectProblems, EFFECTS_FILE, fingerprint, type AuthoredEffect } from '../authored.ts';
 import { correctionsDir } from '../corrections/files.ts';
 import { toJson } from '../dataset.ts';
-import { findRulesText } from '../notext.ts';
 import { fileURLToPath } from 'node:url';
-import { inspect, type DatasetView } from './provenance.ts';
+import type { DatasetView } from './provenance.ts';
 import type { JobRunner } from './jobs.ts';
 import type { Workspace } from './workspace.ts';
 
@@ -119,36 +117,6 @@ async function finish(ws: Workspace, path: string, title: string, openPr: boolea
   if (openPr) result.pullRequest = openPullRequest(ws.datasetDir, [path], title);
   void refreshing(ws);
   return result;
-}
-
-export async function writeAuthoredEffect(ws: Workspace, input: AuthoredEffect & { openPr?: boolean }): Promise<WriteResult> {
-  const { openPr, ...entry } = input;
-  const problems = [...authoredEffectProblems(entry), ...findRulesText(entry).map((f) => `${f.where} : ${f.reason}`)];
-  if (problems.length) throw new ApiError(400, 'Effect or summary refused', problems);
-  if (!inspect(datasetOf(ws), ws.bare, entry.target)) throw new ApiError(404, `target not found: ${entry.target}`);
-  const path = `${authoredDir(ws.gameSystem)}/${EFFECTS_FILE}`;
-  const abs = join(ws.datasetDir, path);
-  const existing = existsSync(abs) ? (JSON.parse(readFileSync(abs, 'utf8')) as AuthoredEffect[]) : [];
-  const next = [...existing.filter((e) => e.target !== entry.target), entry].sort((a, b) => a.target.localeCompare(b.target));
-  mkdirSync(dirname(abs), { recursive: true });
-  writeFileSync(abs, toJson(next));
-  return finish(ws, path, `Effect ${entry.target}`, openPr);
-}
-
-/** Accepter une proposition de l'analyse d'aptitudes : elle devient un Effect écrit par le projet. */
-export async function acceptProposal(ws: Workspace, target: string, openPr?: boolean): Promise<WriteResult> {
-  const unitId = target.split('::')[0];
-  const proposal = inspect(datasetOf(ws), ws.bare, unitId)?.proposals.find((p) => p.target === target);
-  if (!proposal) throw new ApiError(404, `no suggestion for ${target}`);
-  // L'empreinte de ce que l'amont disait : si 40kdc-data écrit un jour cet Effect, on le saura.
-  const ability = (inspect(datasetOf(ws), ws.bare, unitId)?.value as Unit | undefined)?.abilities.find((a) => `${unitId}::ability:${a.name}` === target);
-  return writeAuthoredEffect(ws, {
-    target,
-    effect: proposal.effect,
-    reason: 'Suggestion from the ability analysis, reviewed and accepted.',
-    upstream: fingerprint({ effect: ability?.effect, summary: ability?.summary }),
-    openPr,
-  });
 }
 
 const readCorrection = (ws: Workspace, path: string) => {

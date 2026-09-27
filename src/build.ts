@@ -13,7 +13,6 @@
 import {
   armyPath,
   corePath,
-  EFFECT_FORMAT,
   GAME_SYSTEMS,
   indexPath,
   SCHEMA_VERSION,
@@ -30,8 +29,8 @@ import type { CatalogueUnit } from './bsdata/types.ts';
 import { applyCorrections, applyDetachmentCorrections, applyStratagemCorrections, CORE_ROOT, parseTarget, type ApplyReport } from './corrections/apply.ts';
 import type { CorrectionFile } from './corrections/files.ts';
 import { detachmentElement, reconcile, stratagemElement, upstreamElement, type CorrectionVerdict } from './corrections/lifecycle.ts';
-import { buildDetachments, effectBody, toStratagem } from './detachments.ts';
-import type { DroppedEffect, MissingEntity, SourceConflict } from './findings.ts';
+import { buildDetachments, toStratagem } from './detachments.ts';
+import type { MissingEntity, SourceConflict } from './findings.ts';
 import { assignIds, emptyRegistry, type IdRegistry } from './ids.ts';
 import { findRulesText, type TextFinding } from './notext.ts';
 import type { Snapshot } from './snapshot.ts';
@@ -39,9 +38,9 @@ import { kdcFactionFor } from './upstream/kdc.ts';
 import { unitAbilities } from './abilities.ts';
 import { applyAuthoredEffects, resolveAuthored, type AuthoredCore, type ContributionVerdict } from './authored.ts';
 import { applyMfm, mfmKey, type MfmConflict, type MfmFaction } from './upstream/mfm.ts';
-import { coreStatus, findUnsimulated, RULE_FORMAT_ARMIES, toRuleFormat, type UnsimulatedKey } from './rules.ts';
+import { coreStatus, findUnsimulated, type UnsimulatedKey } from './rules.ts';
 
-export type { DroppedEffect, MissingEntity, SourceConflict } from './findings.ts';
+export type { MissingEntity, SourceConflict } from './findings.ts';
 
 export interface BuildInput {
   snapshot: Snapshot;
@@ -52,11 +51,6 @@ export interface BuildInput {
   gameSystem?: string;
   /** Battle Sizes, cibles par défaut et List d'exemple écrites par le projet. */
   authored?: AuthoredCore;
-  /**
-   * Armies passées au format de Rule à nous (ADR 0011) ; par défaut
-   * `RULE_FORMAT_ARMIES`. Les contrôles de l'ancien chemin la vident.
-   */
-  ruleFormatArmies?: Iterable<string>;
 }
 
 export interface BuildOutput {
@@ -71,8 +65,6 @@ export interface BuildOutput {
   armiesWithoutMfm: string[];
   /** Detachments et Enhancements qu'une source publie et que l'autre ignore. */
   missing: MissingEntity[];
-  /** Effects amont écartés. */
-  droppedEffects: DroppedEffect[];
   /** Units nommées par les fichiers écrits par le projet et introuvables. */
   unresolvedAuthored: string[];
   /** État de chaque Correction face à l'amont de cette construction. */
@@ -199,8 +191,6 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   const system = GAME_SYSTEMS[gameSystem];
   if (!system) throw new Error(`unknown Game System: ${gameSystem}`);
   const corrections = input.corrections ?? [];
-  const ruleFormat = new Set(input.ruleFormatArmies ?? RULE_FORMAT_ARMIES);
-  const inRuleFormat = (armyId: string) => ruleFormat.has(armyId);
 
   const ids = structuredClone(input.ids ?? emptyRegistry());
   const files = new Map<string, unknown>();
@@ -208,7 +198,6 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   const unmatched: BuildOutput['unmatched'] = [];
   const armiesWithoutMfm: string[] = [];
   const missing: MissingEntity[] = [];
-  const droppedEffects: DroppedEffect[] = [];
   const kdcEffects: Record<string, unknown> = {};
 
   const all = snapshot.bsdataFiles();
@@ -241,7 +230,7 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
     const dets = buildDetachments({ armyId: id, mfm: army.mfm, kdc, kdcFaction, ids });
     conflicts.push(...dets.conflicts);
     missing.push(...dets.missing);
-    droppedEffects.push(...dets.droppedEffects);
+    Object.assign(kdcEffects, dets.kdcEffects);
     return { ...army, id, units, kdcFaction, detachments: dets.detachments, stratagems: dets.stratagems };
   });
   once.flush();
@@ -257,11 +246,11 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   const coreKdc = kdc?.coreStratagems() ?? [];
   const coreIds = assignIds(ids, 'stratagems', CORE_ROOT, coreKdc, (s) => ({ keys: [`40kdc:${s.id}`], name: s.name }));
   const coreStratagems = coreKdc
-    .map((s) =>
-      toStratagem(s, coreIds.get(s)!, null, kdc!.ability(s.ability_id ?? '', []), `Core › ${s.name}`, (ability, where) =>
-        effectBody(ability, (reason) => droppedEffects.push({ army: CORE_ROOT, where, reason })),
-      ),
-    )
+    .map((s) => {
+      const ability = kdc!.ability(s.ability_id ?? '', []);
+      if (ability?.effect !== undefined) kdcEffects[`${CORE_ROOT}::stratagem:${coreIds.get(s)}`] = ability.effect;
+      return toStratagem(s, coreIds.get(s)!, null, ability);
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
   upstreamStratagems.set(CORE_ROOT, coreStratagems);
 
@@ -297,10 +286,9 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
       .map((u) =>
         toDatasetUnit(
           u,
-          unitAbilities(u, kdc, (where, reason) =>
-            // Une Unit partagée entre Armies ne se signale qu'une fois, par l'Army qui la possède.
-            once.report(`effect:${u.id}:${where}`, !u.ally, () => droppedEffects.push({ army: army.id, where: `${u.name} › ${where}`, reason })),
-          ),
+          unitAbilities(u, kdc, (target, effect) => {
+            kdcEffects[target] = effect;
+          }),
         ),
       )
       .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
@@ -319,7 +307,6 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
       detachments: dets.detachments,
       stratagems: strats.stratagems,
     };
-    if (inRuleFormat(army.id)) Object.assign(kdcEffects, toRuleFormat(file));
     files.set(armyPath(gameSystem, army.id), file);
     unitsByArmy.set(army.id, datasetUnits);
     summaries.push({
@@ -350,7 +337,6 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
     schemaVersion: SCHEMA_VERSION,
     gameSystem: system,
     sources: snapshot.sources,
-    effectFormat: EFFECT_FORMAT,
     armies: summaries.sort((a, b) => a.id.localeCompare(b.id)),
   };
   files.set(indexPath(gameSystem), index);
@@ -369,16 +355,15 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   files.set(corePath(gameSystem), coreFile);
 
   // Les Effects et résumés écrits par le projet, par-dessus tout le reste.
-  const authoredEffects = applyAuthoredEffects(files, gameSystem, input.authored?.effects ?? [], inRuleFormat);
+  const authoredEffects = applyAuthoredEffects(files, gameSystem, input.authored?.effects ?? [], kdcEffects);
   authored.unresolved.push(...authoredEffects.unresolved);
-  for (const r of authoredEffects.rejected) droppedEffects.push({ army: 'authored', where: r.target, reason: r.reason });
 
   const textCheck = [
     ...[...files].flatMap(([path, data]) => findRulesText(data, path)),
     ...corrections.flatMap(({ path, ...c }) => findRulesText(c, path)),
   ];
   return {
-    gameSystem, files, ids, conflicts, unmatched, armiesWithoutMfm, missing, droppedEffects,
+    gameSystem, files, ids, conflicts, unmatched, armiesWithoutMfm, missing,
     unresolvedAuthored: authored.unresolved, corrections: verdicts, contributions: authoredEffects.contributions, orphans, textCheck,
     unsimulated: findUnsimulated(files),
     kdcEffects,

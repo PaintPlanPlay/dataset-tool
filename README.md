@@ -131,8 +131,7 @@ the same way; keys autocomplete, simulated ones first. A key the simulator does
 not play is still accepted, and listed under **Unsimulated keys** until the
 entry or the simulator is fixed.
 
-Armies moved to this format (the Orks so far) publish no 40kdc-data Effect any
-more. Their Modifiers are read once from the rules outside this repository and
+No 40kdc-data Effect is published any more. Modifiers are read once from the rules outside this repository and
 imported from **To review → Import extracted Rules…**: each one is compared to
 40kdc-data's reading. Readings that agree are accepted; the others — they differ,
 or ours is the only one — wait in **To review** for you to validate, side by
@@ -142,26 +141,22 @@ Core rules (Feel No Pain 5+, Deep Strike, Lone Operative…) are not rules here:
 they become status Modifiers on the unit. Army rules are stored once per army
 and have their own sheet.
 
-Armies not moved yet still show suggested effects — structured effects this
-tool computes for abilities that have none — with an **Accept** button.
-
 ## Where the numbers come from
 
 | Source | Trusted for |
 |---|---|
 | [Munitorum Field Manual, via BSData](https://github.com/BSData/wh40k-11e-mfm) | points, requisition brackets, paid wargear, leader/support attachments, detachment points, force dispositions, enhancements |
-| [40kdc-data](https://github.com/wn-mitch/40kdc-data) | which detachment rules and stratagems exist, their CP, timing and targets, enhancement restrictions; and, for armies not moved to Modifiers yet, Effects |
+| [40kdc-data](https://github.com/wn-mitch/40kdc-data) | which detachment rules and stratagems exist, their CP, timing and targets, enhancement restrictions; its Effects are only a second reading, to review ours against |
 | [BSData](https://github.com/BSData/wh40k-11e) | unit profiles, weapons, wargear options, keywords |
 
 When sources disagree, the one trusted for that field wins and the disagreement
-is reported. What a rule does is written in this project's own Modifiers; for
-armies not moved yet, it is still 40kdc-data's Effect format, pinned (their
-schemas are vendored under `schema/vendor/`), until every army has moved.
+is reported. What a rule does is written in this project's own Modifiers,
+never taken from a source.
 
 ## The one rule: no rules text
 
-A rule is carried by its Modifiers (or, until its army moves, its Effect), by a
-one-line description written by this project, or by its name alone — never by copied or reworded rules text. The `check`
+A rule is carried by its Modifiers, by a one-line description written by this
+project, or by its name alone — never by copied or reworded rules text. The `check`
 command refuses any build or pull request that would introduce prose. This is the
 legal footing of the project, not a style preference.
 

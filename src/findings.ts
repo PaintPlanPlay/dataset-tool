@@ -34,10 +34,3 @@ export interface MissingEntity {
   published: boolean;
 }
 
-/** Un Effect amont écarté : hors du format figé, ou porteur de texte. */
-export interface DroppedEffect {
-  army: string;
-  /** « Detachment › Rule », « Detachment › Enhancement ». */
-  where: string;
-  reason: string;
-}

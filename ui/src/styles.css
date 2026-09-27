@@ -325,12 +325,6 @@ select:disabled { background: var(--raised); opacity: 1; }
 .remove-band { margin-left: 6px; font-size: 12px; }
 
 .ability { display: grid; gap: 6px; }
-.suggestion {
-  margin: 0;
-  padding: 6px 10px;
-  border-left: 3px solid var(--published);
-  background: var(--raised);
-}
 
 .sheet-actions { margin-left: auto; display: flex; gap: 8px; }
 

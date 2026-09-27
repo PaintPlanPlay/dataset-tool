@@ -35,12 +35,6 @@ export interface FieldOrigin {
   detail?: string;
 }
 
-export interface Proposal {
-  ability: string;
-  target: string;
-  effect: unknown;
-}
-
 export interface Inspection {
   kind: 'unit' | 'detachment' | 'stratagem' | 'armyRule' | 'core';
   army: string;
@@ -49,7 +43,6 @@ export interface Inspection {
   value: unknown;
   origins: FieldOrigin[];
   corrections: CorrectionVerdict[];
-  proposals: Proposal[];
 }
 
 /** Champs sur lesquels le Munitorum Field Manual fait autorité. */
@@ -94,7 +87,7 @@ export function inspect(current: DatasetView, bare: DatasetView | null, target: 
       { field: 'battleSizes', origin: bare ? 'project' : 'published' },
       { field: 'stratagems', origin: bare ? '40kdc' : 'published' },
     ];
-    return { kind: 'core', army: CORE_ROOT, target: CORE_ROOT, name: 'Core', value, origins, corrections: verdicts, proposals: [] };
+    return { kind: 'core', army: CORE_ROOT, target: CORE_ROOT, name: 'Core', value, origins, corrections: verdicts };
   }
 
   if (entity === 'unit' || entity === 'ability' || entity === 'weapon' || entity === 'model' || entity === 'attachment') {
@@ -115,13 +108,12 @@ export function inspect(current: DatasetView, bare: DatasetView | null, target: 
       const before = upstream?.abilities.find((a) => a.name === ability.name);
       const field = `abilities › ${ability.name}`;
       if (upstream && !same(ability, before)) origins.push(correctionOrigin(field, verdicts));
-      else if (!bare && !ability.effectSource) origins.push({ field, origin: 'published' });
-      else origins.push({ field, origin: ability.effectSource ?? 'bsdata', ...(ability.effectSource ? {} : { detail: 'name only' }) });
+      else if (!bare) origins.push({ field, origin: 'published' });
+      // Ce que fait une aptitude est à nous (ses Modifiers, sa Description) ; sans eux, BSData ne donne que son nom.
+      else if (ability.modifiers || ability.options || ability.summary) origins.push({ field, origin: 'project' });
+      else origins.push({ field, origin: 'bsdata', detail: 'name only' });
     }
-    const proposals = found.unit.abilities
-      .filter((a) => a.effectSource === 'analysis' && a.effect)
-      .map((a) => ({ ability: a.name, target: `${root}::ability:${a.name}`, effect: a.effect }));
-    return { kind: 'unit', army: found.army.id, target: root, name: found.unit.name, value: found.unit, origins, corrections: verdicts, proposals };
+    return { kind: 'unit', army: found.army.id, target: root, name: found.unit.name, value: found.unit, origins, corrections: verdicts };
   }
 
   if (entity === 'detachment' || entity === 'enhancement' || entity === 'rule') {
@@ -146,7 +138,7 @@ export function inspect(current: DatasetView, bare: DatasetView | null, target: 
       if (upstream && !same({ ...enh, points: 0 }, { ...before, points: 0 })) origins.push(correctionOrigin(`enhancements › ${enh.name}`, verdicts));
       else origins.push({ field: `enhancements › ${enh.name}`, origin: bare ? '40kdc' : 'published' });
     }
-    return { kind: 'detachment', army: root, target: key, name: detachment.name, value: detachment, origins, corrections: verdicts, proposals: [] };
+    return { kind: 'detachment', army: root, target: key, name: detachment.name, value: detachment, origins, corrections: verdicts };
   }
 
   if (entity === 'armyrule') {
@@ -154,7 +146,7 @@ export function inspect(current: DatasetView, bare: DatasetView | null, target: 
     const rule = pick(current);
     if (!rule) return null;
     const origins = Object.keys(rule).map((field) => ({ field, origin: (bare ? (field === 'name' || field === 'id' ? 'bsdata' : 'project') : 'published') as Origin }));
-    return { kind: 'armyRule', army: root, target, name: rule.name, value: rule, origins, corrections: [], proposals: [] };
+    return { kind: 'armyRule', army: root, target, name: rule.name, value: rule, origins, corrections: [] };
   }
 
   if (entity === 'stratagem') {
@@ -169,7 +161,7 @@ export function inspect(current: DatasetView, bare: DatasetView | null, target: 
         ? correctionOrigin(field, verdicts)
         : { field, origin: (bare ? '40kdc' : 'published') as Origin },
     );
-    return { kind: 'stratagem', army: root, target, name: stratagem.name, value: stratagem, origins, corrections: verdicts, proposals: [] };
+    return { kind: 'stratagem', army: root, target, name: stratagem.name, value: stratagem, origins, corrections: verdicts };
   }
 
   return null;

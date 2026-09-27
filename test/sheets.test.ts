@@ -35,7 +35,7 @@ let pullRequest: { url: string; state: string } | null = null;
 /** Ce que le dépôt publié du Dataset dit de ses références ; `null` : on ne le sait pas (hors ligne). */
 let remote: Record<string, string> | null = null;
 const snapshotHeads = Object.fromEntries((JSON.parse(readFileSync(join(snap, 'sources.json'), 'utf8')) as { id: string; commit: string }[]).map((s) => [s.id, s.commit]));
-const ws = await openWorkspace({ datasetDir: dir, snapshotDir: snap, allowPush: true, ruleFormatArmies: [] });
+const ws = await openWorkspace({ datasetDir: dir, snapshotDir: snap, allowPush: true });
 const gui = await startGui(ws, {
   port: 0,
   probe: { upstreamHeads: async () => snapshotHeads, publishRight: () => null, pullRequest: () => pullRequest, remoteRefs: async () => remote },
@@ -57,7 +57,7 @@ type UnitValue = {
   models: { name: string; T: number; M: string }[];
   composition: { name: string; min: number; max: number }[];
   weapons: { name: string; kind: string; profiles: { name: string; S: number; range: string; rangeInches: number; keywords: string[] }[] }[];
-  abilities: { name: string; summary?: string; effect?: unknown }[];
+  abilities: { name: string; summary?: string; modifiers?: unknown[]; options?: unknown[] }[];
   wargear?: { item: string; points: number }[];
   pricing?: { from: number; to: number | null; costs: { models: number; points: number }[] }[];
   leaderTargets: string[];
@@ -287,34 +287,30 @@ try {
   );
   for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
 
-  section('#96 : un Effect imbriqué');
+  section('#96 : des Modifiers avec Conditions, et des Options');
   const nested = clone(warboss);
-  nested.abilities[1].effect = {
-    type: 'conditional',
-    condition: { type: 'phase-is', parameters: { phase: 'fight' } },
-    effect: { type: 'stat-modifier', target: 'unit', modifier: { stat: 'A', operation: 'add', value: 1 } },
-  };
+  nested.abilities[1].modifiers = [{ key: 'A', value: 1, target: 'self', conditions: [{ key: 'melee' }, { key: 'waaagh' }] }];
   const nestedSave = await save('u-warboss', nested);
   const nestedEntry = readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').find((e) => e.target === 'u-warboss::ability:Da Boss Fixture');
-  check('un Effect imbriqué s\'enregistre en Contribution valide', nestedSave.status === 201 && (nestedEntry?.effect as { type: string }).type === 'conditional', JSON.stringify(nestedSave.body));
+  check('des Modifiers conditionnés s\'enregistrent en Contribution valide', nestedSave.status === 201 && nestedEntry?.modifiers?.[0].conditions?.length === 2, JSON.stringify(nestedSave.body));
   for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
   const halfBuilt = clone(warboss);
-  halfBuilt.abilities[1].effect = { type: 'choice', options: [] };
+  halfBuilt.abilities[1].options = [{ name: 'Hit', modifiers: [{ key: 'hit', value: 1, target: 'somewhere' }] }];
   const live = (await call<DraftCheck>('/api/sheet/validate', { target: 'u-warboss', draft: halfBuilt })).body;
   check(
-    'un Effect invalide est signalé sur le nœud fautif, sans les exigences des autres types de nœud',
-    live.errors.some((e) => e.path === '/abilities/1/effect/options') && !live.errors.some((e) => /'(target|steps|mode)'/.test(e.message)),
+    'un Modifier invalide est signalé sur le champ fautif',
+    live.errors.some((e) => e.path === '/abilities/1/options/0/modifiers/0/target') && live.errors.some((e) => e.path === '/abilities/1/options'),
     JSON.stringify(live.errors),
   );
 
   section('#97 : Detachment, Stratagem, Core');
   const horde = await sheet('orks::detachment:war-horde');
-  const hordeDraft = clone(horde.value) as { dp: number; enhancements: { id: string; effect?: unknown; leaderTo?: string[] }[] };
+  const hordeDraft = clone(horde.value) as { dp: number; enhancements: { id: string; modifiers?: unknown[]; leaderTo?: string[] }[] };
   hordeDraft.dp = 2;
-  hordeDraft.enhancements[0].effect = { type: 'roll-modifier', target: 'unit', modifier: { roll: 'wound', operation: 'add', value: 1 } };
+  hordeDraft.enhancements[0].modifiers = [{ key: 'wound', value: 1, target: 'self' }];
   const hordeSave = await save('orks::detachment:war-horde', hordeDraft);
   check(
-    'le coût en DP d\'un Detachment : Correction ; l\'Effect d\'une Enhancement : Contribution',
+    'le coût en DP d\'un Detachment : Correction ; les Modifiers d\'une Enhancement : Contribution',
     hordeSave.body.files.some((f) => f.kind === 'correction' && readJson<Correction>(f.path).patch.dp === 2) &&
       hordeSave.body.files.some((f) => f.kind === 'contribution'),
     JSON.stringify(hordeSave.body),
@@ -340,15 +336,11 @@ try {
     JSON.stringify(coreSave.body),
   );
   for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
-  await call('/api/proposals/accept', { target: 'u-boyz::ability:Mob Fixture' });
-  const accepted = readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').find((e) => e.target === 'u-boyz::ability:Mob Fixture');
-  check('une suggestion acceptée mémorise l\'empreinte de l\'amont', typeof accepted?.upstream === 'string');
-  for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
 
   section('#89 : état global vivant');
   let o = (await call<Overview>('/api/overview')).body;
   check('sans Pending Change, Save & Build est grisé', !o.buttons.build.enabled && o.pending === 0, JSON.stringify(o.buttons.build));
-  check('désaccords entre sources et suggestions d\'Effect comptés', o.disagreements > 0 && o.suggestions > 0, `${o.disagreements} / ${o.suggestions}`);
+  check('désaccords entre sources comptés', o.disagreements > 0, String(o.disagreements));
   pullRequest = { url: 'https://github.com/PaintPlanPlay/dataset/pull/7', state: 'OPEN' };
   o = (await call<Overview>('/api/overview')).body;
   check('la PR ouverte, lien et état', o.pullRequest?.url.endsWith('/pull/7') === true && o.pullRequest.state === 'OPEN');
