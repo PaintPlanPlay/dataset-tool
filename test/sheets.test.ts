@@ -18,6 +18,7 @@ import type { PendingChange } from '../src/gui/pending.ts';
 import type { CorrectionItem, DraftCheck, Sheet, Suggestions } from '../src/gui/sheets.ts';
 import { startGui } from '../src/gui/server.ts';
 import { openWorkspace } from '../src/gui/workspace.ts';
+import { readRegistry, writeDataset } from '../src/dataset.ts';
 import { check, fixture, section } from './check.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'dataset-sheets-'));
@@ -504,6 +505,35 @@ try {
   let o = (await call<Overview>('/api/overview')).body;
   check('sans Pending Change, Save & Build est grisé', !o.buttons.build.enabled && o.pending === 0, JSON.stringify(o.buttons.build));
   check('désaccords entre sources comptés', o.disagreements > 0, String(o.disagreements));
+
+  // Un Dataset publié par une version antérieure de l'outil : rien n'attend, mais il faut reconstruire.
+  const current = ws.current!;
+  writeDataset(dir, 'wh40k-11e', current.files, readRegistry(dir, 'wh40k-11e') ?? { armies: {} } as never);
+  const indexFile = join(dir, 'wh40k-11e/index.json');
+  writeFileSync(indexFile, readFileSync(indexFile, 'utf8').replace(/"schemaVersion": "[^"]+"/, '"schemaVersion": "2.0.0"'));
+  git('add', '-A');
+  git('commit', '-q', '-m', 'Dataset built by an earlier tool');
+  o = (await call<Overview>('/api/overview')).body;
+  check(
+    'un Dataset construit par une version antérieure de l\'outil : Save & Build actif sans Pending Change, et dit pourquoi',
+    o.pending === 0 && o.outdated === true && o.buttons.build.enabled && !o.buttons.propose.enabled,
+    JSON.stringify({ outdated: o.outdated, build: o.buttons.build, propose: o.buttons.propose }),
+  );
+  await call('/api/jobs/build', {});
+  for (let i = 0; i < 120; i++) {
+    const job = (await call<{ job: { state: string } | null }>('/api/jobs')).body.job;
+    if (job && job.state !== 'running') break;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  o = (await call<Overview>('/api/overview')).body;
+  check(
+    'après le build, le Dataset reconstruit se propose, sans Pending Change',
+    o.outdated === false && o.pending === 0 && o.buttons.propose.enabled && !o.buttons.build.enabled,
+    JSON.stringify({ outdated: o.outdated, build: o.buttons.build, propose: o.buttons.propose }),
+  );
+  git('add', '-A');
+  git('commit', '-q', '-m', 'Rebuilt');
+
   pullRequest = { url: 'https://github.com/PaintPlanPlay/dataset/pull/7', state: 'OPEN' };
   o = (await call<Overview>('/api/overview')).body;
   check('la PR ouverte, lien et état', o.pullRequest?.url.endsWith('/pull/7') === true && o.pullRequest.state === 'OPEN');

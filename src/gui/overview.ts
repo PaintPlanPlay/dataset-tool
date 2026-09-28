@@ -8,12 +8,13 @@
  * que les tests remplacent pour ne dépendre ni du réseau ni d'un compte.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { indexPath, manifestPath, type DatasetIndex, type Manifest, type SourceRef } from '@paintplanplay/dataset-schema';
 import { authoredDir, EFFECTS_FILE } from '../authored.ts';
 import { readCorrections } from '../corrections/files.ts';
 import { headCommit } from '../fetch.ts';
+import { readDatasetFiles, toJson } from '../dataset.ts';
 import { ghReady, jobSpecs, publishRight, type JobField } from './api.ts';
 import { isRepository, pendingChanges, pendingFingerprint } from './pending.ts';
 import type { Workspace, WorkspaceState } from './workspace.ts';
@@ -147,6 +148,12 @@ export interface Overview {
   dataset: { branch: string | null; behind: boolean | null };
   /** Pending Changes : ce qui est enregistré et pas encore proposé. */
   pending: number;
+  /**
+   * Les fichiers du Dataset ne sont pas ceux que cet outil construit : une
+   * version antérieure de l'outil les a produits (un nouveau schéma, une
+   * liaison de plus). Il faut reconstruire, même sans Pending Change.
+   */
+  outdated: boolean;
   pullRequest: PullRequest | null;
   /** Désaccords entre Upstream Sources, où la source qui fait autorité l'a emporté. */
   disagreements: number;
@@ -178,6 +185,27 @@ function nothingToPublish(ws: Workspace, manifest: Manifest | null, remote: Reco
   } catch {
     return null;
   }
+}
+
+const compared = new WeakMap<object, { signature: string; outdated: boolean }>();
+
+/**
+ * Les fichiers du Dataset diffèrent-ils de ce que cette construction donne ?
+ * Seulement quand un Dataset construit est là et qu'on a pu le reconstruire
+ * depuis un instantané. Comparer relit tout le Dataset : on ne le refait que
+ * si la construction ou les fichiers ont changé depuis.
+ */
+function datasetOutdated(ws: Workspace): boolean {
+  const index = join(ws.datasetDir, indexPath(ws.gameSystem));
+  if (!ws.current || !ws.bare || !existsSync(index)) return false;
+  const signature = String(statSync(index).mtimeMs);
+  const known = compared.get(ws.current);
+  if (known?.signature === signature) return known.outdated;
+  const onDisk = readDatasetFiles(ws.datasetDir, ws.gameSystem);
+  const built = [...ws.current.files].filter(([p]) => p.startsWith(`${ws.gameSystem}/`));
+  const outdated = built.length !== onDisk.size || built.some(([p, data]) => !onDisk.has(p) || toJson(onDisk.get(p)) !== toJson(data));
+  compared.set(ws.current, { signature, outdated });
+  return outdated;
 }
 
 /**
@@ -212,11 +240,22 @@ export async function overview(ws: Workspace, probe: Probe = defaultProbe, built
   const right = probe.publishRight(ws.datasetDir);
   // Sans dépôt git, on ne sait pas ce qui attend : les boutons ne suivent que leurs prérequis.
   const pending = tracked ? pendingChanges(ws).length : 0;
+  const outdated = datasetOutdated(ws);
+  // Un Dataset reconstruit sans Pending Change (outil mis à jour) se propose comme le reste.
+  const rebuilt = tracked && git('status', '--porcelain', '--', ws.gameSystem, 'registry') !== '';
   const rule: Partial<Record<ButtonName, () => string | null>> = {
     update: () => (upToDate === true ? 'everything is up to date' : null),
-    build: () => (tracked && pending === 0 ? 'nothing to build: no pending change' : null),
+    build: () => (tracked && pending === 0 && !outdated ? 'nothing to build: no pending change' : null),
     propose: () =>
-      !tracked ? null : pending === 0 ? 'no pending change to propose' : built !== pendingFingerprint(ws) ? 'click Save & Build first: the build must pass the check' : null,
+      !tracked
+        ? null
+        : pending === 0 && !rebuilt
+          ? outdated
+            ? 'click Save & Build first: the Dataset files come from an earlier version of the tool'
+            : 'no pending change to propose'
+          : built !== pendingFingerprint(ws)
+            ? 'click Save & Build first: the build must pass the check'
+            : null,
     release: () => nothingToPublish(ws, manifest, remote),
   };
   const buttons = Object.fromEntries(
@@ -238,6 +277,7 @@ export async function overview(ws: Workspace, probe: Probe = defaultProbe, built
     buttons,
     dataset: { branch, behind },
     pending,
+    outdated,
     pullRequest: probe.pullRequest(ws.datasetDir),
     disagreements: ws.current?.conflicts?.length ?? 0,
     unsimulated: findUnsimulated(ws.current?.files ?? new Map()).length,

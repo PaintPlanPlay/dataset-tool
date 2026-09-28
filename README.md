@@ -64,7 +64,7 @@ fields once you pick one.
 | Button | What happens |
 |---|---|
 | **Update data** | brings everything up to date: the dataset as published, and a fresh snapshot of BSData, the Munitorum Field Manual and 40kdc-data. Takes a few minutes; greyed out when you are already up to date. Your pending changes are kept, and re-checked against the new sources |
-| **Save & Build** | builds the dataset files with your pending changes, then checks them. Only open when something is pending |
+| **Save & Build** | builds the dataset files with your pending changes, then checks them. Open when something is pending, or when the dataset files come from an earlier version of the tool: after updating the tool, rebuild and propose them so the apps get what it now builds |
 | **Propose my change** | opens a pull request with your pending changes. Only open after a build that passed the check, for exactly what is pending |
 | **Publish Release** | shown to maintainers only, open once a merged pull request is not yet published: takes it in, freezes the dataset under a tag, and pushes it |
 | **Check** | verifies the files against the schema and the no-rules-text rule. It already runs before a release and on every pull request |
