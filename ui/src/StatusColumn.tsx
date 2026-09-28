@@ -179,6 +179,11 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
               : 'Up-to-date status unknown (offline?)'}
         </p>
       )}
+      {overview?.outdated && (
+        <p className="freshness late">
+          The Dataset files come from an earlier version of this tool: click Save and build, then propose them.
+        </p>
+      )}
 
       <div className="buttons">
         {overview &&
