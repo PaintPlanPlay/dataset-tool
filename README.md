@@ -110,9 +110,35 @@ link it gives you.
 Manual publishes — a profile, a cost, a keyword, an option — is fixed with a
 correction, re-checked against that source on every update and dropped once the
 source agrees. An effect or a one-line summary is a **contribution**: ours for
-good. If 40kdc-data later changes the same rule, the change is flagged in the
-build report and on the sheet, never applied over ours. You never choose between
-the two: the field decides.
+good. So is anything no source has yet — a wargear option BSData lacks — and
+what we say about a wargear option (see below). If 40kdc-data later changes the
+same rule, the change is flagged in the build report and on the sheet, never
+applied over ours. You never choose between the two: the field decides.
+
+### Wargear costs
+
+The Munitorum Field Manual bills wargear by name (`Twin Killsaws: 5`); BSData
+describes wargear options (`Meganob w/ Twin Killsaw`). A **wargear option**
+carries the MFM line that bills it, and how many times per model (2 for
+« 2 Multi-meltas »); the amount stays in the unit's MFM `wargear` list, the only
+source of points. After the MFM and the corrections, the build links a line to
+the **one non-default option** whose name matches — case, accents, plurals, a
+« 2 X » prefix, the « … w/ X » form, or a weapon of the option. Anything else
+is listed in the build report and on the unit sheet: a line no option matches,
+one several options match, one only a default option matches (a default option
+may well be paid: the Exterminator's hull lascannon is), and a hand-set link
+whose line is gone.
+
+On the unit sheet, each option card shows its MFM line, its quantity, the
+resulting amount (read from the line, never typed), and the abilities of the
+unit it brings — active only for the models that take it. Setting any of them
+is a contribution, which wins over the automatic link, unlinking included.
+**+ option · Contribution** adds an option BSData does not have (a banner). The
+MFM `wargear` list at the top of the sheet says which option each line bills,
+and stays a correction field: when the official app contradicts the MFM (a
+free Killsaw), correct the line. On a detachment sheet, an enhancement can
+bring a **weapon**, taken from a weapon of the army as upstream describes it or
+described with its profiles.
 
 A maintainer reviews the pull request and merges. Publishing what was merged is
 one button, **Publish Release**.

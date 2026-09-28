@@ -246,11 +246,22 @@ try {
   check('une option qui référence une Weapon absente de l\'Unit est refusée', missingWeapon.status === 400 && git('status', '--porcelain') === '', JSON.stringify(missingWeapon.body));
   group.options[group.options.length - 1] = { id: 'new-option', name: 'One in five', weapons: ['ranged|Slugga'], maxCarriers: 1, perModels: 5, isDefault: false };
   const optSave = await save('u-warboss', opts);
-  const optFile = optSave.body.files.map((f) => readJson<Correction>(f.path)).find((c) => 'optionGroups' in c.patch);
+  const created = readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').find((e) => e.target === `u-warboss::option:${group.id}|new-option`);
+  check(
+    'ajouter une option « 1 pour 5 figurines » : une Wargear Option absente de BSData, donc une Contribution (ADR 0010), sans Correction',
+    optSave.body.files.every((f) => f.kind === 'contribution') && created?.option?.perModels === 5 && created.option.name === 'One in five',
+    JSON.stringify(optSave.body),
+  );
+  for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
+  await refresh();
+  const tighter = clone(warboss);
+  tighter.optionGroups![0].options[0].maxCarriers = 1;
+  const tighterSave = await save('u-warboss', tighter);
+  const optFile = tighterSave.body.files.map((f) => readJson<Correction>(f.path)).find((c) => 'optionGroups' in c.patch);
   const savedGroup = (optFile?.patch.optionGroups as UnitValue['optionGroups'])?.[0];
   check(
-    'ajouter une option « 1 pour 5 figurines » : Correction attendue sur optionGroups, tree/parent/slot gardés',
-    savedGroup?.options.some((o) => o.perModels === 5) === true && savedGroup.tree === group.tree && savedGroup.parent === group.parent && savedGroup.slot === group.slot,
+    'régler une option de BSData : Correction sur optionGroups, tree/parent/slot gardés',
+    savedGroup?.options[0].maxCarriers === 1 && savedGroup.tree === group.tree && savedGroup.parent === group.parent && savedGroup.slot === group.slot,
     JSON.stringify(optFile),
   );
   for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
@@ -287,6 +298,127 @@ try {
   );
   for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
 
+  section('#124 : lier une Wargear Option à une ligne du MFM');
+  {
+    type Option = NonNullable<UnitValue['optionGroups']>[number]['options'][number] & { wargearCost?: { item: string; quantity?: number }; abilities?: string[] };
+    const optionIn = (u: UnitValue, id: string) => u.optionGroups!.flatMap((g) => g.options).find((o) => o.id === id) as Option;
+    const ext = await sheet('u-exterminator');
+    check(
+      'la fiche porte les findings de liaison de son Unit',
+      ext.wargear.some((f) => f.item === 'Lascannon' && f.kind === 'default-only') && ext.wargear.some((f) => f.item === 'Hunter-killer missile' && f.kind === 'orphan'),
+      JSON.stringify(ext.wargear),
+    );
+    const linked = clone(ext.value as UnitValue);
+    optionIn(linked, 'e-ext-lascannon').wargearCost = { item: 'Lascannon' };
+    const linkSave = await save('u-exterminator', linked, 'Le Lascannon de coque est facturé dans l\'app officielle.');
+    const entry = readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').find((e) => e.target === 'u-exterminator::option:g-ext-hull|e-ext-lascannon');
+    check(
+      'lier une option : une Contribution, sans Correction',
+      linkSave.status === 201 && linkSave.body.files.every((f) => f.kind === 'contribution') && entry?.wargearCost?.item === 'Lascannon',
+      JSON.stringify(linkSave.body),
+    );
+    await refresh();
+    const after = await sheet('u-exterminator');
+    const mark = after.marks.find((m) => m.path.endsWith('/wargearCost'));
+    check(
+      'le lien s\'applique, se marque comme Contribution, et la ligne n\'est plus signalée',
+      optionIn(after.value as UnitValue, 'e-ext-lascannon').wargearCost?.item === 'Lascannon' && mark?.kind === 'contribution' && !after.wargear.some((f) => f.item === 'Lascannon'),
+      JSON.stringify(after.marks),
+    );
+    check('le lien est une Pending Change', (await pending()).some((p) => p.kind === 'contribution' && p.target === 'u-exterminator::option:g-ext-hull|e-ext-lascannon'));
+
+    const both = clone(after.value as UnitValue);
+    optionIn(both, 'e-ext-2mm').wargearCost = { item: 'Multi-melta', quantity: 1 };
+    optionIn(both, 'e-ext-2hb').maxCarriers = 1;
+    const bothSave = await save('u-exterminator', both, 'Test : un lien et une Correction ensemble.');
+    const groupsFix = bothSave.body.files.find((f) => f.kind === 'correction');
+    check(
+      'régler un lien et une option d\'un coup : le lien en Contribution, l\'option en Correction sans lien',
+      bothSave.status === 201 && Boolean(groupsFix) && !readFileSync(join(dir, groupsFix!.path), 'utf8').includes('wargearCost') &&
+        readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').some((e) => e.target === 'u-exterminator::option:g-ext-sponsons|e-ext-2mm' && e.wargearCost?.quantity === 1),
+      JSON.stringify(bothSave.body),
+    );
+
+    const mnz = await sheet('u-meganobz');
+    const unlinked = clone(mnz.value as UnitValue);
+    delete optionIn(unlinked, 'm-mnz-twin').wargearCost;
+    const unlinkSave = await save('u-meganobz', unlinked, 'Test : délier.');
+    check(
+      'délier un lien automatique : une Contribution qui délie',
+      unlinkSave.status === 201 && readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').some((e) => e.target === 'u-meganobz::option:g-meganobz|m-mnz-twin' && e.wargearCost === null),
+      JSON.stringify(unlinkSave.body),
+    );
+    const wrong = clone(ext.value as UnitValue);
+    optionIn(wrong, 'e-ext-hf').wargearCost = { item: 'Nothing like it' };
+    check('un lien vers une ligne que l\'Unit n\'a pas est refusé', (await save('u-exterminator', wrong)).status === 400);
+    for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
+    await refresh();
+  }
+
+  section('#125 : aptitudes apportées par une Wargear Option');
+  {
+    type Option = NonNullable<UnitValue['optionGroups']>[number]['options'][number] & { abilities?: string[] };
+    const wolves = await sheet('u-wolfguard-terminators');
+    const draft = clone(wolves.value as UnitValue);
+    (draft.optionGroups!.flatMap((g) => g.options).find((o) => o.id === 'm-wgt-shield') as Option).abilities = ['Storm Shield'];
+    const saved = await save('u-wolfguard-terminators', draft, 'Le bouclier apporte l\'aptitude Storm Shield.');
+    check(
+      'rattacher une aptitude à une option : une Contribution',
+      saved.status === 201 && saved.body.files.every((f) => f.kind === 'contribution') &&
+        readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').some((e) => e.target === 'u-wolfguard-terminators::option:g-wgt|m-wgt-shield' && e.abilities?.join() === 'Storm Shield'),
+      JSON.stringify(saved.body),
+    );
+    const bad = clone(wolves.value as UnitValue);
+    (bad.optionGroups!.flatMap((g) => g.options).find((o) => o.id === 'm-wgt-shield') as Option).abilities = ['Not Here'];
+    check('une aptitude que l\'Unit n\'a pas est refusée', (await save('u-wolfguard-terminators', bad)).status === 400);
+    for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
+    await refresh();
+  }
+
+  section('#126 : créer une Wargear Option par Contribution');
+  {
+    type Option = NonNullable<UnitValue['optionGroups']>[number]['options'][number] & { wargearCost?: { item: string }; abilities?: string[] };
+    const victrix = await sheet('u-victrix');
+    const draft = clone(victrix.value as UnitValue);
+    const banner: Option = {
+      id: 'contrib-1',
+      name: 'Banner of Macragge',
+      weapons: ['ranged|Master-crafted bolt carbine', 'melee|Master-crafted power weapon'],
+      maxCarriers: 1,
+      isDefault: false,
+      wargearCost: { item: 'Banner of Macragge' },
+      abilities: ['Banner of Macragge'],
+    };
+    draft.optionGroups![0].options.push(banner);
+    const saved = await save('u-victrix', draft, 'La bannière existe dans l\'app officielle, pas dans BSData.');
+    const entry = readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').find((e) => e.target === 'u-victrix::option:g-victrix|contrib-1');
+    check(
+      'créer une option : une seule Contribution, qui porte l\'option, son lien au MFM et son aptitude',
+      saved.status === 201 && saved.body.files.every((f) => f.kind === 'contribution') &&
+        entry?.option?.name === 'Banner of Macragge' && entry.wargearCost?.item === 'Banner of Macragge' && entry.abilities?.join() === 'Banner of Macragge',
+      JSON.stringify(saved.body),
+    );
+    await refresh();
+    const after = await sheet('u-victrix');
+    const value = after.value as UnitValue;
+    const at = value.optionGroups![0].options.findIndex((o) => o.id === 'contrib-1');
+    check(
+      'l\'option créée est construite, marquée Contribution, et sa ligne n\'est plus orpheline',
+      at >= 0 && after.marks.some((m) => m.path === `/optionGroups/0/options/${at}` && m.kind === 'contribution') && !after.wargear.some((f) => f.item === 'Banner of Macragge'),
+      JSON.stringify(after.marks),
+    );
+    const removed = clone(value);
+    removed.optionGroups![0].options = removed.optionGroups![0].options.filter((o) => o.id !== 'contrib-1');
+    const removal = await save('u-victrix', removed, 'Test : retirer l\'option créée.');
+    check(
+      'retirer une option créée retire sa Contribution, sans Correction',
+      removal.status === 201 && removal.body.files.every((f) => f.kind === 'contribution') && !existsSync(join(dir, 'authored/wh40k-11e/effects.json')),
+      JSON.stringify(removal.body),
+    );
+    for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
+    await refresh();
+  }
+
   section('#96 : des Modifiers avec Conditions, et des Options');
   const nested = clone(warboss);
   nested.abilities[1].modifiers = [{ key: 'A', value: 1, target: 'self', conditions: [{ key: 'melee' }, { key: 'waaagh' }] }];
@@ -302,6 +434,37 @@ try {
     live.errors.some((e) => e.path === '/abilities/1/options/0/modifiers/0/target') && live.errors.some((e) => e.path === '/abilities/1/options'),
     JSON.stringify(live.errors),
   );
+
+  section('#127 : une Enhancement qui apporte une Weapon');
+  {
+    type Enh = { id: string; weapon?: { name: string; kind: string; profiles: unknown[] } };
+    const suggested = (await call<Suggestions>('/api/suggest?army=orks&unit=')).body;
+    const kombi = suggested.upstreamWeapons.find((w) => w.unit === 'Warboss' && w.weapon.name === 'Kombi-rokkit');
+    check('les Weapons amont de l\'Army sont proposées, avec leurs profils', kombi?.weapon.profiles.length === 2, JSON.stringify(suggested.upstreamWeapons.slice(0, 3)));
+    const brutes = await sheet('orks::detachment:boss-brutes');
+    const draft = clone(brutes.value) as { enhancements: Enh[] };
+    draft.enhancements[0].weapon = kombi!.weapon;
+    const saved = await save('orks::detachment:boss-brutes', draft, 'L\'Enhancement apporte son arme au porteur.');
+    const entry = readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').find((e) => e.target === 'orks::enhancement:boss-brutes|da-gobshot-thunderbuss');
+    check(
+      'la Weapon d\'une Enhancement, reprise d\'une valeur amont : une Contribution, profils compris',
+      saved.status === 201 && saved.body.files.every((f) => f.kind === 'contribution') && entry?.weapon?.profiles.length === 2,
+      JSON.stringify(saved.body),
+    );
+    await refresh();
+    const after = await sheet('orks::detachment:boss-brutes');
+    check('elle s\'applique, et se marque comme Contribution', after.marks.some((m) => m.path === '/enhancements/0/weapon' && m.kind === 'contribution'), JSON.stringify(after.marks));
+    const without = clone(after.value) as { enhancements: Enh[] };
+    delete without.enhancements[0].weapon;
+    const removal = await save('orks::detachment:boss-brutes', without, 'Test : retirer la Weapon.');
+    check(
+      'retirer la Weapon retire la Contribution',
+      removal.status === 201 && !existsSync(join(dir, 'authored/wh40k-11e/effects.json')),
+      JSON.stringify(removal.body),
+    );
+    for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
+    await refresh();
+  }
 
   section('#97 : Detachment, Stratagem, Core');
   const horde = await sheet('orks::detachment:war-horde');

@@ -46,7 +46,11 @@ export interface DriftReport {
   missing: MissingEntity[];
   /** Les Contributions refusées : hors schéma, porteuses de texte, ou à l'ancien format. */
   rejectedContributions: ContributionVerdict[];
+  /** Les Contributions dont la cible n'est plus dans le Dataset : une Wargear Option créée dont le groupe a disparu. */
+  unresolvedContributions: ContributionVerdict[];
   unsimulated: BuildOutput['unsimulated'];
+  /** Les lignes `wargear` du MFM qu'aucune Wargear Option ne facture, et les liens manuels qui ne visent plus rien. */
+  wargear: BuildOutput['wargear'];
   sources: DatasetIndex['sources'];
   previousSources: DatasetIndex['sources'];
 }
@@ -164,7 +168,9 @@ export function makeReport(out: BuildOutput, previous: Map<string, unknown> | un
     unmatched: out.unmatched,
     missing: out.missing,
     rejectedContributions: out.contributions.filter((c) => c.state === 'rejected'),
+    unresolvedContributions: out.contributions.filter((c) => c.state === 'unresolved'),
     unsimulated: out.unsimulated,
+    wargear: out.wargear,
     sources: index.sources,
     previousSources: previousIndex?.sources ?? [],
   };
@@ -177,6 +183,13 @@ function bounded<T>(items: T[], max: number, render: (item: T) => string): strin
 }
 
 const short = (sha: string) => sha.slice(0, 7);
+
+const WARGEAR_LABEL: Record<BuildOutput['wargear'][number]['kind'], string> = {
+  orphan: 'no Wargear Option matches',
+  ambiguous: 'several Wargear Options match',
+  'default-only': 'only a default option matches — link it by hand if it is paid',
+  'missing-line': 'linked by hand, but the line is gone: it bills nothing',
+};
 
 export function renderReport(r: DriftReport): string {
   const L: string[] = [];
@@ -237,8 +250,8 @@ export function renderReport(r: DriftReport): string {
 
   if (r.flaggedContributions.length) {
     L.push(`## Contributions to review (${r.flaggedContributions.length})`, '');
-    L.push('40kdc-data changed these rules after we wrote our own Effect or summary. Ours stays applied until someone decides.', '');
-    L.push(...r.flaggedContributions.map((c) => `- \`${c.target}\` — ${c.reason}`), '');
+    L.push('40kdc-data changed these rules after we wrote our own Effect or summary, or what a Contribution names is gone. Ours stays applied until someone decides.', '');
+    L.push(...r.flaggedContributions.map((c) => `- \`${c.target}\` — ${c.note} · ${c.reason}`), '');
   }
 
   if (r.missing.length) {
@@ -252,10 +265,22 @@ export function renderReport(r: DriftReport): string {
     L.push(...bounded(r.rejectedContributions, 40, (c) => `- ${c.target} — ${c.note}`), '');
   }
 
+  if (r.unresolvedContributions.length) {
+    L.push(`## Contributions whose target is gone (${r.unresolvedContributions.length})`, '');
+    L.push('An upstream change removed what they apply to — a Wargear Option group, a Unit. They are kept, and apply nothing.', '');
+    L.push(...bounded(r.unresolvedContributions, 40, (c) => `- \`${c.target}\` — ${c.reason}`), '');
+  }
+
   if (r.unsimulated.length) {
     L.push(`## Modifier keys the simulation does not play (${r.unsimulated.length})`, '');
     L.push('Either the entry is misspelt, or the simulator has yet to learn the key.', '');
     L.push(...bounded(r.unsimulated, 40, (u) => `- \`${u.key}\` · ${u.rule} — ${u.target}`), '');
+  }
+
+  if (r.wargear.length) {
+    L.push(`## Wargear costs not linked (${r.wargear.length})`, '');
+    L.push('An MFM `wargear` line bills nothing until a Wargear Option points to it. Link it by hand in the Dataset Tool, or correct the MFM line.', '');
+    L.push(...bounded(r.wargear, 80, (f) => `- **${f.unit}** · ${f.army} — \`${f.item}\`: ${WARGEAR_LABEL[f.kind]}${f.options.length ? ` (${f.options.join(', ')})` : ''}`), '');
   }
 
   if (r.unmatched.length) {

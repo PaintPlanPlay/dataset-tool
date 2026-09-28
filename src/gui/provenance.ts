@@ -8,6 +8,7 @@ import { CORE_ROOT, parseTarget } from '../corrections/apply.ts';
 import type { ContributionVerdict } from '../authored.ts';
 import type { CorrectionVerdict } from '../corrections/lifecycle.ts';
 import type { SourceConflict } from '../findings.ts';
+import type { WargearFinding } from '../wargear.ts';
 
 export type Origin = 'bsdata' | 'mfm' | '40kdc' | 'analysis' | 'project' | 'correction' | 'published';
 
@@ -27,6 +28,8 @@ export interface DatasetView {
   contributions?: ContributionVerdict[];
   /** Les Effects de 40kdc-data retirés des Armies au format de Rule : la deuxième lecture de la revue. */
   kdcEffects?: Record<string, unknown>;
+  /** Les lignes `wargear` du MFM qu'aucune Wargear Option ne facture, et les liens manuels qui ne visent plus rien. */
+  wargear?: WargearFinding[];
 }
 
 export interface FieldOrigin {

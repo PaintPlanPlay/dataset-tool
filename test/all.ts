@@ -16,5 +16,6 @@ await import('./release.test.ts');
 await import('./workflows.test.ts');
 await import('./gui.test.ts');
 await import('./sheets.test.ts');
+await import('./wargear.test.ts');
 
 console.log(failed() ? `\n✘ ${failed()} contrôle(s) en échec` : '\n✔ tous les contrôles passent');

@@ -283,6 +283,16 @@
         },
         "isDefault": {
           "type": "boolean"
+        },
+        "wargearCost": {
+          "$ref": "#/$defs/wargearCost"
+        },
+        "abilities": {
+          "description": "Aptitudes de l'Unit que l'option apporte, par nom : actives seulement pour les figurines qui la prennent.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
         }
       },
       "required": [
@@ -892,6 +902,10 @@
         },
         "summary": {
           "$ref": "#/$defs/summary"
+        },
+        "weapon": {
+          "description": "La Weapon que l'Enhancement apporte à son porteur, tant qu'elle est prise.",
+          "$ref": "#/$defs/weapon"
         }
       },
       "required": [
@@ -1508,6 +1522,25 @@
       "required": [
         "name",
         "modifiers"
+      ],
+      "additionalProperties": false
+    },
+    "wargearCost": {
+      "description": "La ligne `wargear` de l'Unit (MFM) qui facture l'option, par son nom tel qu'écrit dans le MFM, et combien de fois par figurine. Le montant se lit dans cette ligne, jamais ici.",
+      "type": "object",
+      "properties": {
+        "item": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "item"
       ],
       "additionalProperties": false
     }

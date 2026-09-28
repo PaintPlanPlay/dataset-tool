@@ -9,6 +9,12 @@ detachments:
       - PURGE THE FOE
     enhancements:
       - { name: Glory Hog, points: 25 }
+  - name: Boss Brutes
+    dp: 1
+    objectives:
+      - PURGE THE FOE
+    enhancements:
+      - { name: Da Gobshot Thunderbuss, points: 20 }
   - name: War Horde
     dp: 1
     objectives:
@@ -29,6 +35,18 @@ units:
         costs:
           - { models: 10, points: 85 }
           - { models: 20, points: 170 }
+  - name: Meganobz
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 2, points: 75 }
+          - { models: 3, points: 110 }
+          - { models: 5, points: 185 }
+          - { models: 6, points: 225 }
+    wargear:
+      - { item: Twin Killsaws, points: 5 }
+      - { item: Killsaw, points: 5 }
   - name: Mek Gunz
     pricing:
       - range: "[1,)"

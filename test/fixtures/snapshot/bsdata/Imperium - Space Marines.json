@@ -1,0 +1,447 @@
+{
+  "catalogue": {
+    "name": "Imperium - Space Marines",
+    "id": "cat-space-marines",
+    "library": false,
+    "entryLinks": [
+      {
+        "id": "l-victrix",
+        "name": "Victrix Honour Guard",
+        "targetId": "u-victrix",
+        "type": "selectionEntry"
+      },
+      {
+        "id": "l-wgt",
+        "name": "Wolf Guard Terminators",
+        "targetId": "u-wolfguard-terminators",
+        "type": "selectionEntry"
+      }
+    ],
+    "sharedSelectionEntries": [
+      {
+        "id": "u-victrix",
+        "name": "Victrix Honour Guard",
+        "type": "unit",
+        "costs": [
+          {
+            "name": "pts",
+            "typeId": "pts",
+            "value": 90
+          }
+        ],
+        "categoryLinks": [
+          {
+            "name": "Infantry"
+          },
+          {
+            "name": "Victrix Honour Guard"
+          },
+          {
+            "name": "Faction: Adeptus Astartes"
+          }
+        ],
+        "profiles": [
+          {
+            "name": "Banner of Macragge",
+            "typeName": "Abilities",
+            "characteristics": [
+              {
+                "name": "Description",
+                "$text": "FIXTURE-RULES-TEXT-BANNER each time a model in this unit is hit, subtract 1 from the Wound roll."
+              }
+            ]
+          }
+        ],
+        "selectionEntryGroups": [
+          {
+            "id": "g-victrix",
+            "name": "Victrix Honour Guard",
+            "defaultSelectionEntryId": "m-victrix",
+            "constraints": [
+              {
+                "type": "min",
+                "field": "selections",
+                "scope": "parent",
+                "value": 2
+              },
+              {
+                "type": "max",
+                "field": "selections",
+                "scope": "parent",
+                "value": 4
+              }
+            ],
+            "selectionEntries": [
+              {
+                "id": "m-victrix",
+                "name": "Victrix Honour Guard",
+                "type": "model",
+                "profiles": [
+                  {
+                    "name": "Victrix Honour Guard",
+                    "typeName": "Unit",
+                    "characteristics": [
+                      {
+                        "name": "M",
+                        "$text": "6\""
+                      },
+                      {
+                        "name": "T",
+                        "$text": "4"
+                      },
+                      {
+                        "name": "Sv",
+                        "$text": "2+"
+                      },
+                      {
+                        "name": "InSv",
+                        "$text": "4+"
+                      },
+                      {
+                        "name": "W",
+                        "$text": "3"
+                      },
+                      {
+                        "name": "LD",
+                        "$text": "6+"
+                      },
+                      {
+                        "name": "OC",
+                        "$text": "1"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Master-crafted bolt carbine",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "24\""
+                      },
+                      {
+                        "name": "A",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "BS",
+                        "$text": "2+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "4"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-1"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "Assault"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Master-crafted power weapon",
+                    "typeName": "Melee Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "Melee"
+                      },
+                      {
+                        "name": "A",
+                        "$text": "4"
+                      },
+                      {
+                        "name": "WS",
+                        "$text": "2+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "5"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-2"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "-"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "m-champion",
+                "name": "Chapter Champion",
+                "type": "model",
+                "constraints": [
+                  {
+                    "type": "max",
+                    "field": "selections",
+                    "scope": "parent",
+                    "value": 1
+                  }
+                ],
+                "profiles": [
+                  {
+                    "name": "Blades of Honour",
+                    "typeName": "Melee Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "Melee"
+                      },
+                      {
+                        "name": "A",
+                        "$text": "6"
+                      },
+                      {
+                        "name": "WS",
+                        "$text": "2+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "6"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-2"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "-"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "u-wolfguard-terminators",
+        "name": "Wolf Guard Terminators",
+        "type": "unit",
+        "costs": [
+          {
+            "name": "pts",
+            "typeId": "pts",
+            "value": 170
+          }
+        ],
+        "categoryLinks": [
+          {
+            "name": "Infantry"
+          },
+          {
+            "name": "Terminator"
+          },
+          {
+            "name": "Faction: Adeptus Astartes"
+          }
+        ],
+        "profiles": [
+          {
+            "name": "Storm Shield",
+            "typeName": "Abilities",
+            "characteristics": [
+              {
+                "name": "Description",
+                "$text": "FIXTURE-RULES-TEXT-SHIELD each time a model in this unit is hit, subtract 1 from the Wound roll."
+              }
+            ]
+          }
+        ],
+        "selectionEntryGroups": [
+          {
+            "id": "g-wgt",
+            "name": "4-9 Terminators",
+            "defaultSelectionEntryId": "m-wgt-bolter",
+            "constraints": [
+              {
+                "type": "min",
+                "field": "selections",
+                "scope": "parent",
+                "value": 4
+              },
+              {
+                "type": "max",
+                "field": "selections",
+                "scope": "parent",
+                "value": 9
+              }
+            ],
+            "selectionEntries": [
+              {
+                "id": "m-wgt-bolter",
+                "name": "Wolf Guard Terminator w/ storm bolter",
+                "type": "model",
+                "profiles": [
+                  {
+                    "name": "Wolf Guard Terminator",
+                    "typeName": "Unit",
+                    "characteristics": [
+                      {
+                        "name": "M",
+                        "$text": "5\""
+                      },
+                      {
+                        "name": "T",
+                        "$text": "5"
+                      },
+                      {
+                        "name": "Sv",
+                        "$text": "2+"
+                      },
+                      {
+                        "name": "InSv",
+                        "$text": "4+"
+                      },
+                      {
+                        "name": "W",
+                        "$text": "3"
+                      },
+                      {
+                        "name": "LD",
+                        "$text": "6+"
+                      },
+                      {
+                        "name": "OC",
+                        "$text": "1"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Storm bolter",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "24\""
+                      },
+                      {
+                        "name": "A",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "BS",
+                        "$text": "3+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "4"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "0"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "1"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "Rapid Fire 2"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Master-crafted power weapon",
+                    "typeName": "Melee Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "Melee"
+                      },
+                      {
+                        "name": "A",
+                        "$text": "4"
+                      },
+                      {
+                        "name": "WS",
+                        "$text": "3+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "5"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-2"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "-"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "m-wgt-shield",
+                "name": "Wolf Guard Terminator w/ storm shield",
+                "type": "model",
+                "profiles": [
+                  {
+                    "name": "Master-crafted power weapon",
+                    "typeName": "Melee Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "Melee"
+                      },
+                      {
+                        "name": "A",
+                        "$text": "4"
+                      },
+                      {
+                        "name": "WS",
+                        "$text": "3+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "5"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-2"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "-"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

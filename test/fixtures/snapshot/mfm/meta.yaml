@@ -1,4 +1,6 @@
 version: "1.4"
 lastUpdated: 2026-09-02
 factions:
+  - astra-militarum
   - orks
+  - space-marines
