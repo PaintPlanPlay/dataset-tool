@@ -12,6 +12,7 @@ import { same, setAt, type Path } from './editor/values.ts';
 import { SchemaSet, type Located } from './schema.ts';
 import { SheetBar } from './SheetBar.tsx';
 import { unitWidget } from './sheets/UnitSheet.tsx';
+import { detachmentWidget } from './sheets/DetachmentSheet.tsx';
 import { toast, Toasts } from './Toast.tsx';
 import { StatusColumn } from './StatusColumn.tsx';
 
@@ -75,6 +76,8 @@ function choicesFor(kind: Inspection['kind'], draft: unknown, s: Suggestions | n
       if (key === 'armyRules') return { options: s?.armyRules ?? [], closed: false };
       if (key === 'leaderTargets' || key === 'supportTargets') return { options: units, closed: true };
       if (key === 'weapons.*.profiles.*.keywords') return { options: [], closed: false, picker: 'weaponKeywords' as const };
+      if (key === 'optionGroups.*.options.*.abilities')
+        return { options: ((draft as { abilities?: { name: string }[] }).abilities ?? []).map((a) => a.name), closed: true };
       if (key === 'optionGroups.*.options.*.weapons') {
         const weapons = ((draft as { weapons?: { kind: string; name: string }[] }).weapons ?? []).map((w) => `${w.kind}|${w.name}`);
         return { options: weapons, closed: true };
@@ -241,7 +244,8 @@ export function App() {
       warnings: byPointer(check.warnings, (w) => w.message),
       marks: sheet.marks.reduce((m, x) => m.set(x.path, [...(m.get(x.path) ?? []), x]), new Map<string, Mark[]>()),
       choices: choicesFor(sheet.kind, draft, suggestions),
-      ...(sheet.kind === 'unit' ? { widget: unitWidget({ sources: sheet.sources }) } : {}),
+      ...(sheet.kind === 'unit' ? { widget: unitWidget({ sources: sheet.sources, wargear: sheet.wargear }) } : {}),
+      ...(sheet.kind === 'detachment' ? { widget: detachmentWidget({ suggestions }) } : {}),
     };
   }, [sheet, schemas, draft, check, suggestions, onChange]);
 

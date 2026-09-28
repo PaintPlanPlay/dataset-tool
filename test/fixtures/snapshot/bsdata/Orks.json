@@ -26,6 +26,7 @@
       { "id": "ig-detachment-rules", "name": "Detachment Rules", "infoLinks": [{ "id": "il-dreadmob", "name": "Dread Mob Fixture", "targetId": "r-dreadmob", "type": "rule" }] }
     ],
     "entryLinks": [
+      { "id": "l-meganobz", "name": "Meganobz", "targetId": "u-meganobz", "type": "selectionEntry" },
       { "id": "l-boyz", "name": "Boyz", "targetId": "u-boyz", "type": "selectionEntry" },
       { "id": "l-warboss", "name": "Warboss", "targetId": "u-warboss", "type": "selectionEntry" },
       { "id": "l-mekgunz", "name": "Mek Gunz", "targetId": "u-mekgunz", "type": "selectionEntry" }
@@ -292,6 +293,355 @@
                     "characteristics": [
                       { "name": "Range", "$text": "36\"" }, { "name": "A", "$text": "D6" }, { "name": "BS", "$text": "5+" },
                       { "name": "S", "$text": "12" }, { "name": "AP", "$text": "-2" }, { "name": "D", "$text": "D6" }, { "name": "Keywords", "$text": "Blast, Hazardous" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "u-meganobz",
+        "name": "Meganobz",
+        "type": "unit",
+        "costs": [
+          {
+            "name": "pts",
+            "typeId": "pts",
+            "value": 75
+          }
+        ],
+        "categoryLinks": [
+          {
+            "name": "Infantry"
+          },
+          {
+            "name": "Mega Armour"
+          },
+          {
+            "name": "Meganobz"
+          },
+          {
+            "name": "Faction: Orks"
+          }
+        ],
+        "selectionEntryGroups": [
+          {
+            "id": "g-meganobz",
+            "name": "2-6 Meganobz",
+            "defaultSelectionEntryId": "m-mnz-klaw",
+            "constraints": [
+              {
+                "type": "min",
+                "field": "selections",
+                "scope": "parent",
+                "value": 2
+              },
+              {
+                "type": "max",
+                "field": "selections",
+                "scope": "parent",
+                "value": 6
+              }
+            ],
+            "selectionEntries": [
+              {
+                "id": "m-mnz-klaw",
+                "name": "Meganob w/ Kustom Shoota and Power Klaw",
+                "type": "model",
+                "profiles": [
+                  {
+                    "name": "Meganob",
+                    "typeName": "Unit",
+                    "characteristics": [
+                      {
+                        "name": "M",
+                        "$text": "5\""
+                      },
+                      {
+                        "name": "T",
+                        "$text": "6"
+                      },
+                      {
+                        "name": "Sv",
+                        "$text": "2+"
+                      },
+                      {
+                        "name": "InSv",
+                        "$text": "5+"
+                      },
+                      {
+                        "name": "W",
+                        "$text": "3"
+                      },
+                      {
+                        "name": "LD",
+                        "$text": "7+"
+                      },
+                      {
+                        "name": "OC",
+                        "$text": "1"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Kustom Shoota",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "18\""
+                      },
+                      {
+                        "name": "A",
+                        "$text": "4"
+                      },
+                      {
+                        "name": "BS",
+                        "$text": "5+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "4"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "0"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "1"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "Rapid Fire 2"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Power Klaw",
+                    "typeName": "Melee Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "Melee"
+                      },
+                      {
+                        "name": "A",
+                        "$text": "3"
+                      },
+                      {
+                        "name": "WS",
+                        "$text": "4+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "9"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-2"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "-"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "m-mnz-kombisaw",
+                "name": "Meganob w/ Kombi-weapon and Killsaw",
+                "type": "model",
+                "profiles": [
+                  {
+                    "name": "Kombi-weapon",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "24\""
+                      },
+                      {
+                        "name": "A",
+                        "$text": "1"
+                      },
+                      {
+                        "name": "BS",
+                        "$text": "5+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "7"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-2"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "-"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Killsaw",
+                    "typeName": "Melee Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "Melee"
+                      },
+                      {
+                        "name": "A",
+                        "$text": "3"
+                      },
+                      {
+                        "name": "WS",
+                        "$text": "4+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "12"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-3"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "-"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "m-mnz-shootasaw",
+                "name": "Meganob w/ Kustom Shoota and Killsaw",
+                "type": "model",
+                "profiles": [
+                  {
+                    "name": "Kustom Shoota",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "18\""
+                      },
+                      {
+                        "name": "A",
+                        "$text": "4"
+                      },
+                      {
+                        "name": "BS",
+                        "$text": "5+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "4"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "0"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "1"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "Rapid Fire 2"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Killsaw",
+                    "typeName": "Melee Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "Melee"
+                      },
+                      {
+                        "name": "A",
+                        "$text": "3"
+                      },
+                      {
+                        "name": "WS",
+                        "$text": "4+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "12"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-3"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "-"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "m-mnz-twin",
+                "name": "Meganob w/ Twin Killsaw",
+                "type": "model",
+                "profiles": [
+                  {
+                    "name": "Twin Killsaw",
+                    "typeName": "Melee Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "Melee"
+                      },
+                      {
+                        "name": "A",
+                        "$text": "3"
+                      },
+                      {
+                        "name": "WS",
+                        "$text": "4+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "12"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-3"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "Twin-linked"
+                      }
                     ]
                   }
                 ]

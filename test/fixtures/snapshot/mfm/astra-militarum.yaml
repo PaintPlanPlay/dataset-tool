@@ -1,0 +1,18 @@
+name: Astra Militarum
+slug: astra-militarum
+version: "1.4"
+firstSeen: 2026-09-02
+units:
+  - name: Leman Russ Exterminator
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 1, points: 160 }
+    wargear:
+      - { item: Multi-melta, points: 5 }
+      - { item: Lascannon, points: 5 }
+      - { item: Plasma cannon, points: 5 }
+      # Lignes de test : l'une vise deux options (coque et sponsons), l'autre aucune.
+      - { item: Heavy bolter, points: 5 }
+      - { item: Hunter-killer missile, points: 5 }

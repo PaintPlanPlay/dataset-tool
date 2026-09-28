@@ -31,7 +31,7 @@ check('le registre ne bouge pas à la seconde construction', toJson(first.ids) =
 const index = first.files.get(`${GS}/index.json`) as DatasetIndex;
 check(
   'Armies rangées par Game System, avec un identifiant à nous',
-  index.armies.map((a) => a.id).join(',') === 'adeptus-custodes,orks,orks-freebooterz',
+  index.armies.map((a) => a.id).join(',') === 'adeptus-custodes,astra-militarum,orks,orks-freebooterz,space-marines',
   index.armies.map((a) => a.id).join(','),
 );
 check('une Unit garde son identifiant BSData', unit(first, 'orks', 'Boyz')?.id === 'u-boyz');

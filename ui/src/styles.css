@@ -458,3 +458,9 @@ button.danger { background: var(--late); border-color: var(--late); color: #fff;
   .toast { animation: none; }
   .spinner { animation-duration: 2.4s; }
 }
+
+/* Wargear Options : ce que BSData en dit, puis ce qui est à nous (lien au MFM, aptitudes apportées). */
+.option-card .option-cost { display: flex; flex-direction: column; gap: 4px; }
+.option-card .option-cost .cost { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.wargear-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.wargear-line .linked { color: var(--muted); font-size: 13px; }

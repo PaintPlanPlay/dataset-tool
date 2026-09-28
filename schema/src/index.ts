@@ -11,7 +11,7 @@
  */
 
 /** Version du schéma à laquelle un fichier se conforme. */
-export const SCHEMA_VERSION = '2.0.0';
+export const SCHEMA_VERSION = '2.1.0';
 
 /** Un wargame à une édition donnée. Le Dataset est rangé par Game System. */
 export interface GameSystem {
@@ -277,6 +277,8 @@ export interface Enhancement extends RuleBody {
   /** Units dont l'Enhancement ouvre l'aptitude Leader, par nom. */
   leaderTo?: string[];
   supportTo?: string[];
+  /** La Weapon qu'elle apporte à son porteur, tant qu'elle est prise. Son coût reste celui de l'Enhancement. */
+  weapon?: Weapon;
 }
 
 export interface Detachment {
@@ -379,6 +381,23 @@ export interface Profile {
   OC: number;
 }
 
+/**
+ * Ce qu'une Wargear Option ajoute au coût de l'Unit : la ligne de sa liste
+ * `wargear` (MFM) qui la facture, désignée par son nom tel qu'écrit dans le
+ * MFM, et combien de fois par figurine — 2 pour « 2 Multi-meltas ». Le montant
+ * n'est jamais recopié ici : la liste `wargear` reste la seule source de points.
+ */
+export interface WargearCost {
+  item: string;
+  /** 1 quand elle est absente. */
+  quantity?: number;
+}
+
+/**
+ * Une Wargear Option : un choix d'un groupe d'options, ce qu'une figurine qui
+ * le prend porte, et combien de figurines peuvent le prendre. Elle peut
+ * n'apporter aucune Weapon (une bannière, un bouclier).
+ */
 export interface WeaponOption {
   id: string;
   name: string;
@@ -388,6 +407,13 @@ export interface WeaponOption {
   /** « Une figurine par tranche de N ». */
   perModels?: number;
   isDefault: boolean;
+  /** Sa ligne du MFM, quand l'option est payante. Une option par défaut paie aussi. */
+  wargearCost?: WargearCost;
+  /**
+   * Aptitudes de l'Unit qu'elle apporte, par nom. Une aptitude qu'une option au
+   * moins apporte n'est active que pour les figurines qui en prennent une.
+   */
+  abilities?: string[];
 }
 
 export interface OptionGroup {

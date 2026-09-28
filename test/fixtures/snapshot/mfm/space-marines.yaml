@@ -1,0 +1,24 @@
+name: Space Marines
+slug: space-marines
+version: "1.4"
+firstSeen: 2026-09-02
+units:
+  - name: Victrix Honour Guard
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 2, points: 90 }
+          - { models: 4, points: 180 }
+    wargear:
+      - { item: Banner of Macragge, points: 15 }
+      - { item: Blades of honour, points: 10 }
+  - name: Wolf Guard Terminators
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 5, points: 170 }
+          - { models: 10, points: 340 }
+    wargear:
+      - { item: Storm Shield, points: 5 }

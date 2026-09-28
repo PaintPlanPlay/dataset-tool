@@ -1,0 +1,464 @@
+{
+  "catalogue": {
+    "name": "Imperium - Astra Militarum",
+    "id": "cat-astra-militarum",
+    "library": false,
+    "entryLinks": [
+      {
+        "id": "l-exterminator",
+        "name": "Leman Russ Exterminator",
+        "targetId": "u-exterminator",
+        "type": "selectionEntry"
+      }
+    ],
+    "sharedSelectionEntries": [
+      {
+        "id": "u-exterminator",
+        "name": "Leman Russ Exterminator",
+        "type": "model",
+        "costs": [
+          {
+            "name": "pts",
+            "typeId": "pts",
+            "value": 160
+          }
+        ],
+        "categoryLinks": [
+          {
+            "name": "Vehicle"
+          },
+          {
+            "name": "Leman Russ"
+          },
+          {
+            "name": "Faction: Astra Militarum"
+          }
+        ],
+        "profiles": [
+          {
+            "name": "Leman Russ Exterminator",
+            "typeName": "Unit",
+            "characteristics": [
+              {
+                "name": "M",
+                "$text": "10\""
+              },
+              {
+                "name": "T",
+                "$text": "11"
+              },
+              {
+                "name": "Sv",
+                "$text": "2+"
+              },
+              {
+                "name": "W",
+                "$text": "13"
+              },
+              {
+                "name": "LD",
+                "$text": "7+"
+              },
+              {
+                "name": "OC",
+                "$text": "3"
+              }
+            ]
+          },
+          {
+            "name": "Exterminator autocannon",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+              {
+                "name": "Range",
+                "$text": "48\""
+              },
+              {
+                "name": "A",
+                "$text": "4"
+              },
+              {
+                "name": "BS",
+                "$text": "4+"
+              },
+              {
+                "name": "S",
+                "$text": "9"
+              },
+              {
+                "name": "AP",
+                "$text": "-1"
+              },
+              {
+                "name": "D",
+                "$text": "3"
+              },
+              {
+                "name": "Keywords",
+                "$text": "Twin-linked"
+              }
+            ]
+          },
+          {
+            "name": "Armoured tracks",
+            "typeName": "Melee Weapons",
+            "characteristics": [
+              {
+                "name": "Range",
+                "$text": "Melee"
+              },
+              {
+                "name": "A",
+                "$text": "6"
+              },
+              {
+                "name": "WS",
+                "$text": "4+"
+              },
+              {
+                "name": "S",
+                "$text": "7"
+              },
+              {
+                "name": "AP",
+                "$text": "0"
+              },
+              {
+                "name": "D",
+                "$text": "1"
+              },
+              {
+                "name": "Keywords",
+                "$text": "-"
+              }
+            ]
+          }
+        ],
+        "selectionEntryGroups": [
+          {
+            "id": "g-ext-hull",
+            "name": "Lascannon",
+            "defaultSelectionEntryId": "e-ext-lascannon",
+            "constraints": [
+              {
+                "type": "min",
+                "field": "selections",
+                "scope": "parent",
+                "value": 1
+              },
+              {
+                "type": "max",
+                "field": "selections",
+                "scope": "parent",
+                "value": 1
+              }
+            ],
+            "selectionEntries": [
+              {
+                "id": "e-ext-lascannon",
+                "name": "Lascannon",
+                "type": "upgrade",
+                "profiles": [
+                  {
+                    "name": "Lascannon",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "48\""
+                      },
+                      {
+                        "name": "A",
+                        "$text": "1"
+                      },
+                      {
+                        "name": "BS",
+                        "$text": "4+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "12"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-3"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "D6+1"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "-"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "e-ext-hb",
+                "name": "Heavy bolter",
+                "type": "upgrade",
+                "profiles": [
+                  {
+                    "name": "Heavy bolter",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "36\""
+                      },
+                      {
+                        "name": "A",
+                        "$text": "3"
+                      },
+                      {
+                        "name": "BS",
+                        "$text": "4+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "5"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-1"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "Sustained Hits 1"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "e-ext-hf",
+                "name": "Heavy flamer",
+                "type": "upgrade",
+                "profiles": [
+                  {
+                    "name": "Heavy flamer",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "12\""
+                      },
+                      {
+                        "name": "A",
+                        "$text": "D6"
+                      },
+                      {
+                        "name": "BS",
+                        "$text": "N/A"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "5"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-1"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "1"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "Ignores Cover, Torrent"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "g-ext-sponsons",
+            "name": "Sponsons",
+            "constraints": [
+              {
+                "type": "max",
+                "field": "selections",
+                "scope": "parent",
+                "value": 1
+              }
+            ],
+            "selectionEntries": [
+              {
+                "id": "e-ext-2hb",
+                "name": "2 Heavy Bolters",
+                "type": "upgrade",
+                "profiles": [
+                  {
+                    "name": "Heavy bolter",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "36\""
+                      },
+                      {
+                        "name": "A",
+                        "$text": "3"
+                      },
+                      {
+                        "name": "BS",
+                        "$text": "4+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "5"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-1"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "Sustained Hits 1"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "e-ext-2hf",
+                "name": "2 Heavy Flamers",
+                "type": "upgrade",
+                "profiles": [
+                  {
+                    "name": "Heavy flamer",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "12\""
+                      },
+                      {
+                        "name": "A",
+                        "$text": "D6"
+                      },
+                      {
+                        "name": "BS",
+                        "$text": "N/A"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "5"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-1"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "1"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "Ignores Cover, Torrent"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "e-ext-2mm",
+                "name": "2 Multi-meltas",
+                "type": "upgrade",
+                "profiles": [
+                  {
+                    "name": "Multi-melta",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "18\""
+                      },
+                      {
+                        "name": "A",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "BS",
+                        "$text": "4+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "9"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-4"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "D6"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "Melta 2"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "e-ext-2pc",
+                "name": "2 Plasma Cannons",
+                "type": "upgrade",
+                "profiles": [
+                  {
+                    "name": "Plasma cannon",
+                    "typeName": "Ranged Weapons",
+                    "characteristics": [
+                      {
+                        "name": "Range",
+                        "$text": "36\""
+                      },
+                      {
+                        "name": "A",
+                        "$text": "D3"
+                      },
+                      {
+                        "name": "BS",
+                        "$text": "4+"
+                      },
+                      {
+                        "name": "S",
+                        "$text": "7"
+                      },
+                      {
+                        "name": "AP",
+                        "$text": "-2"
+                      },
+                      {
+                        "name": "D",
+                        "$text": "2"
+                      },
+                      {
+                        "name": "Keywords",
+                        "$text": "Blast, Hazardous"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -39,6 +39,7 @@ import { unitAbilities } from './abilities.ts';
 import { applyAuthoredEffects, resolveAuthored, type AuthoredCore, type ContributionVerdict } from './authored.ts';
 import { applyMfm, mfmKey, type MfmConflict, type MfmFaction } from './upstream/mfm.ts';
 import { coreStatus, findUnsimulated, type UnsimulatedKey } from './rules.ts';
+import { linkWargear, type WargearFinding } from './wargear.ts';
 
 export type { MissingEntity, SourceConflict } from './findings.ts';
 
@@ -79,6 +80,8 @@ export interface BuildOutput {
   unsimulated: UnsimulatedKey[];
   /** Les Effects de 40kdc-data que les Armies au format de Rule ne publient plus, par adresse : la deuxième lecture de la revue. */
   kdcEffects: Record<string, unknown>;
+  /** Les lignes `wargear` du MFM qu'aucune Wargear Option ne facture, et les liens posés à la main qui ne visent plus rien. */
+  wargear: WargearFinding[];
 }
 
 /**
@@ -358,6 +361,9 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   const authoredEffects = applyAuthoredEffects(files, gameSystem, input.authored?.effects ?? [], kdcEffects);
   authored.unresolved.push(...authoredEffects.unresolved);
 
+  // Le Wargear Cost, une fois le MFM, les Corrections et les Contributions posés.
+  const wargear = linkWargear(files, gameSystem, authoredEffects.wargearLinks);
+
   const textCheck = [
     ...[...files].flatMap(([path, data]) => findRulesText(data, path)),
     ...corrections.flatMap(({ path, ...c }) => findRulesText(c, path)),
@@ -367,5 +373,6 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
     unresolvedAuthored: authored.unresolved, corrections: verdicts, contributions: authoredEffects.contributions, orphans, textCheck,
     unsimulated: findUnsimulated(files),
     kdcEffects,
+    wargear,
   };
 }

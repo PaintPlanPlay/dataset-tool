@@ -26,7 +26,7 @@ const bigHunt = det(first, 'Da Big Hunt');
 const enh = (name: string) => warHorde.enhancements.find((e) => e.name === name)!;
 
 section('Detachments : ce qui existe et ses chiffres viennent du MFM');
-check('les Detachments du MFM sont publiés, triés', orks(first).detachments.map((d) => d.name).join(',') === 'Da Big Hunt,War Horde');
+check('les Detachments du MFM sont publiés, triés', orks(first).detachments.map((d) => d.name).join(',') === 'Boss Brutes,Da Big Hunt,War Horde');
 check('un Detachment que seule 40kdc-data publie n\'entre pas dans le Dataset, et est signalé',
   !orks(first).detachments.some((d) => d.name === 'Kult of Speed') &&
   first.missing.some((m) => m.name === 'Kult of Speed' && m.missingIn === 'mfm' && !m.published));
