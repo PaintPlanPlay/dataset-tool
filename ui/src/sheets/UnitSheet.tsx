@@ -64,7 +64,11 @@ function UnitLayout({ at, unit, sources }: { at: Located; unit: Unit; sources: R
       <ModelsSection unit={unit} at={at} section={section('models')} />
 
       {SECTIONS.map((k) => {
-        if (k === 'pricing') return <PriceGrid key={k} unit={unit} section={section('pricing')} />;
+        if (k === 'pricing')
+          return [
+            <PriceGrid key={k} unit={unit} field="pricing" section={section('pricing')} />,
+            unit.assignedPricing && <PriceGrid key="assignedPricing" unit={unit} field="assignedPricing" section={section('assignedPricing')} />,
+          ];
         if (k === 'abilities') return <AbilitiesSection key={k} unit={unit} at={child('abilities')} section={section('abilities')} />;
         const value = (unit as unknown as Record<string, unknown>)[k];
         return <Field key={k} at={child(k)} value={value ?? (k === 'wargear' || k === 'optionGroups' || k === 'defaultLoadout' ? [] : value)} path={[k]} label={humanize(k)} section={section(k)} />;
@@ -170,19 +174,21 @@ function CountInput({ path, value }: { path: Path; value: number }) {
 
 /**
  * La grille du MFM : une ligne par tranche d'exemplaires (« du 1er au 3e »,
- * « à partir du 4e »), et dans chacune le coût par nombre de figurines.
+ * « à partir du 4e »), et dans chacune le coût par nombre de figurines. La
+ * même grille sert au coût d'Assigned Agent, que la List choisit quand une
+ * Ally Rule admet l'Unit (ADR 0013).
  */
-function PriceGrid({ unit, section }: { unit: Unit; section: string }) {
+function PriceGrid({ unit, field, section }: { unit: Unit; field: 'pricing' | 'assignedPricing'; section: string }) {
   const ctx = useEditor();
-  const bands = unit.pricing ?? [];
-  const set = (next: NonNullable<Unit['pricing']>) => ctx.onChange(['pricing'], next);
+  const bands = unit[field] ?? [];
+  const set = (next: NonNullable<Unit['pricing']>) => ctx.onChange([field], next);
   const band = (i: number, patch: Partial<NonNullable<Unit['pricing']>[number]>) => set(bands.map((b, j) => (j === i ? { ...b, ...patch } : b)));
   const ordinal = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
   return (
     <section className="list">
       <h3 className="list-title">
-        Prices <span className="section-source"> · {section}</span>
-        <Badges path={['pricing']} value={unit.pricing} />
+        {field === 'pricing' ? 'Prices' : 'Assigned Agent prices'} <span className="section-source"> · {section}</span>
+        <Badges path={[field]} value={unit[field]} />
         <button
           type="button"
           className="add"
@@ -192,7 +198,7 @@ function PriceGrid({ unit, section }: { unit: Unit; section: string }) {
           +
         </button>
       </h3>
-      {bands.length === 0 && <p className="empty">Not in the Munitorum Field Manual: the cost comes from BSData.</p>}
+      {bands.length === 0 && field === 'pricing' && <p className="empty">Not in the Munitorum Field Manual: the cost comes from BSData.</p>}
       <table className="price-grid">
         <tbody>
           {bands.map((b, i) => (
@@ -219,7 +225,7 @@ function PriceGrid({ unit, section }: { unit: Unit; section: string }) {
                     {' models: '}
                     <input type="number" min={0} style={{ width: '6ch' }} value={c.points} onChange={(e) => band(i, { costs: b.costs.map((x, k) => (k === j ? { ...x, points: Number(e.target.value) || 0 } : x)) })} />
                     {' pts'}
-                    <Badges path={['pricing', i, 'costs', j, 'points']} value={c.points} />
+                    <Badges path={[field, i, 'costs', j, 'points']} value={c.points} />
                   </span>
                   <button type="button" className="remove" title="Remove this cost" onClick={() => band(i, { costs: b.costs.filter((_x, k) => k !== j) })}>
                     −

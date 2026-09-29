@@ -178,6 +178,8 @@ export interface CatalogueUnit {
    * l'unité n'a pas été retrouvée dans le MFM.
    */
   pricing?: { from: number; to: number | null; costs: { models: number; points: number; desc?: string }[] }[];
+  /** Coût d'Assigned Agent, tel que le MFM le publie (voir le schéma du Dataset). */
+  assignedPricing?: { from: number; to: number | null; costs: { models: number; points: number; desc?: string }[] }[];
   /** Options d'équipement payantes, en supplément du coût de l'unité. */
   wargear?: { item: string; points: number }[];
   /**

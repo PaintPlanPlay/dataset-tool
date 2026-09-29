@@ -49,7 +49,7 @@ export interface Inspection {
 }
 
 /** Champs sur lesquels le Munitorum Field Manual fait autorité. */
-const MFM_UNIT_FIELDS = new Set(['points', 'costBrackets', 'pricing', 'wargear', 'leaderTargets', 'supportTargets']);
+const MFM_UNIT_FIELDS = new Set(['points', 'costBrackets', 'pricing', 'assignedPricing', 'wargear', 'leaderTargets', 'supportTargets']);
 const MFM_DETACHMENT_FIELDS = new Set(['dp', 'forceDispositions', 'uniqueTag']);
 
 const armiesOf = (out: DatasetView) =>
@@ -85,9 +85,10 @@ export function inspect(current: DatasetView, bare: DatasetView | null, target: 
     const core = coreOf(current);
     if (!core) return null;
     const verdicts = current.corrections.filter((c) => c.target.startsWith(`${CORE_ROOT}::`));
-    const value = { battleSizes: core.battleSizes, stratagems: core.stratagems };
+    const value = { battleSizes: core.battleSizes, allyRules: core.allyRules ?? [], stratagems: core.stratagems };
     const origins: FieldOrigin[] = [
       { field: 'battleSizes', origin: bare ? 'project' : 'published' },
+      { field: 'allyRules', origin: bare ? 'project' : 'published' },
       { field: 'stratagems', origin: bare ? '40kdc' : 'published' },
     ];
     return { kind: 'core', army: CORE_ROOT, target: CORE_ROOT, name: 'Core', value, origins, corrections: verdicts };
@@ -194,10 +195,18 @@ export function search(current: DatasetView, query: string, limit = 60, army = '
     seen.add(h.target);
     hits.push(h);
   };
-  for (const a of armiesOf(current)) {
+  const armies = armiesOf(current);
+  // Une Unit n'a qu'une fiche, dans l'Army qui la possède : une Army qui la propose sans la posséder y renvoie.
+  const owners = new Map<string, ArmyFile>();
+  for (const a of armies) for (const u of a.units) if (!u.ally && !owners.has(u.id)) owners.set(u.id, a);
+  for (const a of armies) {
     if (army && a.id !== army) continue;
     const of = { army: a.id, armyName: a.name };
-    for (const u of a.units) if (!u.ally) push({ kind: 'unit', ...of, name: u.name, target: u.id });
+    for (const u of a.units) {
+      const owner = u.ally ? owners.get(u.id) : a;
+      // Sans filtre, l'Army propriétaire la liste déjà.
+      if (owner && (owner === a || army)) push({ kind: 'unit', army: owner.id, armyName: owner.name, name: u.name, target: u.id });
+    }
     for (const d of a.detachments) push({ kind: 'detachment', ...of, name: d.name, target: `${a.id}::detachment:${d.id}` });
     for (const s of a.stratagems) push({ kind: 'stratagem', ...of, name: s.name, target: `${a.id}::stratagem:${s.id}` });
     for (const r of a.armyRules ?? []) push({ kind: 'armyRule', ...of, name: r.name, target: `${a.id}::armyrule:${r.id}` });

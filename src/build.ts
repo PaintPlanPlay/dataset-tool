@@ -37,7 +37,7 @@ import type { Snapshot } from './snapshot.ts';
 import { kdcFactionFor } from './upstream/kdc.ts';
 import { unitAbilities } from './abilities.ts';
 import { applyAuthoredEffects, resolveAuthored, type AuthoredCore, type ContributionVerdict } from './authored.ts';
-import { applyMfm, mfmKey, type MfmConflict, type MfmFaction } from './upstream/mfm.ts';
+import { applyMfm, mfmDuplicates, mfmKey, type MfmConflict, type MfmDuplicate, type MfmFaction } from './upstream/mfm.ts';
 import { coreName, coreStatus, findUnsimulated, type UnsimulatedKey } from './rules.ts';
 import { linkWargear, type WargearFinding } from './wargear.ts';
 
@@ -64,6 +64,8 @@ export interface BuildOutput {
   unmatched: { army: string; id: string; name: string }[];
   /** Armies BSData sans faction MFM correspondante. */
   armiesWithoutMfm: string[];
+  /** Lignes du MFM écartées parce qu'une autre porte déjà leur nom dans la même faction. */
+  mfmDuplicates: MfmDuplicate[];
   /** Detachments et Enhancements qu'une source publie et que l'autre ignore. */
   missing: MissingEntity[];
   /** Units nommées par les fichiers écrits par le projet et introuvables. */
@@ -146,6 +148,7 @@ export function toDatasetUnit(u: CatalogueUnit, abilities: Unit['abilities'] = u
     points: u.points,
     costBrackets: u.costBrackets,
     ...(u.pricing ? { pricing: u.pricing } : {}),
+    ...(u.assignedPricing ? { assignedPricing: u.assignedPricing } : {}),
     ...(u.wargear?.length ? { wargear: u.wargear } : {}),
     leaderTargets: u.leaderTargets,
     supportTargets: u.supportTargets,
@@ -359,6 +362,7 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
     gameSystem,
     stratagems: core.stratagems,
     battleSizes: authored.battleSizes,
+    ...(authored.allyRules.length ? { allyRules: authored.allyRules } : {}),
     referenceTargets: authored.referenceTargets,
     ...(authored.sampleList ? { sampleList: authored.sampleList } : {}),
   };
@@ -376,7 +380,7 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
     ...corrections.flatMap(({ path, ...c }) => findRulesText(c, path)),
   ];
   return {
-    gameSystem, files, ids, conflicts, unmatched, armiesWithoutMfm, missing,
+    gameSystem, files, ids, conflicts, unmatched, armiesWithoutMfm, mfmDuplicates: mfmDuplicates(mfm), missing,
     unresolvedAuthored: authored.unresolved, corrections: verdicts, contributions: authoredEffects.contributions, orphans, textCheck,
     unsimulated: findUnsimulated(files),
     kdcEffects,

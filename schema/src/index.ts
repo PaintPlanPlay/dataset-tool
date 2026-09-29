@@ -11,7 +11,7 @@
  */
 
 /** Version du schéma à laquelle un fichier se conforme. */
-export const SCHEMA_VERSION = '2.4.0';
+export const SCHEMA_VERSION = '2.5.0';
 
 /** Un wargame à une édition donnée. Le Dataset est rangé par Game System. */
 export interface GameSystem {
@@ -86,6 +86,8 @@ export interface CoreFile {
   gameSystem: string;
   stratagems: Stratagem[];
   battleSizes: BattleSize[];
+  /** Les Ally Rules, toutes Armies confondues. */
+  allyRules?: AllyRule[];
   referenceTargets: ReferenceTarget[];
   sampleList?: SampleList;
 }
@@ -102,6 +104,56 @@ export interface BattleSize {
   enhancementLimit: number;
   /** Exemplaires d'une même Unit au plus (doublé pour les Battleline et Dedicated Transport). */
   unitLimit: number;
+}
+
+/** Un plafond d'Ally Rule à une Battle Size donnée. */
+export interface AllyLimit {
+  /** Points de la Battle Size visée. */
+  battleSize: number;
+  /** Units admises au plus, par Keyword de type : « Retinue », « Character », « Requisitioned ». */
+  units?: { keyword: string; max: number }[];
+  /** Coût cumulé au plus des Units admises. */
+  points?: number;
+}
+
+/**
+ * Une Ally Rule (ADR 0013) : ce qui permet à une List d'inclure des Units hors
+ * de son Army. Écrite par le projet — aucune source amont ne la publie — et
+ * sans texte : seulement ce qui se vérifie.
+ */
+export interface AllyRule {
+  id: string;
+  /** Nom de la règle, qui est aussi celui du badge : « Assigned Agents ». */
+  name: string;
+  /** Les seules Armies de List qui peuvent s'en servir ; absent : toutes, sauf `exceptArmies`. */
+  armies?: string[];
+  exceptArmies?: string[];
+  /**
+   * Chaque figurine de la List, Allied Units exceptées, porte au moins un de ces
+   * Keywords ou Faction Keywords.
+   */
+  requires?: string[];
+  /** Units admises : il suffit d'une correspondance. `units` les nomme. */
+  admits: { factionKeywords?: string[]; keywords?: string[]; units?: string[] };
+  /** Plafonds par Battle Size. */
+  limits?: AllyLimit[];
+  /**
+   * Une seule de ces familles de figurines, et dans sa limite, à toute Battle
+   * Size : 1 Titanic ou 3 Armiger.
+   */
+  modelsOneOf?: { keyword: string; max: number }[];
+  /** Pour chacun de ces Keywords, les Units admises non-Battleline ne dépassent pas les Battleline. */
+  battlelineRatio?: string[];
+  /** Une Unit admise n'est jamais le Warlord. */
+  noWarlord?: true;
+  /** Une Unit admise ne prend pas d'Enhancement. */
+  noEnhancements?: true;
+  /** Une Unit admise paie son coût d'Assigned Agent (`Unit.assignedPricing`). */
+  assignedCost?: true;
+  /** Les Army Rules d'une Unit admise ne jouent pas. */
+  armyRulesInactive?: true;
+  /** Un Dedicated Transport admis doit commencer la partie avec une unité embarquée : un rappel. */
+  transportReminder?: true;
 }
 
 /** Une cible par défaut de la Simulation : une Unit du Dataset et son effectif. */
@@ -500,6 +552,12 @@ export interface Unit {
   costBrackets: { overModels: number; points: number }[];
   /** Tarif du MFM, par tranche d'exemplaires. Absent si l'Unit n'y figure pas. */
   pricing?: PriceBand[];
+  /**
+   * Coût d'Assigned Agent : le tarif que le MFM publie pour cette Unit quand une
+   * Ally Rule l'admet dans une List d'une autre Army. Absent si le MFM n'en
+   * publie pas. Le même pour toutes les Armies : c'est la List qui choisit.
+   */
+  assignedPricing?: PriceBand[];
   /** Équipement payant, en supplément du coût de l'Unit. */
   wargear?: { item: string; points: number }[];
   /** Units que ce personnage peut mener (Leader), par nom. */
