@@ -1472,7 +1472,10 @@
           "$ref": "#/$defs/modifierKey"
         },
         "value": {
-          "$ref": "#/$defs/modifierValue"
+          "type": [
+            "number",
+            "string"
+          ]
         },
         "target": {
           "enum": [
@@ -1501,7 +1504,38 @@
         "key",
         "target"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "key": {
+                "const": "gain-keyword"
+              }
+            },
+            "required": [
+              "key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "$ref": "#/$defs/keyword"
+              }
+            },
+            "required": [
+              "value"
+            ]
+          },
+          "else": {
+            "properties": {
+              "value": {
+                "$ref": "#/$defs/modifierValue"
+              }
+            }
+          }
+        }
+      ]
     },
     "modifiers": {
       "type": "array",

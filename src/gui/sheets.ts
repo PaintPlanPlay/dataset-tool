@@ -11,7 +11,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { canonicalWeaponKeyword, SIMULATED_CONDITIONS, SIMULATED_MODIFIERS, type ArmyFile, type BattleSize, type CoreFile, type Detachment, type Enhancement, type OptionGroup, type Stratagem, type Unit, type Weapon, type WeaponOption } from '@paintplanplay/dataset-schema';
+import { canonicalWeaponKeyword, SIMULATED_CONDITIONS, SIMULATED_MODIFIERS, UNIT_MODIFIERS, type ArmyFile, type BattleSize, type CoreFile, type Detachment, type Enhancement, type OptionGroup, type Stratagem, type Unit, type Weapon, type WeaponOption } from '@paintplanplay/dataset-schema';
 import { validateDef, validateFile, type FieldError } from '@paintplanplay/dataset-schema/validate';
 import { authoredDir, authoredEffectProblems, EFFECTS_FILE, fingerprint, type AuthoredEffect } from '../authored.ts';
 import { parseRangeInches } from '../bsdata/flatten.ts';
@@ -794,8 +794,9 @@ export function suggestions(ws: Workspace, army: string, unitId = ''): Suggestio
 }
 
 function modifierKeys(files: Map<string, unknown>): Suggestions['modifierKeys'] {
-  const simulated = Object.keys(SIMULATED_MODIFIERS);
-  const used = [...new Set(modifiersIn(files).map((m) => m.modifier.key))].filter((k) => !(k in SIMULATED_MODIFIERS)).sort((a, b) => a.localeCompare(b));
+  // Une clé de l'Unit (`gain-keyword`) est connue comme une clé simulée : elle suit, sans anomalie.
+  const simulated = [...Object.keys(SIMULATED_MODIFIERS), ...Object.keys(UNIT_MODIFIERS)];
+  const used = [...new Set(modifiersIn(files).map((m) => m.modifier.key))].filter((k) => !simulated.includes(k)).sort((a, b) => a.localeCompare(b));
   return [...simulated.map((key) => ({ key, simulated: true })), ...used.map((key) => ({ key, simulated: false }))];
 }
 

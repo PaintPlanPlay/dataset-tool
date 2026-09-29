@@ -1,6 +1,6 @@
 {
   "name": "@paintplanplay/dataset-schema",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Schema of the Paint Plan Play Dataset: TypeScript types and JSON Schema, shared by the Dataset Tool and the apps that read the Dataset.",
   "license": "MIT",
   "type": "module",

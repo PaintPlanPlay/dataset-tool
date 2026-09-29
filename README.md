@@ -157,6 +157,12 @@ the same way; keys autocomplete, simulated ones first. A key the simulator does
 not play is still accepted, and listed under **Unsimulated keys** until the
 entry or the simulator is fixed.
 
+One key changes the unit itself rather than an attack: `gain-keyword`, whose
+value is a keyword. On a detachment rule whose eligibility picks the units
+(`Gretchin`), `{ key: gain-keyword, value: Battleline, target: self }` makes
+them Battleline for every list that takes the detachment — the unit limit
+included. It is known, never listed as unsimulated.
+
 No 40kdc-data Effect is published any more. Modifiers are read once from the rules outside this repository and
 imported from **To review → Import extracted Rules…**: each one is compared to
 40kdc-data's reading. Readings that agree are accepted; the others — they differ,

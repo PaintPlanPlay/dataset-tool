@@ -3,7 +3,7 @@
  * Modifiers de leurs Contributions ; les règles Core deviennent des statuts ;
  * les clés que la Simulation ne sait pas jouer sont relevées.
  */
-import { SIMULATED_MODIFIERS, type ArmyFile, type CoreFile, type Modifier, type RuleBody } from '@paintplanplay/dataset-schema';
+import { SIMULATED_MODIFIERS, UNIT_MODIFIERS, type ArmyFile, type CoreFile, type Modifier, type RuleBody } from '@paintplanplay/dataset-schema';
 import { CORE_ROOT } from './corrections/apply.ts';
 
 /**
@@ -86,7 +86,7 @@ export function modifiersIn(files: Map<string, unknown>): PlacedModifier[] {
   );
 }
 
-/** Une clé que la Simulation ne sait pas jouer : une saisie à reprendre, ou un oubli du simulateur. */
+/** Une clé que ni la Simulation ni l'application ne savent jouer : une saisie à reprendre, ou un oubli du simulateur. */
 export interface UnsimulatedKey {
   target: string;
   rule: string;
@@ -95,5 +95,5 @@ export interface UnsimulatedKey {
 
 export const findUnsimulated = (files: Map<string, unknown>): UnsimulatedKey[] =>
   modifiersIn(files)
-    .filter((m) => !(m.modifier.key in SIMULATED_MODIFIERS))
+    .filter((m) => !(m.modifier.key in SIMULATED_MODIFIERS) && !(m.modifier.key in UNIT_MODIFIERS))
     .map((m) => ({ target: m.target, rule: m.rule, key: m.modifier.key }));

@@ -5,7 +5,7 @@
  *
  *   npx tsx test/rules.test.ts
  */
-import type { ArmyFile, CoreFile } from '@paintplanplay/dataset-schema';
+import { SIMULATED_MODIFIERS, UNIT_MODIFIERS, type ArmyFile, type CoreFile } from '@paintplanplay/dataset-schema';
 import { validateFile } from '@paintplanplay/dataset-schema/validate';
 import type { AuthoredCore } from '../src/authored.ts';
 import { build } from '../src/build.ts';
@@ -74,6 +74,41 @@ check('la Contribution à l\'ancien format est rejetée, avec sa raison', oldFor
 const badTarget = out.contributions.filter((c) => c.target.includes('::stratagem:'));
 check('un Modifier hors schéma rejette sa Contribution', badTarget.some((c) => c.state === 'rejected') && badTarget.some((c) => c.state === 'active'), JSON.stringify(badTarget));
 check('l\'Army reste conforme au schéma', validateFile('army', withMods).length === 0, validateFile('army', withMods).join(' | '));
+
+section('Rules des Orks : une Detachment Rule accorde un Keyword');
+const granting = await build({
+  snapshot,
+  authored: {
+    battleSizes: [],
+    referenceTargets: [],
+    effects: [
+      {
+        target: `orks::rule:${warHorde.id}|${warHorde.rules[0].id}`,
+        eligibility: { allOf: ['Gretchin'], anyOf: [], noneOf: [] },
+        modifiers: [{ key: 'gain-keyword', value: 'Battleline', target: 'self' }],
+        reason: 'Un Keyword accordé par un détachement.',
+      },
+    ],
+  },
+});
+const grantingRule = orksOf(granting.files).detachments.find((d) => d.id === warHorde.id)!.rules[0];
+check('le Modifier et l\'Eligibility sont publiés', grantingRule.modifiers?.[0].key === 'gain-keyword' && grantingRule.eligibility?.allOf.join() === 'Gretchin');
+check('gain-keyword est une clé connue : pas une anomalie', !granting.unsimulated.some((f) => f.key === 'gain-keyword'), JSON.stringify(granting.unsimulated));
+check('elle n\'est pas pour autant une option de combat', !('gain-keyword' in SIMULATED_MODIFIERS) && 'gain-keyword' in UNIT_MODIFIERS);
+check('l\'Army reste conforme au schéma', validateFile('army', orksOf(granting.files)).length === 0);
+const misgranted = await build({
+  snapshot,
+  authored: {
+    battleSizes: [],
+    referenceTargets: [],
+    effects: [
+      { target: `orks::rule:${warHorde.id}|${warHorde.rules[0].id}`, modifiers: [{ key: 'gain-keyword', target: 'self' }], reason: 'Sans Keyword.' },
+      { target: `orks::stratagem:${ereWeGo.id}`, modifiers: [{ key: 'hit', value: 'Battleline', target: 'self' }], reason: 'Un Keyword sur une autre clé.' },
+    ],
+  },
+});
+check('gain-keyword sans Keyword est rejeté', misgranted.contributions.find((c) => c.target.includes('::rule:'))?.state === 'rejected');
+check('un Keyword en valeur d\'une autre clé reste rejeté', misgranted.contributions.find((c) => c.target.includes('::stratagem:'))?.state === 'rejected');
 
 section('Rules des Orks : règles Core en statuts, Army Rules par identifiant');
 check(
