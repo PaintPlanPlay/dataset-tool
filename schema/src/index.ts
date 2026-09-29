@@ -11,7 +11,7 @@
  */
 
 /** Version du schéma à laquelle un fichier se conforme. */
-export const SCHEMA_VERSION = '2.2.0';
+export const SCHEMA_VERSION = '2.4.0';
 
 /** Un wargame à une édition donnée. Le Dataset est rangé par Game System. */
 export interface GameSystem {
@@ -219,6 +219,14 @@ export const SIMULATED_MODIFIERS: Record<string, { label: string; side: 'attack'
   'damage-reduction': { label: 'Damage taken', side: 'defence' },
   stealth: { label: 'Stealth', side: 'defence' },
   cover: { label: 'Benefit of Cover', side: 'defence' },
+  /**
+   * Fight on Death : une figurine détruite avant que son Unit ait combattu
+   * combat quand même sur un D6 au moins égal à la valeur (« 4+ ») ; sans
+   * valeur, sans jet.
+   */
+  'fight-on-death': { label: 'Fight on Death', side: 'defence' },
+  /** Bonus au jet de Fight on Death (« +1 si riled up », par une Condition). */
+  'fight-on-death-roll': { label: 'to Fight on Death roll', side: 'defence' },
 };
 
 /**
@@ -463,6 +471,12 @@ export interface Unit {
   ally?: boolean;
   /** Legends ou Crucible : hors tournoi. */
   isLegends: boolean;
+  /**
+   * Supreme Commander : dans une List, cette Unit en est forcément le Warlord.
+   * Absent sinon. Repéré à l'aptitude « Supreme Commander », jamais au keyword
+   * `Warlord` de BSData, que portent aussi des Boyz ou un Rhino.
+   */
+  supremeCommander?: true;
   /** Keywords, sans les Faction Keywords. */
   keywords: string[];
   /** Faction Keywords, sans le préfixe « Faction: » de BSData : « Orks ». */

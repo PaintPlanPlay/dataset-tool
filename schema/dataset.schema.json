@@ -471,6 +471,9 @@
         "isLegends": {
           "type": "boolean"
         },
+        "supremeCommander": {
+          "const": true
+        },
         "keywords": {
           "type": "array",
           "description": "Keywords other than Faction Keywords, which live in factionKeywords.",

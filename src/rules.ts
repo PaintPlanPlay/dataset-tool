@@ -24,7 +24,8 @@ const CORE_STATUSES: Record<string, string> = {
   hover: 'hover',
 };
 
-const coreName = (name: string) => name.trim().toLowerCase();
+/** Un nom de règle, comparé sans casse ni espaces autour. */
+export const coreName = (name: string) => name.trim().toLowerCase();
 
 export const isCoreRule = (name: string) => coreName(name) in CORE_STATUSES;
 

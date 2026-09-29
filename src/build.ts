@@ -38,7 +38,7 @@ import { kdcFactionFor } from './upstream/kdc.ts';
 import { unitAbilities } from './abilities.ts';
 import { applyAuthoredEffects, resolveAuthored, type AuthoredCore, type ContributionVerdict } from './authored.ts';
 import { applyMfm, mfmKey, type MfmConflict, type MfmFaction } from './upstream/mfm.ts';
-import { coreStatus, findUnsimulated, type UnsimulatedKey } from './rules.ts';
+import { coreName, coreStatus, findUnsimulated, type UnsimulatedKey } from './rules.ts';
 import { linkWargear, type WargearFinding } from './wargear.ts';
 
 export type { MissingEntity, SourceConflict } from './findings.ts';
@@ -122,6 +122,12 @@ export function mfmFactionOf(armyFile: string, loaded: string[], factions: MfmFa
 /** Les règles Core d'une datasheet, en Modifiers de statut. */
 const statusesOf = (u: CatalogueUnit) => (u.coreRules ?? []).map(coreStatus).filter((m) => m !== undefined);
 
+/**
+ * Supreme Commander : à son aptitude. Une Unit que BSData rate ou marque à tort
+ * se redresse par une Correction de l'aptitude elle-même.
+ */
+const isSupremeCommander = (u: CatalogueUnit) => u.abilities.some((a) => coreName(a.name) === 'supreme commander');
+
 export function toDatasetUnit(u: CatalogueUnit, abilities: Unit['abilities'] = u.abilities.map((a) => ({ name: a.name }))): Unit {
   return {
     id: u.id,
@@ -129,6 +135,7 @@ export function toDatasetUnit(u: CatalogueUnit, abilities: Unit['abilities'] = u
     source: u.source,
     ...(u.ally ? { ally: true } : {}),
     isLegends: u.isLegends,
+    ...(isSupremeCommander(u) ? { supremeCommander: true as const } : {}),
     keywords: u.keywords,
     factionKeywords: u.factionKeywords,
     armyRules: u.armyRules,
