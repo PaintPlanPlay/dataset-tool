@@ -163,6 +163,13 @@ value is a keyword. On a detachment rule whose eligibility picks the units
 them Battleline for every list that takes the detachment — the unit limit
 included. It is known, never listed as unsimulated.
 
+Fight on Death is a defence key: `fight-on-death`, whose value is the D6
+threshold (`4+`), or no value when it needs no roll, lets a model destroyed
+before its unit fought still fight. `fight-on-death-roll` adds its value to that
+roll, usually under a condition — `{ key: fight-on-death-roll, value: 1,
+target: self, conditions: [{ key: riled-up }] }`. Several sources make one roll:
+the best threshold wins and the bonuses add up.
+
 No 40kdc-data Effect is published any more. Modifiers are read once from the rules outside this repository and
 imported from **To review → Import extracted Rules…**: each one is compared to
 40kdc-data's reading. Readings that agree are accepted; the others — they differ,
