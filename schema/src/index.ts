@@ -11,7 +11,7 @@
  */
 
 /** Version du schéma à laquelle un fichier se conforme. */
-export const SCHEMA_VERSION = '2.2.0';
+export const SCHEMA_VERSION = '2.3.0';
 
 /** Un wargame à une édition donnée. Le Dataset est rangé par Game System. */
 export interface GameSystem {
@@ -463,6 +463,12 @@ export interface Unit {
   ally?: boolean;
   /** Legends ou Crucible : hors tournoi. */
   isLegends: boolean;
+  /**
+   * Supreme Commander : dans une List, cette Unit en est forcément le Warlord.
+   * Absent sinon. Repéré à l'aptitude « Supreme Commander », jamais au keyword
+   * `Warlord` de BSData, que portent aussi des Boyz ou un Rhino.
+   */
+  supremeCommander?: true;
   /** Keywords, sans les Faction Keywords. */
   keywords: string[];
   /** Faction Keywords, sans le préfixe « Faction: » de BSData : « Orks ». */

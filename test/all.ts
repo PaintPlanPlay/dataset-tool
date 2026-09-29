@@ -8,6 +8,7 @@ await import('./corrections.test.ts');
 await import('./detachments.test.ts');
 await import('./stratagems.test.ts');
 await import('./abilities.test.ts');
+await import('./supreme.test.ts');
 await import('./authored.test.ts');
 await import('./rules.test.ts');
 await import('./ruleform.test.ts');

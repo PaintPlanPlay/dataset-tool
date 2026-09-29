@@ -185,6 +185,12 @@ When sources disagree, the one trusted for that field wins and the disagreement
 is reported. What a rule does is written in this project's own Modifiers,
 never taken from a source.
 
+A unit that must be its army's warlord (Ghazghkull Thraka, The Silent King…)
+is published with `supremeCommander: true`, read from its BSData ability named
+"Supreme Commander" — never from the `Warlord` keyword, which BSData also puts
+on Boyz or a Rhino. A unit BSData gets wrong is fixed by correcting the ability
+itself, adding or removing it.
+
 ## The one rule: no rules text
 
 A rule is carried by its Modifiers, by a one-line description written by this
