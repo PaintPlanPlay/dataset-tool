@@ -74,6 +74,7 @@ try {
   check('les clés simulées viennent en premier', simulated.every((k, i) => keys[i] === k) && suggest.modifierKeys.slice(0, simulated.length).every((k) => k.simulated));
   check('puis celles déjà utilisées dans le Dataset, marquées non simulées', keys.includes('charge-bonus') && suggest.modifierKeys.find((k) => k.key === 'charge-bonus')?.simulated === false);
   check('sans doublon', new Set(keys).size === keys.length);
+  check('gain-keyword est proposée comme clé connue', suggest.modifierKeys.find((k) => k.key === 'gain-keyword')?.simulated === true);
   const conditionKeys = suggest.conditionKeys.map((k) => k.key);
   check(
     'les clés de Condition : celles que la Simulation évalue, puis les Situations déjà utilisées',

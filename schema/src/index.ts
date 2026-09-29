@@ -11,7 +11,7 @@
  */
 
 /** Version du schéma à laquelle un fichier se conforme. */
-export const SCHEMA_VERSION = '2.1.0';
+export const SCHEMA_VERSION = '2.2.0';
 
 /** Un wargame à une édition donnée. Le Dataset est rangé par Game System. */
 export interface GameSystem {
@@ -178,7 +178,7 @@ export interface Condition {
  */
 export interface Modifier {
   key: string;
-  /** Un nombre, une expression de dés (« D3 », « D6+1 »), un seuil (« 5+ »), « 1 » ou « all » pour une relance ; absent pour un statut. */
+  /** Un nombre, une expression de dés (« D3 », « D6+1 »), un seuil (« 5+ »), « 1 » ou « all » pour une relance, un Keyword pour `gain-keyword` ; absent pour un statut. */
   value?: number | string;
   target: ModifierTarget;
   /** Portée d'une aura, en pouces. */
@@ -219,6 +219,16 @@ export const SIMULATED_MODIFIERS: Record<string, { label: string; side: 'attack'
   'damage-reduction': { label: 'Damage taken', side: 'defence' },
   stealth: { label: 'Stealth', side: 'defence' },
   cover: { label: 'Benefit of Cover', side: 'defence' },
+};
+
+/**
+ * Les clés de Modifier qui changent l'Unit elle-même, pas une attaque : aucune
+ * n'est une option de combat. `gain-keyword` accorde à l'Unit le Keyword de
+ * sa valeur (« Battleline ») — un Granted Keyword, qui compte partout où
+ * compte un Keyword imprimé, Unit Limit comprise.
+ */
+export const UNIT_MODIFIERS: Record<string, { label: string }> = {
+  'gain-keyword': { label: 'gains' },
 };
 
 /**
