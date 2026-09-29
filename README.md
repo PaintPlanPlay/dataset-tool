@@ -115,6 +115,26 @@ what we say about a wargear option (see below). If 40kdc-data later changes the
 same rule, the change is flagged in the build report and on the sheet, never
 applied over ours. You never choose between the two: the field decides.
 
+### Ally rules
+
+An **ally rule** lets a list include units from outside its army: Assigned
+Agents, Freeblades, the Daemonic Pact… No source publishes them, so they are
+contributions, edited on the **Core** sheet and saved to
+`authored/<game system>/ally-rules.json`. Each one says which lists may use it
+(`armies`, `exceptArmies`, and `requires`, the keywords every other model must
+have), which units it admits (by faction keyword, keyword or unit name), its
+limits per battle size (units per kind, combined points) or in models
+(`modelsOneOf`: one Titanic or three Armigers), and what else holds for those
+units: never the warlord, no enhancement, their army rules not in effect, the
+Assigned Agent cost. A rule naming an army, keyword or unit the build no longer
+has is listed in the build report.
+
+The Munitorum Field Manual lists some Agents twice: the second line, under
+« Every Model Has The Imperium Keyword », is their **Assigned Agent cost**,
+published as `assignedPricing` on the unit and shown under its prices, where it
+can be corrected like them. Any other duplicate name within a faction is
+dropped and listed in the build report.
+
 ### Wargear costs
 
 The Munitorum Field Manual bills wargear by name (`Twin Killsaws: 5`); BSData

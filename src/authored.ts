@@ -11,7 +11,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ArmyFile, BattleSize, CoreFile, KeywordFilter, Modifier, ReferenceTarget, RuleOption, SampleList, SampleSection, SampleUnit, Unit, WargearCost, WargearCount, Weapon, WeaponOption } from '@paintplanplay/dataset-schema';
+import type { AllyRule, ArmyFile, BattleSize, CoreFile, KeywordFilter, Modifier, ReferenceTarget, RuleOption, SampleList, SampleSection, SampleUnit, Unit, WargearCost, WargearCount, Weapon, WeaponOption } from '@paintplanplay/dataset-schema';
 import { validateDef } from '@paintplanplay/dataset-schema/validate';
 import { CORE_ROOT, parseTarget } from './corrections/apply.ts';
 import { inspectString } from './notext.ts';
@@ -91,9 +91,13 @@ export const fingerprint = (value: unknown) => createHash('sha1').update(JSON.st
  */
 const upstreamOf = (kdcEffect: unknown) => fingerprint({ effect: kdcEffect, summary: undefined });
 
+/** Une Ally Rule telle que le projet l'écrit : la règle publiée, et pourquoi. */
+export type AuthoredAllyRule = AllyRule & { reason: string };
+
 export interface AuthoredCore {
   effects?: AuthoredEffect[];
   battleSizes: BattleSize[];
+  allyRules?: AuthoredAllyRule[];
   /** Par Army et nom d'Unit. */
   referenceTargets: { army: string; unit: string; models: number }[];
   sampleList?: { army: string; name: string; detachment: string; battleSize: number; units: AuthoredSampleUnit[] };
@@ -101,6 +105,7 @@ export interface AuthoredCore {
 
 export const authoredDir = (gameSystem: string) => `authored/${gameSystem}`;
 export const EFFECTS_FILE = 'effects.json';
+export const ALLY_RULES_FILE = 'ally-rules.json';
 
 export function readAuthored(datasetDir: string, gameSystem: string): AuthoredCore | undefined {
   const dir = join(datasetDir, authoredDir(gameSystem));
@@ -110,9 +115,11 @@ export function readAuthored(datasetDir: string, gameSystem: string): AuthoredCo
   const referenceTargets = read<AuthoredCore['referenceTargets']>('reference-targets.json');
   const sampleList = read<NonNullable<AuthoredCore['sampleList']>>('sample-list.json');
   const effects = read<AuthoredEffect[]>(EFFECTS_FILE);
-  if (!battleSizes && !referenceTargets && !sampleList && !effects) return undefined;
+  const allyRules = read<AuthoredAllyRule[]>(ALLY_RULES_FILE);
+  if (!battleSizes && !referenceTargets && !sampleList && !effects && !allyRules) return undefined;
   return {
     battleSizes: battleSizes ?? [],
+    ...(allyRules ? { allyRules } : {}),
     referenceTargets: referenceTargets ?? [],
     ...(sampleList ? { sampleList } : {}),
     ...(effects ? { effects } : {}),
@@ -126,6 +133,7 @@ export function pointsAt(u: Unit, models: number): number {
 
 export interface ResolvedCore {
   battleSizes: BattleSize[];
+  allyRules: AllyRule[];
   referenceTargets: ReferenceTarget[];
   sampleList?: SampleList;
   /** « army › Unit » introuvables dans le Dataset construit. */
@@ -169,12 +177,42 @@ export function resolveAuthored(authored: AuthoredCore | undefined, armies: Map<
     sampleList = { armyId: s.army, name: s.name, detachment: s.detachment, battleSize: s.battleSize, points: units.reduce((n, u) => n + u.points, 0), units };
   }
 
+  const allyRules = (authored?.allyRules ?? []).map(({ reason: _reason, ...rule }) => {
+    unresolved.push(...allyRuleOrphans(rule, armies));
+    return rule;
+  });
+
   return {
     battleSizes: [...(authored?.battleSizes ?? [])].sort((a, b) => a.points - b.points),
+    allyRules,
     referenceTargets,
     ...(sampleList ? { sampleList } : {}),
     unresolved,
   };
+}
+
+/**
+ * Ce qu'une Ally Rule désigne et que le Dataset construit n'a plus : une Army,
+ * un Keyword que ne porte aucune Unit, une Unit nommée. Une règle qui ne vise
+ * plus rien ne fait rien, sans bruit : il faut le dire.
+ */
+function allyRuleOrphans(rule: AllyRule, armies: Map<string, Unit[]>): string[] {
+  const all = [...armies.values()].flat();
+  const keywords = new Set(all.flatMap((u) => [...u.keywords, ...u.factionKeywords]));
+  const names = new Set(all.map((u) => u.name));
+  const keywordsOfRule = [
+    ...(rule.requires ?? []),
+    ...(rule.admits.factionKeywords ?? []),
+    ...(rule.admits.keywords ?? []),
+    ...(rule.limits ?? []).flatMap((l) => (l.units ?? []).map((u) => u.keyword)),
+    ...(rule.modelsOneOf ?? []).map((m) => m.keyword),
+    ...(rule.battlelineRatio ?? []),
+  ];
+  return [
+    ...[...(rule.armies ?? []), ...(rule.exceptArmies ?? [])].filter((a) => !armies.has(a)).map((a) => `${rule.name} › Army ${a}`),
+    ...[...new Set(keywordsOfRule)].filter((k) => !keywords.has(k)).map((k) => `${rule.name} › Keyword ${k}`),
+    ...(rule.admits.units ?? []).filter((n) => !names.has(n)).map((n) => `${rule.name} › Unit ${n}`),
+  ];
 }
 
 /** Ce qu'une Contribution porte pour une Wargear Option, et seulement pour elle. */

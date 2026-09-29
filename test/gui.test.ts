@@ -363,6 +363,16 @@ try {
       onlyCustodes.some((h) => h.army === 'adeptus-custodes') && onlyCustodes.every((h) => h.army === 'adeptus-custodes' || h.army === 'core') &&
         everyArmy.some((h) => h.army === 'orks'),
     );
+    const offered = await at<SearchHit[]>('/api/search?q=navi&army=astra-militarum');
+    check(
+      'filtrée sur une Army, la recherche trouve une Unit qu\'elle propose sans la posséder, sous l\'Army qui la possède (#145)',
+      offered.length === 1 && offered[0].name === 'Navigator' && offered[0].army === 'agents-of-the-imperium' && offered[0].armyName === 'Agents of the Imperium' && offered[0].target === 'u-navigator',
+      JSON.stringify(offered),
+    );
+    const opened = await at<Sheet>(`/api/sheet?target=${offered[0]?.target}`);
+    check('le résultat ouvre la fiche unique, dans l\'Army propriétaire', opened.kind === 'unit' && opened.army === 'agents-of-the-imperium', `${opened.kind} · ${opened.army}`);
+    const unfiltered = await at<SearchHit[]>('/api/search?q=navi');
+    check('sans filtre, une Unit proposée par plusieurs Armies ne sort qu\'une fois', unfiltered.filter((h) => h.name === 'Navigator').length === 1, JSON.stringify(unfiltered));
     const kinds = new Set([...everyArmy, ...(await at<SearchHit[]>('/api/search?q=core'))].map((h) => h.kind));
     check('la recherche trouve Units, Detachments, Stratagems et Core', ['unit', 'detachment', 'stratagem', 'core'].every((k) => kinds.has(k as SearchHit['kind'])), [...kinds].join());
     const core = await at<Sheet>('/api/sheet?target=core');

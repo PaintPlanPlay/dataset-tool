@@ -11,9 +11,9 @@
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { canonicalWeaponKeyword, SIMULATED_CONDITIONS, SIMULATED_MODIFIERS, UNIT_MODIFIERS, type ArmyFile, type BattleSize, type CoreFile, type Detachment, type Enhancement, type OptionGroup, type Stratagem, type Unit, type Weapon, type WeaponOption } from '@paintplanplay/dataset-schema';
+import { canonicalWeaponKeyword, SIMULATED_CONDITIONS, SIMULATED_MODIFIERS, UNIT_MODIFIERS, type AllyRule, type ArmyFile, type BattleSize, type CoreFile, type Detachment, type Enhancement, type OptionGroup, type Stratagem, type Unit, type Weapon, type WeaponOption } from '@paintplanplay/dataset-schema';
 import { validateDef, validateFile, type FieldError } from '@paintplanplay/dataset-schema/validate';
-import { authoredDir, authoredEffectProblems, EFFECTS_FILE, fingerprint, type AuthoredEffect } from '../authored.ts';
+import { ALLY_RULES_FILE, authoredDir, authoredEffectProblems, EFFECTS_FILE, fingerprint, type AuthoredAllyRule, type AuthoredEffect } from '../authored.ts';
 import { parseRangeInches } from '../bsdata/flatten.ts';
 import { weaponRef } from '../bsdata/types.ts';
 import { ADD, CORE_ROOT, DELETE, parseTarget } from '../corrections/apply.ts';
@@ -40,7 +40,7 @@ const SECTION_SOURCES: Record<Inspection['kind'], Record<string, Origin>> = {
     name: 'bsdata', isLegends: 'bsdata', ally: 'bsdata', keywords: 'bsdata', factionKeywords: 'bsdata', armyRules: 'bsdata',
     models: 'bsdata', composition: 'bsdata', minModels: 'bsdata', maxModels: 'bsdata', defaultModels: 'bsdata',
     weapons: 'bsdata', optionGroups: 'bsdata', defaultLoadout: 'bsdata', abilities: 'project',
-    points: 'mfm', costBrackets: 'mfm', pricing: 'mfm', wargear: 'mfm', leaderTargets: 'mfm', supportTargets: 'mfm',
+    points: 'mfm', costBrackets: 'mfm', pricing: 'mfm', assignedPricing: 'mfm', wargear: 'mfm', leaderTargets: 'mfm', supportTargets: 'mfm',
   },
   detachment: { name: 'mfm', dp: 'mfm', forceDispositions: 'mfm', uniqueTag: 'mfm', rules: 'project', enhancements: '40kdc' },
   stratagem: {
@@ -48,13 +48,13 @@ const SECTION_SOURCES: Record<Inspection['kind'], Record<string, Origin>> = {
     modifiers: 'project', options: 'project', summary: 'project',
   },
   armyRule: { name: 'bsdata', modifiers: 'project', options: 'project', summary: 'project' },
-  core: { battleSizes: 'project', stratagems: '40kdc' },
+  core: { battleSizes: 'project', allyRules: 'project', stratagems: '40kdc' },
 };
 
 /** Champs d'Unit corrigés à même l'Unit, par source. Les autres ont leur propre adresse ou sont dérivés. */
 const UNIT_FIELDS: Record<string, Source> = {
   name: 'bsdata', isLegends: 'bsdata', ally: 'bsdata', keywords: 'bsdata', factionKeywords: 'bsdata', armyRules: 'bsdata',
-  composition: 'bsdata', optionGroups: 'bsdata', defaultLoadout: 'bsdata', pricing: 'mfm', wargear: 'mfm',
+  composition: 'bsdata', optionGroups: 'bsdata', defaultLoadout: 'bsdata', pricing: 'mfm', assignedPricing: 'mfm', wargear: 'mfm',
 };
 const DETACHMENT_FIELDS: Record<string, Source> = { name: 'mfm', dp: 'mfm', forceDispositions: 'mfm', uniqueTag: 'mfm' };
 const ENHANCEMENT_FIELDS: Record<string, Source> = {
@@ -180,6 +180,7 @@ export function checkDraft(kind: Inspection['kind'], draft: unknown): DraftCheck
     const core = (draft ?? {}) as Partial<CoreFile>;
     errors = [
       ...(Array.isArray(core.battleSizes) ? core.battleSizes.flatMap((b, i) => validateDef('battleSize', b).map((e) => ({ ...e, path: `/battleSizes/${i}${e.path}` }))) : [{ path: '/battleSizes', message: 'must be array' }]),
+      ...(core.allyRules === undefined ? [] : Array.isArray(core.allyRules) ? core.allyRules.flatMap((r, i) => validateDef('allyRule', r).map((e) => ({ ...e, path: `/allyRules/${i}${e.path}` }))) : [{ path: '/allyRules', message: 'must be array' }]),
       ...(Array.isArray(core.stratagems) ? core.stratagems.flatMap((s, i) => validateDef('stratagem', s).map((e) => ({ ...e, path: `/stratagems/${i}${e.path}` }))) : [{ path: '/stratagems', message: 'must be array' }]),
     ];
   } else errors = validateDef(kind === 'armyRule' ? 'rule' : kind, draft);
@@ -213,6 +214,7 @@ interface Plan {
   corrections: CorrectionChange[];
   contributions: ContributionChange[];
   battleSizes?: BattleSize[];
+  allyRules?: AllyRule[];
 }
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'x';
@@ -430,6 +432,7 @@ function armyRulePlan(target: string, current: Value, draft: Value): Plan {
 function corePlan(current: CoreFile, upstream: CoreFile | undefined, draft: CoreFile): Plan {
   const plan: Plan = { corrections: [], contributions: [] };
   if (!same(current.battleSizes, draft.battleSizes)) plan.battleSizes = draft.battleSizes;
+  if (!same(current.allyRules ?? [], draft.allyRules ?? [])) plan.allyRules = draft.allyRules ?? [];
   for (const [was, now] of pair(current.stratagems, draft.stratagems, (s) => s.id).kept) {
     const sub = stratagemPlan(CORE_ROOT, was, upstream?.stratagems.find((s) => s.id === was.id), now);
     plan.corrections.push(...sub.corrections);
@@ -607,6 +610,18 @@ export async function saveSheet(ws: Workspace, input: SaveInput): Promise<{ file
     if (text.length) throw new ApiError(400, 'rules text refused', text.map((t) => `${t.where} ${t.reason}`));
     // Les Battle Sizes sont à nous : une Contribution, comme un Effect.
     writes.push({ path: `${authoredDir(ws.gameSystem)}/battle-sizes.json`, content: toJson([...plan.battleSizes].sort((a, b) => a.points - b.points)), kind: 'contribution' });
+  }
+
+  if (plan.allyRules) {
+    const text = findRulesText(plan.allyRules);
+    if (text.length) throw new ApiError(400, 'rules text refused', text.map((t) => `${t.where} ${t.reason}`));
+    // Les Ally Rules sont à nous (ADR 0013) ; chacune garde la raison qu'on lui avait écrite.
+    const path = `${authoredDir(ws.gameSystem)}/${ALLY_RULES_FILE}`;
+    const before = existsSync(join(ws.datasetDir, path)) ? (JSON.parse(readFileSync(join(ws.datasetDir, path), 'utf8')) as AuthoredAllyRule[]) : [];
+    const next = [...plan.allyRules]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((r) => ({ ...r, reason: before.find((b) => b.id === r.id)?.reason ?? 'Written in the Dataset Tool.' }));
+    writes.push({ path, content: next.length ? toJson(next) : null, kind: 'contribution' });
   }
 
   for (const w of writes) {

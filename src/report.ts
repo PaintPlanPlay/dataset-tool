@@ -51,6 +51,10 @@ export interface DriftReport {
   unsimulated: BuildOutput['unsimulated'];
   /** Les lignes `wargear` du MFM qu'aucune Wargear Option ne facture, et les liens manuels qui ne visent plus rien. */
   wargear: BuildOutput['wargear'];
+  /** Ce que les fichiers écrits par le projet nomment et que la construction n'a plus : cibles, List d'exemple, Ally Rules. */
+  unresolvedAuthored: string[];
+  /** Lignes du MFM écartées parce qu'une autre porte déjà leur nom dans la même faction. */
+  mfmDuplicates: BuildOutput['mfmDuplicates'];
   sources: DatasetIndex['sources'];
   previousSources: DatasetIndex['sources'];
 }
@@ -171,6 +175,8 @@ export function makeReport(out: BuildOutput, previous: Map<string, unknown> | un
     unresolvedContributions: out.contributions.filter((c) => c.state === 'unresolved'),
     unsimulated: out.unsimulated,
     wargear: out.wargear,
+    unresolvedAuthored: out.unresolvedAuthored,
+    mfmDuplicates: out.mfmDuplicates,
     sources: index.sources,
     previousSources: previousIndex?.sources ?? [],
   };
@@ -281,6 +287,18 @@ export function renderReport(r: DriftReport): string {
     L.push(`## Wargear costs not linked (${r.wargear.length})`, '');
     L.push('An MFM `wargear` line bills nothing until a Wargear Option points to it. Link it by hand in the Dataset Tool, or correct the MFM line.', '');
     L.push(...bounded(r.wargear, 80, (f) => `- **${f.unit}** · ${f.army} — \`${f.item}\`: ${WARGEAR_LABEL[f.kind]}${f.options.length ? ` (${f.options.join(', ')})` : ''}`), '');
+  }
+
+  if (r.unresolvedAuthored.length) {
+    L.push(`## Authored entries not found (${r.unresolvedAuthored.length})`, '');
+    L.push('A default target, the sample list or an ally rule names something this build no longer has: it applies nothing until it is fixed.', '');
+    L.push(...bounded(r.unresolvedAuthored, 40, (m) => `- ${m}`), '');
+  }
+
+  if (r.mfmDuplicates.length) {
+    L.push(`## MFM duplicates dropped (${r.mfmDuplicates.length})`, '');
+    L.push('The MFM lists these names twice in one faction; only the first line is kept. Only the Assigned Agent cost is read from a second line.', '');
+    L.push(...bounded(r.mfmDuplicates, 40, (d) => `- ${d.name} · ${d.faction}${d.groupTitle ? ` — under “${d.groupTitle}”` : ''}`), '');
   }
 
   if (r.unmatched.length) {

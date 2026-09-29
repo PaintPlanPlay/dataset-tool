@@ -1,0 +1,31 @@
+name: Imperial Agents
+slug: imperial-agents
+version: "1.4"
+firstSeen: 2026-09-02
+units:
+  - name: Navigator
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 1, points: 60 }
+  # Le coût d'Assigned Agent : la même Unit, sous l'intertitre de la règle.
+  - name: Navigator
+    groupTitle: Every Model Has The Imperium Keyword
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 1, points: 75 }
+  # Un doublon que rien n'explique : il doit être signalé, jamais écarté en silence.
+  - name: Rogue Trader Entourage
+    pricing:
+      - range: "[1,)"
+        costs:
+          - { models: 4, points: 75 }
+  - name: Rogue Trader Entourage
+    groupTitle: Mystery Heading
+    pricing:
+      - range: "[1,)"
+        costs:
+          - { models: 4, points: 90 }

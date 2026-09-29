@@ -76,6 +76,8 @@ async function main(): Promise<void> {
     );
     if (out.unresolvedAuthored.length) console.log(`Units not found for authored/: ${out.unresolvedAuthored.join(', ')}`);
     if (out.armiesWithoutMfm.length) console.log(`Armies with no MFM faction: ${out.armiesWithoutMfm.join(', ')}`);
+    for (const d of out.mfmDuplicates)
+      console.log(`MFM duplicate dropped: ${d.faction} › ${d.name}${d.groupTitle ? ` (under “${d.groupTitle}”)` : ''}`);
     return;
   }
 

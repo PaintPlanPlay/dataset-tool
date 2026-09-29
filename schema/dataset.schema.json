@@ -549,6 +549,12 @@
             "$ref": "#/$defs/priceBand"
           }
         },
+        "assignedPricing": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/priceBand"
+          }
+        },
         "wargear": {
           "type": "array",
           "items": {
@@ -1105,6 +1111,12 @@
             "$ref": "#/$defs/battleSize"
           }
         },
+        "allyRules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/allyRule"
+          }
+        },
         "referenceTargets": {
           "type": "array",
           "items": {
@@ -1578,6 +1590,148 @@
       },
       "required": [
         "item"
+      ],
+      "additionalProperties": false
+    },
+    "allyLimit": {
+      "type": "object",
+      "properties": {
+        "battleSize": {
+          "type": "integer"
+        },
+        "units": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyword": {
+                "$ref": "#/$defs/name"
+              },
+              "max": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "keyword",
+              "max"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "points": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "battleSize"
+      ],
+      "additionalProperties": false
+    },
+    "allyRule": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "armies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "exceptArmies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
+        },
+        "admits": {
+          "type": "object",
+          "properties": {
+            "factionKeywords": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/name"
+              }
+            },
+            "keywords": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/name"
+              }
+            },
+            "units": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/name"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "limits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/allyLimit"
+          }
+        },
+        "modelsOneOf": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyword": {
+                "$ref": "#/$defs/name"
+              },
+              "max": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "keyword",
+              "max"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "battlelineRatio": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
+        },
+        "noWarlord": {
+          "const": true
+        },
+        "noEnhancements": {
+          "const": true
+        },
+        "assignedCost": {
+          "const": true
+        },
+        "armyRulesInactive": {
+          "const": true
+        },
+        "transportReminder": {
+          "const": true
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "admits"
       ],
       "additionalProperties": false
     }

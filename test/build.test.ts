@@ -11,6 +11,7 @@ import type { ArmyFile, DatasetIndex, Unit } from '@paintplanplay/dataset-schema
 import { kindOfPath } from '@paintplanplay/dataset-schema';
 import { validateDatasetDir, validateFile } from '@paintplanplay/dataset-schema/validate';
 import { build } from '../src/build.ts';
+import { makeReport, renderReport } from '../src/report.ts';
 import { readRegistry, toJson, writeDataset } from '../src/dataset.ts';
 import { openSnapshot } from '../src/snapshot.ts';
 import { check, fixture, section } from './check.ts';
@@ -31,7 +32,7 @@ check('le registre ne bouge pas à la seconde construction', toJson(first.ids) =
 const index = first.files.get(`${GS}/index.json`) as DatasetIndex;
 check(
   'Armies rangées par Game System, avec un identifiant à nous',
-  index.armies.map((a) => a.id).join(',') === 'adeptus-custodes,astra-militarum,orks,orks-freebooterz,space-marines',
+  index.armies.map((a) => a.id).join(',') === 'adeptus-custodes,agents-of-the-imperium,astra-militarum,orks,orks-freebooterz,space-marines',
   index.armies.map((a) => a.id).join(','),
 );
 check('une Unit garde son identifiant BSData', unit(first, 'orks', 'Boyz')?.id === 'u-boyz');
@@ -90,6 +91,30 @@ check(
 check(
   'un désaccord sur une Unit alliée ne se signale qu\'une fois, sous l\'Army qui la possède',
   first.conflicts.filter((c) => c.id === 'u-boyz' && c.field === 'points').map((c) => c.army).join() === 'orks',
+);
+
+section('Construction : coût d\'Assigned Agent (#143)');
+const navigator = unit(first, 'agents-of-the-imperium', 'Navigator');
+const navigatorAlly = unit(first, 'astra-militarum', 'Navigator');
+check('le coût d\'une Unit reste celui de son codex', navigator.points === 60 && navigator.pricing?.[0].costs[0].points === 60, `${navigator.points}`);
+check(
+  'la ligne « Every Model Has The Imperium Keyword » devient le coût d\'Assigned Agent',
+  JSON.stringify(navigator.assignedPricing) === JSON.stringify([{ from: 1, to: null, costs: [{ models: 1, points: 75 }] }]),
+  JSON.stringify(navigator.assignedPricing),
+);
+check(
+  'une Unit n\'a qu\'une fiche : la même dans chaque Army qui l\'aligne',
+  navigatorAlly.points === 60 && JSON.stringify(navigatorAlly.assignedPricing) === JSON.stringify(navigator.assignedPricing),
+);
+check(
+  'un doublon de nom inexpliqué dans le MFM est signalé',
+  first.mfmDuplicates.some((d) => d.faction === 'imperial-agents' && d.name === 'Rogue Trader Entourage' && d.groupTitle === 'Mystery Heading'),
+  JSON.stringify(first.mfmDuplicates),
+);
+check('un doublon expliqué n\'est pas signalé', !first.mfmDuplicates.some((d) => d.name === 'Navigator'));
+check(
+  'le rapport de build liste les doublons écartés',
+  /## MFM duplicates dropped \(1\)[\s\S]*Rogue Trader Entourage · imperial-agents — under “Mystery Heading”/.test(renderReport(makeReport(first, undefined))),
 );
 
 section('Construction : BSData pour le reste de l\'Unit');

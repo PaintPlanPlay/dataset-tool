@@ -20,10 +20,10 @@ import { StatusColumn } from './StatusColumn.tsx';
 function sheetSchema(schemas: SchemaSet, kind: Inspection['kind']): Located {
   if (kind === 'armyRule') return schemas.def('rule');
   if (kind !== 'core') return schemas.def(kind);
-  // L'entrée Core : les Battle Sizes et les Stratagems Core de `core.json`.
+  // L'entrée Core : les Battle Sizes, les Ally Rules et les Stratagems Core de `core.json`.
   const core = schemas.def('coreFile');
   const props = core.schema.properties ?? {};
-  return { schema: { type: 'object', properties: { battleSizes: props.battleSizes, stratagems: props.stratagems } }, base: core.base };
+  return { schema: { type: 'object', properties: { battleSizes: props.battleSizes, allyRules: props.allyRules, stratagems: props.stratagems } }, base: core.base };
 }
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

@@ -62,6 +62,45 @@ const bare = await build({ snapshot: openSnapshot(fixture('snapshot')) });
 const bareCore = bare.files.get('wh40k-11e/core.json') as CoreFile;
 check('sans fichiers écrits par le projet : listes vides, pas de List d\'exemple', bareCore.battleSizes.length === 0 && bareCore.referenceTargets.length === 0 && !bareCore.sampleList);
 
+section('Écrit par le projet : Ally Rules (#143, ADR 0013)');
+const assignedAgents = {
+  id: 'assigned-agents',
+  name: 'Assigned Agents',
+  exceptArmies: ['agents-of-the-imperium'],
+  requires: ['Imperium'],
+  admits: { factionKeywords: ['Agents of the Imperium'] },
+  assignedCost: true as const,
+  reason: 'Règle d\'armée des Agents of the Imperium.',
+};
+const withRules = await build({
+  snapshot: openSnapshot(fixture('snapshot')),
+  authored: {
+    battleSizes: [],
+    referenceTargets: [],
+    allyRules: [
+      assignedAgents,
+      { id: 'lost', name: 'Lost Rule', armies: ['no-such-army'], admits: { keywords: ['No Such Keyword'], units: ['Unit That Never Was'] }, reason: 'Test.' },
+    ],
+  },
+});
+const rulesCore = withRules.files.get('wh40k-11e/core.json') as CoreFile;
+const published = rulesCore.allyRules?.find((r) => r.id === 'assigned-agents');
+check(
+  'une Ally Rule est publiée dans core.json, sans sa raison',
+  published?.name === 'Assigned Agents' && published.assignedCost === true && published.admits.factionKeywords?.join() === 'Agents of the Imperium' && !('reason' in published),
+  JSON.stringify(published),
+);
+check('core.json avec Ally Rules conforme au schéma', validateFile('core', rulesCore).length === 0, JSON.stringify(validateFile('core', rulesCore)));
+check(
+  'une Ally Rule qui désigne une Army, un Keyword ou une Unit disparus est signalée',
+  ['Lost Rule › Army no-such-army', 'Lost Rule › Keyword No Such Keyword', 'Lost Rule › Unit Unit That Never Was'].every((m) => withRules.unresolvedAuthored.includes(m)),
+  withRules.unresolvedAuthored.join(' | '),
+);
+check('une Ally Rule dont tout existe n\'est pas signalée', !withRules.unresolvedAuthored.some((m) => m.startsWith('Assigned Agents')));
+check('le rapport de build liste ce qu\'une Ally Rule vise et qui n\'existe plus',
+  /## Authored entries not found \(3\)[\s\S]*Lost Rule › Army no-such-army/.test(renderReport(makeReport(withRules, undefined))));
+check('sans Ally Rules, core.json n\'en porte pas', !bareCore.allyRules);
+
 section('Écrit par le projet : Modifiers et Descriptions');
 const withEffects = await build({
   snapshot: openSnapshot(fixture('snapshot')),

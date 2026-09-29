@@ -29,7 +29,15 @@ export interface MfmUnit {
   supportTo?: string[];
   wargear?: { item: string; points: number }[];
   legends?: boolean;
+  /** Intertitre sous lequel le MFM range la ligne (« Space Marines », « Every Model Has The Imperium Keyword »). */
+  groupTitle?: string;
 }
+
+/**
+ * L'intertitre sous lequel le MFM publie, en doublon de sa ligne normale, le
+ * coût d'Assigned Agent d'une Unit des Agents of the Imperium.
+ */
+export const ASSIGNED_AGENT_HEADING = 'Every Model Has The Imperium Keyword';
 
 export interface MfmEnhancement {
   name: string;
@@ -93,6 +101,7 @@ export interface RawFaction {
     attachTo?: Names;
     wargear?: { item: string; points: number }[];
     legends?: boolean;
+    groupTitle?: string;
   }[];
 }
 
@@ -144,6 +153,7 @@ export function readFaction(raw: RawFaction): MfmFaction {
         ...(supportTo?.length ? { supportTo } : {}),
         ...(u.wargear?.length ? { wargear: u.wargear } : {}),
         ...(u.legends ? { legends: true } : {}),
+        ...(u.groupTitle ? { groupTitle: u.groupTitle } : {}),
       };
     }),
   };
@@ -202,7 +212,12 @@ export function pricedFields(pricing: { costs: { models: number; points: number 
 
 export function applyMfm(units: CatalogueUnit[], factions: MfmFaction[]): { units: CatalogueUnit[]; report: MergeReport } {
   const index = new Map<string, MfmUnit>();
-  for (const f of factions) for (const u of f.units) if (!index.has(mfmKey(u.name))) index.set(mfmKey(u.name), u);
+  const assigned = new Map<string, MfmUnit>();
+  for (const f of factions)
+    for (const u of f.units) {
+      const into = u.groupTitle === ASSIGNED_AGENT_HEADING ? assigned : index;
+      if (!into.has(mfmKey(u.name))) into.set(mfmKey(u.name), u);
+    }
 
   const report: MergeReport = { matched: 0, unmatched: [], conflicts: [] };
 
@@ -225,6 +240,8 @@ export function applyMfm(units: CatalogueUnit[], factions: MfmFaction[]): { unit
     if (priced) next.costBrackets = priced.costBrackets;
 
     if (m.wargear?.length) next.wargear = m.wargear;
+    const a = assigned.get(mfmKey(unit.name));
+    if (a?.pricing.length) next.assignedPricing = a.pricing;
 
     // Le MFM liste les rattachements de chaque Unit qui en a : son silence dit « aucun ».
     const leader = m.leaderTo ?? [];
@@ -244,4 +261,30 @@ export function applyMfm(units: CatalogueUnit[], factions: MfmFaction[]): { unit
   });
 
   return { units: out, report };
+}
+
+/** Une ligne du MFM écartée parce qu'une autre, dans la même faction, porte déjà son nom. */
+export interface MfmDuplicate {
+  faction: string;
+  name: string;
+  groupTitle?: string;
+}
+
+/**
+ * Les doublons de nom qu'on ne sait pas lire : une seule ligne par nom et par
+ * faction est retenue, la suivante disparaîtrait sans trace. Le coût
+ * d'Assigned Agent est le seul doublon expliqué.
+ */
+export function mfmDuplicates(factions: MfmFaction[]): MfmDuplicate[] {
+  const out: MfmDuplicate[] = [];
+  for (const f of factions) {
+    const seen = new Set<string>();
+    for (const u of f.units) {
+      if (u.groupTitle === ASSIGNED_AGENT_HEADING) continue;
+      const key = mfmKey(u.name);
+      if (seen.has(key)) out.push({ faction: f.slug, name: u.name, ...(u.groupTitle ? { groupTitle: u.groupTitle } : {}) });
+      seen.add(key);
+    }
+  }
+  return out;
 }

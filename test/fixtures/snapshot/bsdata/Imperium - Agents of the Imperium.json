@@ -1,0 +1,29 @@
+{
+  "catalogue": {
+    "name": "Imperium - Agents of the Imperium",
+    "id": "cat-agents",
+    "library": false,
+    "entryLinks": [
+      { "id": "l-navigator", "name": "Navigator", "targetId": "u-navigator", "type": "selectionEntry" }
+    ],
+    "sharedSelectionEntries": [
+      {
+        "id": "u-navigator",
+        "name": "Navigator",
+        "type": "model",
+        "costs": [{ "name": "pts", "typeId": "pts", "value": 55 }],
+        "categoryLinks": [{ "name": "Infantry" }, { "name": "Character" }, { "name": "Imperium" }, { "name": "Faction: Agents of the Imperium" }],
+        "profiles": [
+          {
+            "name": "Navigator",
+            "typeName": "Unit",
+            "characteristics": [
+              { "name": "M", "$text": "6\"" }, { "name": "T", "$text": "3" }, { "name": "Sv", "$text": "5+" },
+              { "name": "W", "$text": "3" }, { "name": "LD", "$text": "6+" }, { "name": "OC", "$text": "1" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

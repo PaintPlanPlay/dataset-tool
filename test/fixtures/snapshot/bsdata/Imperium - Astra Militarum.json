@@ -3,6 +3,7 @@
     "name": "Imperium - Astra Militarum",
     "id": "cat-astra-militarum",
     "library": false,
+    "catalogueLinks": [{ "name": "Imperium - Agents of the Imperium", "importRootEntries": true }],
     "entryLinks": [
       {
         "id": "l-exterminator",
