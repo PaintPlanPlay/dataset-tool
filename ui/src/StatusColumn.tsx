@@ -253,13 +253,22 @@ function AskForm({ button, onCancel, onSubmit }: { button: ButtonState; onCancel
         onSubmit(values);
       }}
     >
-      {button.asks.map((f) => (
-        <label key={f.name}>
-          <span className="field-label">{f.label}</span>
-          <input value={values[f.name] ?? ''} onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))} />
-          <small>{f.hint}</small>
-        </label>
-      ))}
+      {button.asks.map((f) =>
+        f.kind === 'checkbox' ? (
+          <label key={f.name} className="ask-check">
+            <span>
+              <input type="checkbox" checked={values[f.name] === 'true'} onChange={(e) => setValues((v) => ({ ...v, [f.name]: String(e.target.checked) }))} /> {f.label}
+            </span>
+            <small>{f.hint}</small>
+          </label>
+        ) : (
+          <label key={f.name}>
+            <span className="field-label">{f.label}</span>
+            <input value={values[f.name] ?? ''} onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))} />
+            <small>{f.hint}</small>
+          </label>
+        ),
+      )}
       <div className="ask-actions">
         <button type="button" onClick={onCancel}>
           Cancel

@@ -195,6 +195,16 @@ try {
       release.includes('checkout main') && release.includes('pull --ff-only') && release.includes('release --dataset') && release.includes('push --follow-tags'),
       release.slice(0, 140),
     );
+    const jsdelivr = { releaseUrl: 'https://cdn.jsdelivr.net/gh/Owner/dataset@{tag}/' };
+    const purged = jobSpecs(wsVide, jsdelivr).find((j) => j.name === 'release')!.args[1];
+    const kept = jobSpecs(wsVide, { ...jsdelivr, purgeCdn: 'false' }).find((j) => j.name === 'release')!.args[1];
+    check(
+      'publier purge par défaut le manifeste chez jsDelivr, après le push ; décoché, rien',
+      purged.includes('https://purge.jsdelivr.net/gh/Owner/dataset@main/manifest.json') &&
+        purged.indexOf('purge.jsdelivr') > purged.indexOf('push --follow-tags') &&
+        !kept.includes('purge.jsdelivr') &&
+        !jobSpecs(wsVide, { releaseUrl: 'https://cdn.example/{tag}/' }).find((j) => j.name === 'release')!.args[1].includes('purge'),
+    );
     check(
       'se mettre à jour revient sur main : on ne publie jamais depuis une branche en attente',
       jobSpecs(wsVide).find((j) => j.name === 'update')!.args.join(' ').includes('checkout main'),
