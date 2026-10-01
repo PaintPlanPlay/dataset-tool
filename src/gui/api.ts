@@ -244,7 +244,7 @@ export function publishRight(datasetDir: string): string | null {
 
 /** Ce qu'une tâche demande avant de partir, posé par la page dans sa modale. */
 export interface JobField {
-  name: 'dataslate' | 'releaseUrl' | 'title';
+  name: 'dataslate' | 'mfmVersion' | 'releaseUrl' | 'title';
   label: string;
   /** Ce que c'est, pour qui ne le sait pas : la modale l'affiche sous le libellé. */
   hint: string;
@@ -316,6 +316,7 @@ export function jobSpecs(
   const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Dataset changes';
   const branch = `dataset/${slug(title)}`;
   const releaseUrl = typeof body.releaseUrl === 'string' ? body.releaseUrl : '';
+  const mfmVersion = typeof body.mfmVersion === 'string' ? body.mfmVersion.trim() : '';
   const proposition = dataslateProposal(ws);
 
   return [
@@ -410,6 +411,14 @@ export function jobSpecs(
           value: proposition?.id ?? dataslate,
         },
         {
+          name: 'mfmVersion',
+          label: 'MFM version these points follow',
+          hint: `The Munitorum Field Manual this Dataset applies${
+            proposition ? ` — MFM ${proposition.mfmVersion} as far as the tool knows` : ''
+          }. Entered a newer MFM by hand before BSData did? Put its version here (e.g. 1.5) and name the rules period after it (mfm-1-5).`,
+          value: mfmVersion || proposition?.mfmVersion || '',
+        },
+        {
           name: 'releaseUrl',
           label: 'Address the apps will read this release from',
           hint: 'A CDN serving your repository at the release tag. Taken from the repository itself — leave it unless you serve the files elsewhere.',
@@ -427,7 +436,7 @@ export function jobSpecs(
             'the Dataset folder could not be updated — it probably holds changes that are neither proposed nor discarded.',
           ],
           [
-            `npx tsx ${quote(CLI)} release --dataset ${ds()} --game-system ${arg(ws.gameSystem)}${dataslate ? ` --dataslate ${arg(dataslate)}` : ''}${
+            `npx tsx ${quote(CLI)} release --dataset ${ds()} --game-system ${arg(ws.gameSystem)}${dataslate ? ` --dataslate ${arg(dataslate)}` : ''}${mfmVersion ? ` --mfm-version ${arg(mfmVersion)}` : ''}${
               releaseUrl || defaultReleaseUrl(ws.datasetDir) ? ` --release-url ${arg(releaseUrl || defaultReleaseUrl(ws.datasetDir)!)}` : ''
             }`,
             'no Release was made — read the lines above. Without a confirmed rules period, the tool only proposes one and stops.',

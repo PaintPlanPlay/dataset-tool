@@ -27,14 +27,37 @@ export interface DataslateProposal {
 export const dataslateIdFor = (mfmVersion: string) =>
   `mfm-${mfmVersion.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
 
+/** Compare deux versions du MFM, « 1.10 » après « 1.9 ». */
+export function compareMfm(a: string, b: string): number {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d) return d;
+  }
+  return 0;
+}
+
+/**
+ * La Dataslate à proposer. Le MFM des Upstream Sources la désigne, sauf quand
+ * le mainteneur a pris de l'avance sur BSData — un nouveau MFM saisi à la main
+ * en Corrections — : la Dataslate courante, plus récente, reste alors proposée
+ * jusqu'à ce que la source la rattrape.
+ */
 export function proposeDataslate(sources: SourceRef[], manifest?: Manifest): DataslateProposal {
-  const mfmVersion = sources.find((s) => s.id === 'mfm')?.version;
-  if (!mfmVersion) throw new Error('the Dataset declares no MFM version: no Dataslate to propose');
+  const upstream = sources.find((s) => s.id === 'mfm')?.version;
+  if (!upstream) throw new Error('the Dataset declares no MFM version: no Dataslate to propose');
+  const current = manifest?.dataslates.find((d) => d.id === manifest.current && !d.frozen);
+  const mfmVersion = current && compareMfm(current.mfmVersion, upstream) > 0 ? current.mfmVersion : upstream;
   const known = manifest?.dataslates.find((d) => d.mfmVersion === mfmVersion);
   return known
     ? { id: known.id, name: known.name, mfmVersion, isNew: false }
     : { id: dataslateIdFor(mfmVersion), name: `MFM ${mfmVersion}`, mfmVersion, isNew: true };
 }
+
+/** Un id de Dataslate tel qu'on le saisit, ramené à sa forme : « MFM 1.5 » → « mfm-1-5 ». */
+export const slugId = (input: string) =>
+  input.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 /** La courante et les deux précédentes, dans l'ordre de publication. */
 export function offeredOf(dataslates: Dataslate[], current: string): string[] {
@@ -80,8 +103,9 @@ export function planRelease(previous: Manifest | undefined, input: ReleaseInput)
     const sameMfm = dataslates.find((d) => d.mfmVersion === input.dataslate.mfmVersion);
     if (sameMfm && !input.sameMfm)
       throw new Error(
-        `the Dataset was built from MFM ${sameMfm.mfmVersion}, which Dataslate ${sameMfm.id} already covers: publish into ${sameMfm.id}, ` +
-          `or confirm with --same-mfm that Games Workshop published a new Dataslate without a new MFM`,
+        `the Dataset was built from MFM ${sameMfm.mfmVersion}, which Dataslate ${sameMfm.id} already covers: publish into ${sameMfm.id}; ` +
+          `if you entered a newer MFM by hand, give its version (--mfm-version); ` +
+          `if Games Workshop published a new Dataslate without a new MFM, confirm with --same-mfm`,
       );
     // Une nouvelle Dataslate gèle celle qu'elle remplace.
     const replaced = dataslates.find((d) => !d.frozen);
@@ -167,6 +191,8 @@ export interface PublishOptions {
   /** Dataslate confirmée par le mainteneur ; absente, seule la proposition est rendue. */
   dataslate?: string;
   dataslateName?: string;
+  /** Le MFM que ce Dataset applique, quand il devance celui des Upstream Sources (saisi à la main). */
+  mfmVersion?: string;
   releaseUrl?: string;
   sameMfm?: boolean;
   now?: () => string;
@@ -194,13 +220,19 @@ export function publishRelease(options: PublishOptions): PublishResult {
   const proposal = proposeDataslate(index.sources, previous);
   if (!options.dataslate) return { status: 'proposal', proposal };
 
-  const existing = previous?.dataslates.find((d) => d.id === options.dataslate);
+  const upstream = index.sources.find((s) => s.id === 'mfm')!.version!;
+  const mfmVersion = options.mfmVersion?.trim().replace(/^mfm\s*/i, '') || proposal.mfmVersion;
+  if (!/^\d+(\.\d+)*$/.test(mfmVersion)) throw new Error(`"${options.mfmVersion}" is not an MFM version, such as 1.5`);
+  if (compareMfm(mfmVersion, upstream) < 0) throw new Error(`the MFM source is already at ${upstream}: this Dataset cannot apply MFM ${mfmVersion}`);
+  // « MFM 1.5 », « MFM-1-5 » : on retombe sur l'id que l'outil aurait proposé.
+  const id = slugId(options.dataslate);
+  const existing = previous?.dataslates.find((d) => d.id === id);
   const plan = planRelease(previous, {
     gameSystem,
     dataslate: {
-      id: options.dataslate,
-      name: existing?.name ?? options.dataslateName ?? proposal.name,
-      mfmVersion: proposal.mfmVersion,
+      id,
+      name: existing?.name ?? options.dataslateName ?? `MFM ${mfmVersion}`,
+      mfmVersion,
     },
     publishedAt: (options.now ?? (() => new Date().toISOString()))(),
     schemaVersion: index.schemaVersion,
