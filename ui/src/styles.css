@@ -284,6 +284,9 @@ select:disabled { background: var(--raised); opacity: 1; }
 .item:hover > .remove,
 .remove.visible { visibility: visible; }
 .list-title .add { margin-left: 8px; }
+.points-input { display: inline-flex; align-items: center; gap: 2px; }
+.points-input input { width: 8ch; }
+.points-input button { padding: 0 6px; line-height: 22px; font-size: 0.85em; }
 
 .add-field { align-self: flex-start; color: var(--muted); }
 

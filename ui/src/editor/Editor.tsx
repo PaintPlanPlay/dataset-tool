@@ -19,6 +19,28 @@ import { addedFieldOf, defaultOf, getAt, pointer, same, type Path } from './valu
 /** Champs dérivés au build : ils s'affichent, ils ne se saisissent pas. */
 const DERIVED = new Set(['points', 'costBrackets', 'minModels', 'maxModels', 'defaultModels', 'rangeInches', 'source', 'conditional', 'armyRuleIds', 'statuses']);
 
+/** Les points d'une Enhancement viennent du MFM tels quels : ils se corrigent, ils ne se dérivent pas. */
+const derivedAt = (path: Path) => {
+  const name = path[path.length - 1];
+  if (typeof name !== 'string' || !DERIVED.has(name)) return false;
+  return !(name === 'points' && path[path.length - 3] === 'enhancements');
+};
+
+/** Une valeur en points : assez large pour quatre chiffres, et ±5 d'un clic. */
+export function PointsInput({ value, onChange, min = 0 }: { value: number; onChange: (next: number) => void; min?: number }) {
+  return (
+    <span className="points-input">
+      <button type="button" title="−5 pts" onClick={() => onChange(Math.max(min, value - 5))}>
+        −5
+      </button>
+      <input type="number" min={min} value={value} onChange={(e) => onChange(Number(e.target.value) || 0)} />
+      <button type="button" title="+5 pts" onClick={() => onChange(value + 5)}>
+        +5
+      </button>
+    </span>
+  );
+}
+
 export interface EditorContext {
   schemas: SchemaSet;
   /** La valeur telle que chargée : ce qui en diffère porte la pastille orange. */
@@ -211,11 +233,10 @@ function ListField({ at, value, path, label, section }: FieldProps) {
   const items = (value as unknown[] | undefined) ?? [];
   const itemAt: Located = { schema: at.schema.items ?? {}, base: at.base };
   const itemKind = ctx.schemas.resolve(itemAt).schema;
-  const name = path[path.length - 1];
   // Une liste de mots (Keywords, phases, mots-clés d'arme) s'édite en étiquettes.
   const words = itemKind.type === 'string' || items.every((i) => typeof i === 'string' && items.length > 0);
   if (words && !itemKind.properties) return <TagsField value={items} path={path} label={label} section={section} itemAt={itemAt} />;
-  const derived = typeof name === 'string' && DERIVED.has(name);
+  const derived = derivedAt(path);
   return (
     <section className="list">
       {label && (
@@ -390,7 +411,7 @@ function ScalarField({ at, value, path, label }: FieldProps) {
   const listId = useId();
   const { schema } = at;
   const name = path[path.length - 1];
-  const derived = typeof name === 'string' && DERIVED.has(name);
+  const derived = derivedAt(path);
   const types = [schema.type].flat().filter((t): t is string => Boolean(t));
   const nullable = (schema as { nullable?: boolean }).nullable === true || types.includes('null');
   const type = types.find((t) => t !== 'null') ?? kindOf(value);
@@ -413,6 +434,7 @@ function ScalarField({ at, value, path, label }: FieldProps) {
         <span />
       </label>
     );
+  else if (name === 'points' && !derived && typeof value === 'number') control = <PointsInput value={value} onChange={set} />;
   else if (type === 'integer' || type === 'number')
     control = (
       <input
