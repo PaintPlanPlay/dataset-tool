@@ -51,6 +51,8 @@ export interface ReleaseInput {
   schemaVersion?: string;
   /** Obligatoire pour un premier manifeste ; ensuite, celui du manifeste. */
   releaseUrl?: string;
+  /** Ouvrir une nouvelle Dataslate sur un MFM qui en a déjà une : GW a publié une Dataslate sans nouveau MFM. */
+  sameMfm?: boolean;
 }
 
 export interface ReleasePlan {
@@ -73,6 +75,14 @@ export function planRelease(previous: Manifest | undefined, input: ReleaseInput)
   if (slate && slate.mfmVersion !== input.dataslate.mfmVersion)
     throw new Error(`Dataslate ${slate.id} matches MFM ${slate.mfmVersion}, not ${input.dataslate.mfmVersion}`);
   if (!slate) {
+    // Le plus souvent, c'est une erreur : le Dataset n'a pas été construit sur le
+    // MFM qu'on croit publier.
+    const sameMfm = dataslates.find((d) => d.mfmVersion === input.dataslate.mfmVersion);
+    if (sameMfm && !input.sameMfm)
+      throw new Error(
+        `the Dataset was built from MFM ${sameMfm.mfmVersion}, which Dataslate ${sameMfm.id} already covers: publish into ${sameMfm.id}, ` +
+          `or confirm with --same-mfm that Games Workshop published a new Dataslate without a new MFM`,
+      );
     // Une nouvelle Dataslate gèle celle qu'elle remplace.
     const replaced = dataslates.find((d) => !d.frozen);
     if (replaced) {
@@ -83,7 +93,10 @@ export function planRelease(previous: Manifest | undefined, input: ReleaseInput)
     dataslates.unshift(slate);
   }
 
-  const number = (slate.releases[0]?.number ?? 0) + 1;
+  // Un tag que le manifeste range déjà ailleurs n'est jamais repris.
+  const recorded = new Set(dataslates.flatMap((d) => d.releases.map((r) => r.tag)));
+  let number = (slate.releases[0]?.number ?? 0) + 1;
+  while (recorded.has(releaseTag(input.gameSystem, slate.id, number))) number++;
   const release: ReleaseRef = {
     tag: releaseTag(input.gameSystem, slate.id, number),
     number,
@@ -155,6 +168,7 @@ export interface PublishOptions {
   dataslate?: string;
   dataslateName?: string;
   releaseUrl?: string;
+  sameMfm?: boolean;
   now?: () => string;
 }
 
@@ -191,6 +205,7 @@ export function publishRelease(options: PublishOptions): PublishResult {
     publishedAt: (options.now ?? (() => new Date().toISOString()))(),
     schemaVersion: index.schemaVersion,
     ...(options.releaseUrl ? { releaseUrl: options.releaseUrl } : {}),
+    ...(options.sameMfm ? { sameMfm: true } : {}),
   });
   if (tagExists(git, plan.release.tag)) throw new Error(`tag ${plan.release.tag} already exists: a published Release is never rewritten`);
 

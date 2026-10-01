@@ -5,7 +5,7 @@
  *   dataset-tool fetch --out <dir>
  *   dataset-tool build --snapshot <dir> --dataset <dir> [--report <fichier.md>] [--game-system wh40k-11e]
  *   dataset-tool check --dataset <dir> [--game-system wh40k-11e]
- *   dataset-tool release --dataset <dir> [--dataslate <id>] [--dataslate-name <nom>] [--release-url <modèle {tag}>]
+ *   dataset-tool release --dataset <dir> [--dataslate <id>] [--dataslate-name <nom>] [--release-url <modèle {tag}>] [--same-mfm]
  *   dataset-tool repoint --dataset <dir> [--current <dataslate>] [--release <tag> [--dataslate <id>]]
  *   dataset-tool gui [--dataset <dir>] [--snapshot <dir>] [--port 4173]
  *                    [--host <adresse privée>|tailscale] [--repo <url>] [--allow-push]
@@ -111,6 +111,7 @@ async function main(): Promise<void> {
       ...(dataslate ? { dataslate } : {}),
       ...(optional('dataslate-name') ? { dataslateName: optional('dataslate-name')! } : {}),
       ...(optional('release-url') ? { releaseUrl: optional('release-url')! } : {}),
+      ...(process.argv.includes('--same-mfm') ? { sameMfm: true } : {}),
     });
     if (out.status === 'proposal') {
       const p = out.proposal;
