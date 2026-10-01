@@ -60,6 +60,13 @@ const misfiled = structuredClone(second.manifest);
 misfiled.dataslates[0].releases.unshift({ tag: 'wh40k-11e-mfm-1-5-r1', number: 3, publishedAt: '2026-09-02T00:00:00Z', schemaVersion: '1.0.0' });
 check('un tag que le manifeste range déjà ailleurs n\'est pas repris', planRelease(misfiled, input('1.5')).release.tag === 'wh40k-11e-mfm-1-5-r2');
 
+const ahead = planRelease(second.manifest, { ...input('1.4'), dataslate: { id: 'mfm-1-5', name: 'MFM 1.5', mfmVersion: '1.5' } }).manifest;
+check(
+  'MFM saisi à la main avant BSData : la Dataslate courante reste proposée tant que la source est en retard',
+  proposeDataslate(sources('1.4'), ahead).id === 'mfm-1-5' && proposeDataslate(sources('1.4'), ahead).mfmVersion === '1.5' && !proposeDataslate(sources('1.5'), ahead).isNew,
+);
+check('la source rattrape le MFM saisi : les Releases continuent dans la même Dataslate', planRelease(ahead, input('1.5')).release.tag === 'wh40k-11e-mfm-1-5-r2');
+
 const back = repoint(next.manifest, { release: 'wh40k-11e-mfm-1-5-r1' });
 const rolled = repoint(four, { current: 'mfm-1-5' });
 check('retour en arrière : repointer la Release lue, ou la Dataslate courante', back.dataslates[0].latest === 'wh40k-11e-mfm-1-5-r1' && rolled.offered.join() === 'mfm-1-5,mfm-1-4');
@@ -85,14 +92,25 @@ try {
     published.status === 'published' && git('tag', '-l').trim() === 'wh40k-11e-mfm-1-4-r1' && manifest.current === 'mfm-1-4' && git('status', '--porcelain') === '',
   );
 
+  const tags = git('tag', '-l');
+  check('une version du MFM plus ancienne que la source est refusée', throws(() => publishRelease({ dir, gameSystem: GS, dataslate: 'mfm-1-3', mfmVersion: '1.3' })) && git('tag', '-l') === tags);
+
   git('tag', 'wh40k-11e-mfm-1-4-r2');
   check('un tag déjà pris est refusé : une Release ne se réécrit pas', throws(() => publishRelease({ dir, gameSystem: GS, dataslate: 'mfm-1-4' })));
   git('tag', '-d', 'wh40k-11e-mfm-1-4-r2');
   publishRelease({ dir, gameSystem: GS, dataslate: 'mfm-1-4' });
-  const repointed = repointManifest(dir, { release: 'wh40k-11e-mfm-1-4-r1' });
+  const ahead = publishRelease({ dir, gameSystem: GS, dataslate: 'MFM-1-5', mfmVersion: 'MFM 1.5' });
+  const aheadManifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')) as Manifest;
+  check(
+    'MFM 1.5 saisi à la main sur des sources en 1.4 : id normalisé, Dataslate « MFM 1.5 »',
+    ahead.status === 'published' && ahead.release.tag === 'wh40k-11e-mfm-1-5-r1' && aheadManifest.dataslates[0].name === 'MFM 1.5' && aheadManifest.dataslates[0].mfmVersion === '1.5',
+  );
+  const again = publishRelease({ dir, gameSystem: GS, dataslate: 'mfm-1-5' });
+  check('la Release suivante, sans redonner la version, reste dans mfm-1-5', again.status === 'published' && again.release.tag === 'wh40k-11e-mfm-1-5-r2');
+  const repointed = repointManifest(dir, { release: 'wh40k-11e-mfm-1-5-r1' });
   check(
     'repointer : le manifeste revient sur la Release précédente, sans nouveau tag',
-    repointed.dataslates[0].latest === 'wh40k-11e-mfm-1-4-r1' && git('tag', '-l').trim().split('\n').length === 2 && git('status', '--porcelain') === '',
+    repointed.dataslates[0].latest === 'wh40k-11e-mfm-1-5-r1' && git('tag', '-l').trim().split('\n').length === 4 && git('status', '--porcelain') === '',
   );
 } finally {
   rmSync(dir, { recursive: true, force: true });

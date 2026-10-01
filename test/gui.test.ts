@@ -172,7 +172,7 @@ try {
     const specRelease = jobSpecs(wsVide).find((j) => j.name === 'release')!;
     check(
       'publier demande la période de règles et son adresse, au lieu de trois champs posés en permanence',
-      (specRelease.asks ?? []).map((f) => f.name).join() === 'dataslate,releaseUrl',
+      (specRelease.asks ?? []).map((f) => f.name).join() === 'dataslate,mfmVersion,releaseUrl',
       JSON.stringify((specRelease.asks ?? []).map((f) => f.label)),
     );
 
