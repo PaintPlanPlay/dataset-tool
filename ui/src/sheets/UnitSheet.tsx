@@ -7,7 +7,7 @@
 import type { ReactNode } from 'react';
 import type { Unit, WeaponOption } from '@paintplanplay/dataset-schema';
 import type { WargearFinding } from '../../../src/wargear.ts';
-import { Badges, Field, useEditor, type FieldProps } from '../editor/Editor.tsx';
+import { Badges, Field, PointsInput, useEditor, type FieldProps } from '../editor/Editor.tsx';
 import { defaultOf, pointer, type Path } from '../editor/values.ts';
 import { humanize, type Located } from '../schema.ts';
 
@@ -223,7 +223,7 @@ function PriceGrid({ unit, field, section }: { unit: Unit; field: 'pricing' | 'a
                   <span className="cost">
                     <input type="number" min={1} style={{ width: '5ch' }} value={c.models} onChange={(e) => band(i, { costs: b.costs.map((x, k) => (k === j ? { ...x, models: Number(e.target.value) || 1 } : x)) })} />
                     {' models: '}
-                    <input type="number" min={0} style={{ width: '6ch' }} value={c.points} onChange={(e) => band(i, { costs: b.costs.map((x, k) => (k === j ? { ...x, points: Number(e.target.value) || 0 } : x)) })} />
+                    <PointsInput value={c.points} onChange={(points) => band(i, { costs: b.costs.map((x, k) => (k === j ? { ...x, points } : x)) })} />
                     {' pts'}
                     <Badges path={[field, i, 'costs', j, 'points']} value={c.points} />
                   </span>
@@ -314,7 +314,7 @@ function WargearLines({ findings, section }: { findings: WargearFinding[]; secti
             <span className="cost">
               <input value={l.item} size={Math.max(8, l.item.length + 2)} onChange={(e) => set(lines.map((x, j) => (j === i ? { ...x, item: e.target.value } : x)))} />
               {': '}
-              <input type="number" min={0} style={{ width: '6ch' }} value={l.points} onChange={(e) => set(lines.map((x, j) => (j === i ? { ...x, points: Number(e.target.value) || 0 } : x)))} />
+              <PointsInput value={l.points} onChange={(points) => set(lines.map((x, j) => (j === i ? { ...x, points } : x)))} />
               {' pts'}
               <Badges path={['wargear', i, 'points']} value={l.points} />
             </span>
