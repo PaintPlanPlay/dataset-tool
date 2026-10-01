@@ -51,6 +51,15 @@ check('une Dataslate gelée ne reçoit plus de Release', throws(() => planReleas
 const four = planRelease(planRelease(next.manifest, input('1.6')).manifest, input('1.7')).manifest;
 check('le manifeste propose la courante et les deux précédentes', four.offered.join() === 'mfm-1-7,mfm-1-6,mfm-1-5' && four.dataslates.length === 4);
 
+check(
+  'une nouvelle Dataslate sur un MFM déjà couvert est refusée sans confirmation',
+  throws(() => planRelease(second.manifest, { ...input('1.4'), dataslate: { id: 'mfm-1-5', name: 'MFM 1.5', mfmVersion: '1.4' } })) &&
+    planRelease(second.manifest, { ...input('1.4'), dataslate: { id: 'mfm-1-4-b', name: 'MFM 1.4 b', mfmVersion: '1.4' }, sameMfm: true }).manifest.current === 'mfm-1-4-b',
+);
+const misfiled = structuredClone(second.manifest);
+misfiled.dataslates[0].releases.unshift({ tag: 'wh40k-11e-mfm-1-5-r1', number: 3, publishedAt: '2026-09-02T00:00:00Z', schemaVersion: '1.0.0' });
+check('un tag que le manifeste range déjà ailleurs n\'est pas repris', planRelease(misfiled, input('1.5')).release.tag === 'wh40k-11e-mfm-1-5-r2');
+
 const back = repoint(next.manifest, { release: 'wh40k-11e-mfm-1-5-r1' });
 const rolled = repoint(four, { current: 'mfm-1-5' });
 check('retour en arrière : repointer la Release lue, ou la Dataslate courante', back.dataslates[0].latest === 'wh40k-11e-mfm-1-5-r1' && rolled.offered.join() === 'mfm-1-5,mfm-1-4');
