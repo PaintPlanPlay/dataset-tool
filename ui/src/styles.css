@@ -127,6 +127,7 @@ select:disabled { background: var(--raised); opacity: 1; }
 
 .ask label { display: grid; gap: 4px; }
 .ask small { color: var(--muted); }
+.ask-check span { display: flex; align-items: center; gap: 6px; }
 .ask-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
 .job h2 { margin: 0 0 6px; font-size: 14px; display: flex; gap: 8px; align-items: baseline; }

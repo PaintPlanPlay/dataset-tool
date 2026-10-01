@@ -184,6 +184,17 @@ export function defaultReleaseUrl(datasetDir: string): string | null {
 }
 
 /**
+ * L'adresse qui fait oublier à jsDelivr sa copie du manifeste. Les Releases,
+ * servies à leur tag, sont neuves et immuables ; le manifeste, lui, est servi
+ * depuis `main` et gardé jusqu'à 12 h : sans purge, les applications ne voient
+ * pas la nouvelle Release avant. `null` hors jsDelivr.
+ */
+export function manifestPurgeUrl(releaseUrl: string): string | null {
+  const m = /^https:\/\/cdn\.jsdelivr\.net\/gh\/([^@]+)@\{tag\}\/?$/.exec(releaseUrl);
+  return m ? `https://purge.jsdelivr.net/gh/${m[1]}@main/${manifestPath}` : null;
+}
+
+/**
  * Publier une Release écrit dans le dépôt : le bouton ne s'ouvre qu'à qui en a
  * le droit, plutôt que d'échouer au push devant quelqu'un qui n'y pouvait rien.
  * GitHub le dit — ADMIN, MAINTAIN ou WRITE —, et `gh` le lui demande.
@@ -244,7 +255,9 @@ export function publishRight(datasetDir: string): string | null {
 
 /** Ce qu'une tâche demande avant de partir, posé par la page dans sa modale. */
 export interface JobField {
-  name: 'dataslate' | 'mfmVersion' | 'releaseUrl' | 'title';
+  name: 'dataslate' | 'mfmVersion' | 'releaseUrl' | 'purgeCdn' | 'title';
+  /** Une case à cocher plutôt qu'un champ : sa valeur est « true » ou « false ». */
+  kind?: 'checkbox';
   label: string;
   /** Ce que c'est, pour qui ne le sait pas : la modale l'affiche sous le libellé. */
   hint: string;
@@ -317,6 +330,8 @@ export function jobSpecs(
   const branch = `dataset/${slug(title)}`;
   const releaseUrl = typeof body.releaseUrl === 'string' ? body.releaseUrl : '';
   const mfmVersion = typeof body.mfmVersion === 'string' ? body.mfmVersion.trim() : '';
+  const purgeCdn = body.purgeCdn !== 'false' && body.purgeCdn !== false;
+  const purgeUrl = manifestPurgeUrl(releaseUrl || defaultReleaseUrl(ws.datasetDir) || '');
   const proposition = dataslateProposal(ws);
 
   return [
@@ -424,6 +439,17 @@ export function jobSpecs(
           hint: 'A CDN serving your repository at the release tag. Taken from the repository itself — leave it unless you serve the files elsewhere.',
           value: releaseUrl || defaultReleaseUrl(ws.datasetDir) || '',
         },
+        ...(manifestPurgeUrl(defaultReleaseUrl(ws.datasetDir) ?? '')
+          ? [
+              {
+                name: 'purgeCdn' as const,
+                kind: 'checkbox' as const,
+                label: 'Refresh the CDN copy of the manifest',
+                hint: 'jsDelivr keeps the manifest up to 12 hours: purging it shows this Release to the apps within minutes. Untick for a minor update that can wait.',
+                value: 'true',
+              },
+            ]
+          : []),
       ],
       cmd: 'sh',
       args: [
@@ -446,6 +472,11 @@ export function jobSpecs(
             `git -C ${ds()} ${GH_KEYRING.map(arg).join(' ')} push --follow-tags`,
             'the Release was made here but could not be pushed — see git above. The push borrows the GitHub CLI, so it also fails when this process cannot run `gh`.',
           ],
+          // Après le push seulement : purger plus tôt referait mettre en cache l'ancien manifeste.
+          // Un échec n'annule rien — la Release est publiée, le cache expirera de lui-même.
+          ...(purgeCdn && purgeUrl
+            ? ([[`curl -fsS -o /dev/null ${arg(purgeUrl)} && echo 'jsDelivr: manifest purged' || echo ${quote(`jsDelivr refused the purge — the Release is published; apps will see it within 12 hours, or run: curl ${purgeUrl}`)}`, 'unreachable']] as [string, string][])
+            : []),
         ]),
       ],
     },
