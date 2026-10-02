@@ -98,6 +98,7 @@ const carries = (u: Unit, name: string) => u.weapons.some((w) => w.name === name
 check('la Weapon d\'une Enhancement ne va pas sur la datasheet', !carries(warboss, 'Da Gobshot Thunderbuss'), warboss.weapons.map((w) => w.name).join(', '));
 check('un groupe « Enhancements - … » est écarté comme « Enhancements »', !carries(warboss, 'Upgrade Blasta'));
 check('une Weapon de Crusade ne va pas sur la datasheet', !carries(warboss, 'Krusade Blasta'));
+check('les keywords d\'une Enhancement ou de Crusade ne vont pas sur la datasheet', !warboss.keywords.includes('Grenades') && !warboss.keywords.includes('Relic Bearer'), warboss.keywords.join(', '));
 check('une Weapon d\'un autre groupe partagé reste sur la datasheet', warboss.weapons.some((w) => w.name === 'Stikkbomb'), warboss.weapons.map((w) => w.name).join(', '));
 
 section('Construction : coût d\'Assigned Agent (#143)');

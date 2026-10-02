@@ -41,7 +41,7 @@
             "id": "g-enh-bb",
             "name": "Boss Brutes Enhancements",
             "selectionEntries": [
-              { "id": "e-thunderbuss", "name": "Da Gobshot Thunderbuss", "type": "upgrade", "profiles": [{ "name": "Da Gobshot Thunderbuss", "typeName": "Ranged Weapons", "characteristics": [{ "name": "Range", "$text": "24\"" }, { "name": "A", "$text": "6" }, { "name": "BS", "$text": "4+" }, { "name": "S", "$text": "7" }, { "name": "AP", "$text": "-2" }, { "name": "D", "$text": "2" }, { "name": "Keywords", "$text": "Rapid Fire 6" }] }] }
+              { "id": "e-thunderbuss", "name": "Da Gobshot Thunderbuss", "type": "upgrade", "categoryLinks": [{ "name": "Grenades" }], "profiles": [{ "name": "Da Gobshot Thunderbuss", "typeName": "Ranged Weapons", "characteristics": [{ "name": "Range", "$text": "24\"" }, { "name": "A", "$text": "6" }, { "name": "BS", "$text": "4+" }, { "name": "S", "$text": "7" }, { "name": "AP", "$text": "-2" }, { "name": "D", "$text": "2" }, { "name": "Keywords", "$text": "Rapid Fire 6" }] }] }
             ]
           }
         ],
@@ -60,7 +60,7 @@
         "id": "g-crusade",
         "name": "Crusade",
         "selectionEntries": [
-          { "id": "e-krusade", "name": "Krusade Blasta", "type": "upgrade", "profiles": [{ "name": "Krusade Blasta", "typeName": "Ranged Weapons", "characteristics": [{ "name": "Range", "$text": "24\"" }, { "name": "A", "$text": "3" }, { "name": "BS", "$text": "4+" }, { "name": "S", "$text": "5" }, { "name": "AP", "$text": "-1" }, { "name": "D", "$text": "1" }, { "name": "Keywords", "$text": "-" }] }] }
+          { "id": "e-krusade", "name": "Krusade Blasta", "type": "upgrade", "categoryLinks": [{ "name": "Relic Bearer" }], "profiles": [{ "name": "Krusade Blasta", "typeName": "Ranged Weapons", "characteristics": [{ "name": "Range", "$text": "24\"" }, { "name": "A", "$text": "3" }, { "name": "BS", "$text": "4+" }, { "name": "S", "$text": "5" }, { "name": "AP", "$text": "-1" }, { "name": "D", "$text": "1" }, { "name": "Keywords", "$text": "-" }] }] }
         ]
       },
       {
