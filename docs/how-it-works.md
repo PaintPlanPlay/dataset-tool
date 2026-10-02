@@ -38,7 +38,7 @@ for that field wins, and the disagreement is reported so a human can look at it.
 
 | Source | What it is | Trusted for |
 |---|---|---|
-| [BSData](https://github.com/BSData/wh40k-11e) | the community data files behind army builders | unit profiles, weapons, wargear options, keywords, abilities (by name), unit composition |
+| [BSData](https://github.com/BSData/wh40k-11e) | the community data files behind army builders | unit profiles, weapons, wargear options, keywords, abilities (by name), unit composition, the weapon an enhancement brings |
 | [Munitorum Field Manual, via BSData](https://github.com/BSData/wh40k-11e-mfm) (MFM) | the points document, transcribed | points and their bands, paid wargear, leader and support attachments, which detachments exist, their detachment points, force dispositions, which enhancements exist and their points |
 | [40kdc-data](https://github.com/wn-mitch/40kdc-data) | a structured database of detachments and stratagems | which detachment rules and stratagems exist, their CP, phases, timing and targets, enhancement restrictions |
 | this project | — | what a rule does (Modifiers, descriptions), battle sizes, ally rules, default targets, the sample list |
@@ -54,6 +54,7 @@ Field by field, this is what the sheet headers of the interface show:
 | Detachment | name, detachment points, force dispositions, unique tag | MFM |
 | Detachment | enhancements: existence, points, units they open Leader or Support for | MFM |
 | Detachment | enhancements: name, unit or character, aura, how many units, required and excluded keywords | 40kdc-data |
+| Detachment | enhancements: the weapon one brings | BSData |
 | Detachment | what each detachment rule and enhancement does | this project |
 | Stratagem | name, CP, phases, whose turn, timing, category, target | 40kdc-data |
 | Stratagem | what it does | this project |
@@ -61,6 +62,12 @@ Field by field, this is what the sheet headers of the interface show:
 | Army rule | what it does | this project |
 | Core | core stratagems | 40kdc-data |
 | Core | battle sizes, ally rules | this project |
+
+An enhancement's weapon belongs to the enhancement, never to the datasheets
+that may take it: BSData lists it in a shared `Enhancements` group that every
+character links to, and the build does not follow that group into the
+datasheet. Crusade weapons, from the shared `Crusade` group, are left out
+altogether: the Dataset does not cover Crusade.
 
 Two consequences worth knowing:
 

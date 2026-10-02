@@ -59,6 +59,7 @@ first. It is the description of the daily update's pull request, and
 | **Contributions whose target is gone** | the rule or option group they applied to disappeared | re-target or delete |
 | **Modifier keys the simulation does not play** | | fix a typo, or leave it for the simulator to learn |
 | **Wargear costs not linked** | MFM wargear lines no option bills | link by hand on the unit sheet |
+| **Enhancement Weapons to check** | *orphan*: a weapon BSData gives an enhancement the Dataset does not have; *collision*: a datasheet carrying the weapon of one of its army's enhancements | an orphan waits for its detachment in the MFM; a collision usually means a new or renamed shared BSData group to leave out |
 | **Authored entries not found** | a default target, the sample list or an ally rule names something gone | fix the file in `authored/` |
 | **MFM duplicates dropped** | names the MFM lists twice in one faction | check the kept line is the right one |
 | **Units missing from the MFM** | their cost comes from BSData | usually Legends: nothing |

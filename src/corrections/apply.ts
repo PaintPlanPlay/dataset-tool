@@ -249,7 +249,7 @@ export const enhancementTarget = (armyId: string, detachmentId: string, enhancem
 
 /** Champs qu'une Correction peut forcer sur un Detachment ou une Enhancement. */
 const DETACHMENT_FIELDS = new Set(['name', 'dp', 'forceDispositions', 'uniqueTag', 'summary']);
-const ENHANCEMENT_FIELDS = new Set(['name', 'points', 'appliesTo', 'aura', 'maxTargets', 'requires', 'excludes', 'leaderTo', 'supportTo', 'summary']);
+const ENHANCEMENT_FIELDS = new Set(['name', 'points', 'appliesTo', 'aura', 'maxTargets', 'requires', 'excludes', 'leaderTo', 'supportTo', 'summary', 'weapon']);
 
 const allowed = (patch: Record<string, unknown>, fields: Set<string>) =>
   Object.fromEntries(Object.entries(patch).filter(([k]) => fields.has(k)));

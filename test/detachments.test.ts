@@ -81,6 +81,53 @@ check('une Correction de points s\'applique à l\'Enhancement visée', det(corre
 check('leur cycle de vie se calcule sur l\'amont des Detachments', corrected.corrections.filter((v) => v.state === 'active').length === 2);
 check('un Detachment introuvable laisse la Correction orpheline', corrected.orphans.some((o) => o.target === detachmentTarget('orks', 'nope')));
 
+section('Detachments : la Weapon qu\'une Enhancement apporte');
+const bossBrutes = det(first, 'Boss Brutes');
+const thunderbuss = bossBrutes.enhancements.find((e) => e.name === 'Da Gobshot Thunderbuss')!;
+check(
+  'l\'Enhancement porte la Weapon que BSData lui donne',
+  thunderbuss.weapon?.name === 'Da Gobshot Thunderbuss' && thunderbuss.weapon.kind === 'ranged' && thunderbuss.weapon.profiles[0].A === '6',
+  JSON.stringify(thunderbuss.weapon),
+);
+check('une Enhancement sans arme dans BSData n\'en porte pas', !enh('Follow Me Ladz').weapon);
+const thunderbussTarget = enhancementTarget('orks', bossBrutes.id, thunderbuss.id);
+const weaponCorrected = await build({
+  snapshot,
+  corrections: [correction('thunderbuss', { target: thunderbussTarget, patch: { weapon: { ...thunderbuss.weapon!, profiles: [{ ...thunderbuss.weapon!.profiles[0], A: '7' }] } }, upstream: { weapon: thunderbuss.weapon } })],
+});
+check(
+  'une Correction s\'applique à cette Weapon, donnée amont',
+  det(weaponCorrected, 'Boss Brutes').enhancements.find((e) => e.id === thunderbuss.id)?.weapon?.profiles[0].A === '7',
+);
+const ours = { name: 'Da Gobshot Thunderbuss', kind: 'ranged' as const, profiles: [{ ...thunderbuss.weapon!.profiles[0], D: '3' }] };
+const withContribution = await build({
+  snapshot,
+  authored: { battleSizes: [], referenceTargets: [], effects: [{ target: thunderbussTarget, weapon: ours, reason: 'Ours.' }] },
+});
+check(
+  'une Contribution sur cette Weapon prime sur BSData',
+  det(withContribution, 'Boss Brutes').enhancements.find((e) => e.id === thunderbuss.id)?.weapon?.profiles[0].D === '3',
+);
+check(
+  'une Weapon d\'Enhancement BSData sans Enhancement dans le Dataset est signalée',
+  first.enhancementWeapons.some((f) => f.kind === 'orphan' && f.enhancement === 'Shiny Rokkit' && f.weapon === 'Shiny Rokkit' && f.armies.includes('orks')),
+  JSON.stringify(first.enhancementWeapons),
+);
+check('une Weapon posée sur une Enhancement n\'est pas orpheline', !first.enhancementWeapons.some((f) => f.kind === 'orphan' && f.weapon === 'Da Gobshot Thunderbuss'));
+check('une orpheline est rendue dans le rapport', /## Enhancement Weapons[\s\S]*Shiny Rokkit/.test(renderReport(makeReport(first, undefined))));
+check(
+  'une datasheet qui porte la Weapon d\'une Enhancement de son Army est signalée',
+  first.enhancementWeapons.some((f) => f.kind === 'collision' && f.unit === 'Weirdboy' && f.weapon === 'Da Gobshot Thunderbuss' && f.enhancement === 'Da Gobshot Thunderbuss' && f.armies.includes('orks')),
+  JSON.stringify(first.enhancementWeapons),
+);
+check(
+  'une Weapon qui porte seulement le nom d\'une Enhancement sans Weapon ne l\'est pas',
+  !first.enhancementWeapons.some((f) => f.weapon === 'Glory Hog'),
+);
+check('une Unit présente dans plusieurs Armies n\'est signalée qu\'une fois', first.enhancementWeapons.filter((f) => f.unit === 'Weirdboy').length === 1);
+check('le Warboss, nettoyé à l\'import, n\'est pas en collision', !first.enhancementWeapons.some((f) => f.unit === 'Warboss'));
+check('une collision est rendue dans le rapport', /collision: \*\*Weirdboy\*\* carries `Da Gobshot Thunderbuss`/.test(renderReport(makeReport(first, undefined))));
+
 section('Detachments : schéma, texte et rapport');
 check('le fichier d\'Army avec ses Detachments est conforme au schéma', validateFile('army', orks(first)).length === 0, validateFile('army', orks(first)).join(' ; '));
 check('la construction ne produit aucun constat de texte', first.textCheck.length === 0, first.textCheck.map((f) => f.where).join(' ; '));

@@ -51,7 +51,7 @@ has the full table):
 
 | You are fixing | `source` |
 |---|---|
-| a characteristic, a weapon, a keyword, an ability's presence, composition, wargear options | `bsdata` |
+| a characteristic, a weapon, a keyword, an ability's presence, composition, wargear options, the weapon an enhancement brings | `bsdata` |
 | a price, paid wargear, a leader or support attachment, a detachment's points or dispositions, an enhancement's points | `mfm` |
 | a stratagem's CP, phases, timing or target; an enhancement's restrictions | `40kdc` |
 
@@ -101,7 +101,7 @@ the patch holds the whole grid.
 | ability | presence only — `__add`, `__delete` — or `name` to rename it. Never text |
 | attachment | presence only — `__add`, `__delete` |
 | detachment | `name`, `dp`, `forceDispositions`, `uniqueTag` |
-| enhancement | `name`, `points`, `appliesTo`, `aura`, `maxTargets`, `requires`, `excludes`, `leaderTo`, `supportTo` |
+| enhancement | `name`, `points`, `appliesTo`, `aura`, `maxTargets`, `requires`, `excludes`, `leaderTo`, `supportTo`, `weapon` (whole) |
 | stratagem | `name`, `cp`, `phases`, `playerTurn`, `timing`, `category`, `target` |
 
 The meaning and format of each field is in the [Schema reference](schema.md).
@@ -215,7 +215,7 @@ One list, one entry per target, sorted by target.
 | `options` | a rule | for a rule that offers a choice: at least two options, each with a name and Modifiers |
 | `summary` | a rule | one line, 160 characters at most, in your own words |
 | `eligibility` | a detachment rule | the units that benefit, as a keyword filter |
-| `weapon` | an enhancement | the weapon the enhancement brings to its bearer |
+| `weapon` | an enhancement | the weapon the enhancement brings to its bearer. It wins over the one BSData gives; removing it falls back to BSData's |
 | `wargearCost` | a wargear option | the MFM line that bills the option: `{ "item": "Lascannon" }`, with `"quantity": 2` when it is paid twice per model. `null` removes an automatic link |
 | `abilities` | a wargear option | abilities of the unit, by name, that the option brings |
 | `option` | a wargear option | a whole option BSData does not have: `name`, `weapons`, `maxCarriers`, `isDefault`, optionally `perModels` |

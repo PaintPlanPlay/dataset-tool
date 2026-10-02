@@ -51,6 +51,8 @@ export interface DriftReport {
   unsimulated: BuildOutput['unsimulated'];
   /** Les lignes `wargear` du MFM qu'aucune Wargear Option ne facture, et les liens manuels qui ne visent plus rien. */
   wargear: BuildOutput['wargear'];
+  /** Les Weapons d'Enhancement orphelines, et celles qu'une datasheet porte. */
+  enhancementWeapons: BuildOutput['enhancementWeapons'];
   /** Ce que les fichiers écrits par le projet nomment et que la construction n'a plus : cibles, List d'exemple, Ally Rules. */
   unresolvedAuthored: string[];
   /** Lignes du MFM écartées parce qu'une autre porte déjà leur nom dans la même faction. */
@@ -175,6 +177,7 @@ export function makeReport(out: BuildOutput, previous: Map<string, unknown> | un
     unresolvedContributions: out.contributions.filter((c) => c.state === 'unresolved'),
     unsimulated: out.unsimulated,
     wargear: out.wargear,
+    enhancementWeapons: out.enhancementWeapons,
     unresolvedAuthored: out.unresolvedAuthored,
     mfmDuplicates: out.mfmDuplicates,
     sources: index.sources,
@@ -287,6 +290,22 @@ export function renderReport(r: DriftReport): string {
     L.push(`## Wargear costs not linked (${r.wargear.length})`, '');
     L.push('An MFM `wargear` line bills nothing until a Wargear Option points to it. Link it by hand in the Dataset Tool, or correct the MFM line.', '');
     L.push(...bounded(r.wargear, 80, (f) => `- **${f.unit}** · ${f.army} — \`${f.item}\`: ${WARGEAR_LABEL[f.kind]}${f.options.length ? ` (${f.options.join(', ')})` : ''}`), '');
+  }
+
+  if (r.enhancementWeapons.length) {
+    L.push(`## Enhancement Weapons to check (${r.enhancementWeapons.length})`, '');
+    L.push(
+      'An orphan is a Weapon BSData gives an Enhancement this Dataset does not have (its Detachment is missing from the MFM): no Enhancement brings it. A collision is a datasheet carrying the Weapon of one of its Army\'s Enhancements, usually because a shared BSData group brought it there.',
+      '',
+    );
+    L.push(
+      ...bounded(r.enhancementWeapons, 80, (f) =>
+        f.kind === 'orphan'
+          ? `- orphan: **${f.enhancement}** › \`${f.weapon}\` · ${f.armies.join(', ')}`
+          : `- collision: **${f.unit}** carries \`${f.weapon}\`, the Weapon of ${f.enhancement} · ${f.armies.join(', ')}`,
+      ),
+      '',
+    );
   }
 
   if (r.unresolvedAuthored.length) {
