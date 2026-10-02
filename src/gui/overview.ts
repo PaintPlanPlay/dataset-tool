@@ -11,7 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { indexPath, manifestPath, type DatasetIndex, type Manifest, type SourceRef } from '@paintplanplay/dataset-schema';
-import { authoredDir, EFFECTS_FILE } from '../authored.ts';
+import { readContributions } from '../authored.ts';
 import { readCorrections } from '../corrections/files.ts';
 import { headCommit } from '../fetch.ts';
 import { readDatasetFiles, toJson } from '../dataset.ts';
@@ -165,7 +165,7 @@ export interface Overview {
   armies: { id: string; name: string }[];
 }
 
-const contributionCount = (ws: Workspace) => readJson<unknown[]>(join(ws.datasetDir, authoredDir(ws.gameSystem), EFFECTS_FILE))?.length ?? 0;
+const contributionCount = (ws: Workspace) => readContributions(ws.datasetDir, ws.gameSystem).length;
 
 const readJson = <T>(path: string): T | null => (existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as T) : null);
 

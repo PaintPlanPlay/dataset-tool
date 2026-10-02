@@ -6,12 +6,12 @@
  *
  *   npx tsx test/ruleform.test.ts
  */
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SIMULATED_CONDITIONS, SIMULATED_MODIFIERS, type Stratagem, type Unit } from '@paintplanplay/dataset-schema';
 import { build } from '../src/build.ts';
-import type { AuthoredEffect } from '../src/authored.ts';
+import { readContributions } from '../src/authored.ts';
 import { startGui } from '../src/gui/server.ts';
 import type { Sheet, Suggestions } from '../src/gui/sheets.ts';
 import { openWorkspace } from '../src/gui/workspace.ts';
@@ -30,7 +30,7 @@ const post = async <T>(path: string, body: unknown) => {
   const res = await fetch(new URL(path, gui.url), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   return { status: res.status, body: (await res.json()) as T };
 };
-const effects = () => JSON.parse(readFileSync(join(dir, 'authored/wh40k-11e/effects.json'), 'utf8')) as AuthoredEffect[];
+const effects = () => readContributions(dir, 'wh40k-11e');
 
 try {
   section('Formulaire de Rule : les Modifiers d\'une Rule Orks deviennent une Contribution');

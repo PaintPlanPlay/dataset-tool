@@ -87,7 +87,8 @@ Two consequences worth knowing:
 4. **Apply the corrections** from `corrections/`.
 5. **Add what the project writes**: battle sizes, ally rules, default targets
    and the sample list go into `core.json`; then the contributions of
-   `authored/…/effects.json` put Modifiers and descriptions on the rules.
+   `authored/…/armies/*.json` put Modifiers and descriptions on the rules —
+   once per element, in every army that publishes it.
 6. **Link paid wargear** to the wargear options that it bills.
 7. **Check for rules text.** One finding and nothing is written.
 

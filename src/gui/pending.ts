@@ -4,15 +4,17 @@
  *
  * C'est git qui le sait : tout écart entre le dossier et son dernier commit est
  * en attente, et proposer le committe. Annuler une Pending Change restaure
- * l'état publié. Une Contribution vit dans un fichier partagé
- * (`authored/<gameSystem>/effects.json`) : on la compare entrée par entrée,
- * pour qu'annuler l'une ne défasse pas les autres.
+ * l'état publié. Les Contributions vivent à plusieurs dans un fichier par
+ * Army (`authored/<gameSystem>/armies/<army>.json`) : on les compare entrée
+ * par entrée, tous fichiers confondus, pour qu'annuler l'une ne défasse pas
+ * les autres et qu'une Contribution déplacée d'un fichier à l'autre ne compte
+ * pas comme un changement.
  */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { authoredDir, EFFECTS_FILE, type AuthoredEffect } from '../authored.ts';
+import { authoredDir, isContributionsPath, type AuthoredEffect } from '../authored.ts';
 import { correctionsDir, type Correction } from '../corrections/files.ts';
 import { toJson } from '../dataset.ts';
 import { ApiError } from './api.ts';
@@ -84,16 +86,14 @@ function changedFiles(ws: Workspace): Status[] {
 
 export function pendingChanges(ws: Workspace): PendingChange[] {
   if (!isRepository(ws.datasetDir)) return [];
-  const effectsPath = `${authoredDir(ws.gameSystem)}/${EFFECTS_FILE}`;
   const verdicts = new Map((ws.current?.corrections ?? []).map((v) => [v.path, v]));
   const contributions = new Map((ws.current?.contributions ?? []).map((v) => [v.target, v]));
   const out: PendingChange[] = [];
 
-  for (const { path, action } of changedFiles(ws)) {
-    if (path === effectsPath) {
-      out.push(...contributionChanges(ws, path, contributions));
-      continue;
-    }
+  const changed = changedFiles(ws);
+  out.push(...contributionChanges(ws, changed.map((c) => c.path).filter((p) => isContributionsPath(ws.gameSystem, p)), contributions));
+  for (const { path, action } of changed) {
+    if (isContributionsPath(ws.gameSystem, path)) continue;
     if (path.startsWith(`${correctionsDir(ws.gameSystem)}/`)) {
       const text = action === 'deleted' ? atHead(ws.datasetDir, path) : readFileSync(join(ws.datasetDir, path), 'utf8');
       const c = parse<Correction>(text);
@@ -118,10 +118,20 @@ export function pendingChanges(ws: Workspace): PendingChange[] {
 
 const effectsAt = (text: string | null) => parse<AuthoredEffect[]>(text) ?? [];
 
-function contributionChanges(ws: Workspace, path: string, verdicts: Map<string, { state: string; note: string }>): PendingChange[] {
-  const before = new Map(effectsAt(atHead(ws.datasetDir, path)).map((e) => [e.target, e]));
+/** Les Contributions de ces fichiers, par adresse, avec le fichier qui porte chacune. */
+const entriesOf = (paths: string[], read: (path: string) => string | null) =>
+  new Map(paths.flatMap((path) => effectsAt(read(path)).map((e) => [e.target, { e, path }] as const)));
+
+const now = (ws: Workspace) => (path: string) => {
   const abs = join(ws.datasetDir, path);
-  const after = new Map(effectsAt(existsSync(abs) ? readFileSync(abs, 'utf8') : null).map((e) => [e.target, e]));
+  return existsSync(abs) ? readFileSync(abs, 'utf8') : null;
+};
+
+function contributionChanges(ws: Workspace, paths: string[], verdicts: Map<string, { state: string; note: string }>): PendingChange[] {
+  const before = new Map([...entriesOf(paths, (p) => atHead(ws.datasetDir, p))].map(([t, x]) => [t, x.e]));
+  const placed = entriesOf(paths, now(ws));
+  const after = new Map([...placed].map(([t, x]) => [t, x.e]));
+  const headPlaced = entriesOf(paths, (p) => atHead(ws.datasetDir, p));
   const out: PendingChange[] = [];
   for (const target of new Set([...before.keys(), ...after.keys()])) {
     const was = before.get(target);
@@ -132,7 +142,7 @@ function contributionChanges(ws: Workspace, path: string, verdicts: Map<string, 
       id: `contribution:${target}`,
       kind: 'contribution',
       action: !was ? 'added' : !now ? 'deleted' : 'modified',
-      path,
+      path: (placed.get(target) ?? headPlaced.get(target))!.path,
       target,
       sheet: sheetOfTarget(target),
       reason: (now ?? was)!.reason,
@@ -150,11 +160,16 @@ export function undoPending(ws: Workspace, id: string): void {
   const abs = join(ws.datasetDir, change.path);
 
   if (change.id.startsWith('contribution:')) {
-    const published = effectsAt(atHead(ws.datasetDir, change.path)).find((e) => e.target === change.target);
-    const current = effectsAt(existsSync(abs) ? readFileSync(abs, 'utf8') : null).filter((e) => e.target !== change.target);
-    const next = published ? [...current, published].sort((a, b) => a.target.localeCompare(b.target)) : current;
-    if (next.length === 0 && atHead(ws.datasetDir, change.path) === null) rmSync(abs, { force: true });
-    else writeFileSync(abs, toJson(next));
+    // L'entrée sort de tous les fichiers où elle est, puis revient, publiée, dans celui qui la portait.
+    const paths = changedFiles(ws).map((c) => c.path).filter((p) => isContributionsPath(ws.gameSystem, p));
+    const published = entriesOf(paths, (p) => atHead(ws.datasetDir, p)).get(change.target);
+    for (const path of new Set([...paths, ...(published ? [published.path] : [])])) {
+      const file = join(ws.datasetDir, path);
+      const current = effectsAt(now(ws)(path)).filter((e) => e.target !== change.target);
+      const next = published?.path === path ? [...current, published.e].sort((a, b) => a.target.localeCompare(b.target)) : current;
+      if (next.length === 0) rmSync(file, { force: true });
+      else writeFileSync(file, toJson(next));
+    }
     return;
   }
   if (change.action === 'added') rmSync(abs, { force: true });

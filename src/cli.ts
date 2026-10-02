@@ -5,6 +5,7 @@
  *   dataset-tool fetch --out <dir>
  *   dataset-tool build --snapshot <dir> --dataset <dir> [--report <fichier.md>] [--game-system wh40k-11e]
  *   dataset-tool check --dataset <dir> [--game-system wh40k-11e]
+ *   dataset-tool tidy --dataset <dir>   range les Contributions dans le fichier de leur Army d'origine
  *   dataset-tool release --dataset <dir> [--dataslate <id>] [--dataslate-name <nom>] [--mfm-version <x.y>] [--release-url <modèle {tag}>] [--same-mfm]
  *   dataset-tool repoint --dataset <dir> [--current <dataslate>] [--release <tag> [--dataslate <id>]]
  *   dataset-tool gui [--dataset <dir>] [--snapshot <dir>] [--port 4173]
@@ -17,7 +18,7 @@
 import { join } from 'node:path';
 import { writeFileSync } from 'node:fs';
 import { build } from './build.ts';
-import { readAuthored } from './authored.ts';
+import { readAuthored, tidyContributions } from './authored.ts';
 import { publishRelease, repointManifest } from './release.ts';
 import { startGui, tailscaleAddress } from './gui/server.ts';
 import { viteUi } from './gui/ui.ts';
@@ -138,6 +139,15 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === 'tidy') {
+    const datasetDir = arg('dataset');
+    const out = tidyContributions(datasetDir, gameSystem, readDatasetFiles(datasetDir, gameSystem));
+    for (const p of out.written) console.log(`written: ${p}`);
+    for (const p of out.deleted) console.log(`deleted: ${p}`);
+    console.log(out.written.length || out.deleted.length ? 'Contributions tidied: build again to check nothing changed' : 'Contributions already tidy');
+    return;
+  }
+
   if (command === 'check') {
     const report = checkDataset(arg('dataset'), gameSystem);
     console.log(renderCheck(report));
@@ -145,7 +155,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.error('usage: dataset-tool fetch --out <dir> | build --snapshot <dir> --dataset <dir> [--report <md>] | check --dataset <dir> | release --dataset <dir> [--dataslate <id>] | repoint --dataset <dir> | gui --snapshot <dir> --dataset <dir>');
+  console.error('usage: dataset-tool fetch --out <dir> | build --snapshot <dir> --dataset <dir> [--report <md>] | check --dataset <dir> | tidy --dataset <dir> | release --dataset <dir> [--dataslate <id>] | repoint --dataset <dir> | gui --snapshot <dir> --dataset <dir>');
   process.exitCode = 2;
 }
 

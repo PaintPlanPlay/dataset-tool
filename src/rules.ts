@@ -4,7 +4,8 @@
  * les clés que la Simulation ne sait pas jouer sont relevées.
  */
 import { SIMULATED_MODIFIERS, UNIT_MODIFIERS, type ArmyFile, type CoreFile, type Modifier, type RuleBody } from '@paintplanplay/dataset-schema';
-import { CORE_ROOT } from './corrections/apply.ts';
+import { CORE_ROOT, parseTarget } from './corrections/apply.ts';
+import { homes } from './home.ts';
 
 /**
  * Les règles Core qu'une datasheet porte comme un statut, par leur nom BSData :
@@ -56,14 +57,21 @@ export interface PlacedRule {
   body: RuleBody & { name: string };
 }
 
-/** Toutes les Rules des fichiers d'un Dataset, une fois chacune : une Unit alliée compte dans son Army. */
+/**
+ * Toutes les Rules des fichiers d'un Dataset, une fois chacune : une Unit
+ * alliée compte dans son Army, un Detachment ou une Army Rule partagés dans
+ * leur Army d'origine, sous l'adresse que prennent leurs Contributions.
+ */
 export function rulesIn(files: Map<string, unknown>): PlacedRule[] {
   const out: PlacedRule[] = [];
   const seen = new Set<string>();
-  const take = (target: string, army: string, type: string, body: RuleBody & { name: string }) => {
+  const h = homes(files);
+  const take = (written: string, army: string, type: string, body: RuleBody & { name: string }) => {
+    const target = h.canonical(written);
     if (seen.has(target)) return;
     seen.add(target);
-    out.push({ target, army, type, body });
+    const { root } = parseTarget(target);
+    out.push({ target, army: type === 'ability' ? army : root, type, body });
   };
   for (const [path, file] of files) {
     if (path.endsWith('/core.json')) for (const s of (file as CoreFile).stratagems ?? []) take(`${CORE_ROOT}::stratagem:${s.id}`, CORE_ROOT, 'stratagem', s);

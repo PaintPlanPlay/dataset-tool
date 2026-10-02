@@ -9,11 +9,13 @@
  * coût du jour — et signale celles qu'elle ne trouve plus.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import type { AllyRule, ArmyFile, BattleSize, CoreFile, KeywordFilter, Modifier, ReferenceTarget, RuleOption, SampleList, SampleSection, SampleUnit, Unit, WargearCost, WargearCount, Weapon, WeaponOption } from '@paintplanplay/dataset-schema';
 import { validateDef } from '@paintplanplay/dataset-schema/validate';
 import { CORE_ROOT, parseTarget } from './corrections/apply.ts';
+import { toJson } from './dataset.ts';
+import { homes, type Homes } from './home.ts';
 import { inspectString } from './notext.ts';
 
 export interface AuthoredSampleUnit {
@@ -104,8 +106,86 @@ export interface AuthoredCore {
 }
 
 export const authoredDir = (gameSystem: string) => `authored/${gameSystem}`;
+/** L'ancien fichier unique des Contributions : encore lu, plus jamais écrit. */
 export const EFFECTS_FILE = 'effects.json';
 export const ALLY_RULES_FILE = 'ally-rules.json';
+/** Les Contributions sur les Rules et Wargear Options, un fichier par Army d'origine (ADR 0015). */
+export const CONTRIBUTIONS_DIR = 'armies';
+
+/** Le fichier des Contributions d'une Army, ou des Stratagems Core (`core`). */
+export const contributionsPath = (gameSystem: string, home: string) => `${authoredDir(gameSystem)}/${CONTRIBUTIONS_DIR}/${home}.json`;
+
+/** Un fichier de Contributions, l'ancien `effects.json` compris. */
+export const isContributionsPath = (gameSystem: string, path: string) =>
+  path === `${authoredDir(gameSystem)}/${EFFECTS_FILE}` ||
+  (path.startsWith(`${authoredDir(gameSystem)}/${CONTRIBUTIONS_DIR}/`) && path.endsWith('.json') && !path.slice(authoredDir(gameSystem).length + CONTRIBUTIONS_DIR.length + 2).includes('/'));
+
+/** Les Contributions de chaque fichier, par chemin relatif au dépôt du Dataset. */
+export function readContributionFiles(datasetDir: string, gameSystem: string): Map<string, AuthoredEffect[]> {
+  const out = new Map<string, AuthoredEffect[]>();
+  const legacy = `${authoredDir(gameSystem)}/${EFFECTS_FILE}`;
+  if (existsSync(join(datasetDir, legacy))) out.set(legacy, JSON.parse(readFileSync(join(datasetDir, legacy), 'utf8')) as AuthoredEffect[]);
+  const dir = join(datasetDir, authoredDir(gameSystem), CONTRIBUTIONS_DIR);
+  if (existsSync(dir))
+    for (const f of readdirSync(dir).filter((x) => x.endsWith('.json')).sort())
+      out.set(`${authoredDir(gameSystem)}/${CONTRIBUTIONS_DIR}/${f}`, JSON.parse(readFileSync(join(dir, f), 'utf8')) as AuthoredEffect[]);
+  return out;
+}
+
+/** Toutes les Contributions sur les Rules et Wargear Options du dépôt. */
+export const readContributions = (datasetDir: string, gameSystem: string): AuthoredEffect[] => [...readContributionFiles(datasetDir, gameSystem).values()].flat();
+
+/**
+ * Range des Contributions dans les fichiers de leur Army d'origine, sous
+ * l'adresse de cette Army. Rend le contenu de chaque fichier touché, `null`
+ * pour un fichier qui n'a plus rien à porter. `previous` dit où était chaque
+ * adresse : une Contribution dont la cible est introuvable y reste.
+ */
+export function layoutContributions(
+  gameSystem: string,
+  effects: AuthoredEffect[],
+  files: Map<string, unknown>,
+  previous: Map<string, AuthoredEffect[]> = new Map(),
+): Map<string, AuthoredEffect[] | null> {
+  const h = homes(files);
+  const wasIn = new Map([...previous].flatMap(([path, list]) => list.map((e) => [e.target, path] as const)));
+  const out = new Map<string, AuthoredEffect[] | null>([...previous.keys()].map((p) => [p, null]));
+  for (const e of effects) {
+    const home = h.homeOf(e.target);
+    const path = home ? contributionsPath(gameSystem, home) : (wasIn.get(e.target) ?? contributionsPath(gameSystem, parseTarget(e.target).root));
+    const entry = { ...e, target: h.canonical(e.target) };
+    out.set(path, [...(out.get(path) ?? []), entry]);
+  }
+  for (const list of out.values()) if (list) list.sort((a, b) => a.target.localeCompare(b.target));
+  return out;
+}
+
+/**
+ * Range les Contributions d'un dépôt de Dataset dans le fichier de leur Army
+ * d'origine, d'après les fichiers qu'il publie : ce qui a migré l'ancien
+ * `effects.json`, et qui remet en ordre un fichier écrit à la main. Rend les
+ * fichiers écrits et supprimés.
+ */
+export function tidyContributions(datasetDir: string, gameSystem: string, files: Map<string, unknown>): { written: string[]; deleted: string[] } {
+  const previous = readContributionFiles(datasetDir, gameSystem);
+  const layout = layoutContributions(gameSystem, [...previous.values()].flat(), files, previous);
+  const out = { written: [] as string[], deleted: [] as string[] };
+  for (const [path, list] of layout) {
+    const abs = join(datasetDir, path);
+    const content = list?.length ? toJson(list) : null;
+    const before = existsSync(abs) ? readFileSync(abs, 'utf8') : null;
+    if (content === before) continue;
+    if (content === null) {
+      rmSync(abs, { force: true });
+      out.deleted.push(path);
+    } else {
+      mkdirSync(dirname(abs), { recursive: true });
+      writeFileSync(abs, content);
+      out.written.push(path);
+    }
+  }
+  return out;
+}
 
 export function readAuthored(datasetDir: string, gameSystem: string): AuthoredCore | undefined {
   const dir = join(datasetDir, authoredDir(gameSystem));
@@ -114,7 +194,8 @@ export function readAuthored(datasetDir: string, gameSystem: string): AuthoredCo
   const battleSizes = read<BattleSize[]>('battle-sizes.json');
   const referenceTargets = read<AuthoredCore['referenceTargets']>('reference-targets.json');
   const sampleList = read<NonNullable<AuthoredCore['sampleList']>>('sample-list.json');
-  const effects = read<AuthoredEffect[]>(EFFECTS_FILE);
+  const contributions = readContributionFiles(datasetDir, gameSystem);
+  const effects = contributions.size ? [...contributions.values()].flat() : undefined;
   const allyRules = read<AuthoredAllyRule[]>(ALLY_RULES_FILE);
   if (!battleSizes && !referenceTargets && !sampleList && !effects && !allyRules) return undefined;
   return {
@@ -271,8 +352,20 @@ export function applyAuthoredEffects(
   const contributions: ContributionVerdict[] = [];
   const armies = [...files].filter(([p]) => p.startsWith(`${gameSystem}/armies/`)).map(([, f]) => f as ArmyFile);
   const core = files.get(`${gameSystem}/core.json`) as CoreFile | undefined;
+  const h: Homes = homes(files);
+  /** Ce que décrit déjà une Contribution, par adresse sous l'Army d'origine. */
+  const described = new Map<string, string>();
 
   for (const e of effects) {
+    const canonical = h.canonical(e.target);
+    const first = described.get(canonical);
+    if (first !== undefined) {
+      const note = `${first} already describes the same element: write it once, under its home Army`;
+      rejected.push({ target: e.target, reason: note });
+      contributions.push({ target: e.target, reason: e.reason, state: 'rejected', note });
+      continue;
+    }
+    described.set(canonical, e.target);
     const problems = authoredEffectProblems(e);
     if (problems.length) {
       rejected.push({ target: e.target, reason: problems[0] });
@@ -319,18 +412,24 @@ export function applyAuthoredEffects(
     } else if (entity === 'ability') {
       for (const a of armies) for (const u of a.units) if (u.id === root) for (const ab of u.abilities) if (ab.name === name) take(ab);
     } else if (entity === 'rule' || entity === 'enhancement') {
+      // Écrite une fois sous l'Army d'origine, elle vaut dans chaque Army qui publie ce Detachment.
       const [detachmentId, elementId] = name.split('|');
+      const holders = new Set(h.holders(e.target));
       for (const a of armies)
-        if (a.id === root)
+        if (holders.has(a.id))
           for (const d of a.detachments)
             if (d.id === detachmentId)
               for (const el of entity === 'rule' ? d.rules : d.enhancements)
                 if (el.id === elementId) take(el);
     } else if (entity === 'armyrule') {
-      for (const a of armies) if (a.id === root) for (const r of a.armyRules ?? []) if (r.id === name) take(r);
+      const holders = new Set(h.holders(e.target));
+      for (const a of armies) if (holders.has(a.id)) for (const r of a.armyRules ?? []) if (r.id === name) take(r);
+    } else if (entity === 'stratagem' && root === CORE_ROOT) {
+      for (const s of core?.stratagems ?? []) if (s.id === name) take(s);
     } else if (entity === 'stratagem') {
-      const list = root === CORE_ROOT ? (core?.stratagems ?? []) : (armies.find((a) => a.id === root)?.stratagems ?? []);
-      for (const s of list) if (s.id === name) take(s);
+      const detachmentId = armies.find((a) => a.id === root)?.stratagems.find((s) => s.id === name)?.detachmentId;
+      const holders = new Set(h.holders(e.target));
+      for (const a of armies) if (holders.has(a.id)) for (const s of a.stratagems) if (s.id === name && s.detachmentId === detachmentId) take(s);
     }
     if (!hits) {
       unresolved.push(e.target);

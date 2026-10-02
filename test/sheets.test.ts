@@ -11,7 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { AuthoredEffect } from '../src/authored.ts';
+import { readContributions } from '../src/authored.ts';
 import type { Correction } from '../src/corrections/files.ts';
 import type { Overview } from '../src/gui/overview.ts';
 import type { PendingChange } from '../src/gui/pending.ts';
@@ -247,7 +247,7 @@ try {
   check('une option qui référence une Weapon absente de l\'Unit est refusée', missingWeapon.status === 400 && git('status', '--porcelain') === '', JSON.stringify(missingWeapon.body));
   group.options[group.options.length - 1] = { id: 'new-option', name: 'One in five', weapons: ['ranged|Slugga'], maxCarriers: 1, perModels: 5, isDefault: false };
   const optSave = await save('u-warboss', opts);
-  const created = readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').find((e) => e.target === `u-warboss::option:${group.id}|new-option`);
+  const created = readContributions(dir, 'wh40k-11e').find((e) => e.target === `u-warboss::option:${group.id}|new-option`);
   check(
     'ajouter une option « 1 pour 5 figurines » : une Wargear Option absente de BSData, donc une Contribution (ADR 0010), sans Correction',
     optSave.body.files.every((f) => f.kind === 'contribution') && created?.option?.perModels === 5 && created.option.name === 'One in five',
@@ -276,7 +276,7 @@ try {
   const summarised = clone(warboss);
   summarised.abilities[1].summary = '+1 to wound while leading.';
   const summarySave = await save('u-warboss', summarised);
-  const effects = existsSync(join(dir, 'authored/wh40k-11e/effects.json')) ? readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json') : [];
+  const effects = readContributions(dir, 'wh40k-11e');
   check(
     'un résumé modifié produit une Contribution, pas une Correction, avec l\'empreinte de l\'amont',
     summarySave.status === 201 && summarySave.body.files.every((f) => f.kind === 'contribution') &&
@@ -312,7 +312,7 @@ try {
     const linked = clone(ext.value as UnitValue);
     optionIn(linked, 'e-ext-lascannon').wargearCost = { item: 'Lascannon' };
     const linkSave = await save('u-exterminator', linked, 'Le Lascannon de coque est facturé dans l\'app officielle.');
-    const entry = readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').find((e) => e.target === 'u-exterminator::option:g-ext-hull|e-ext-lascannon');
+    const entry = readContributions(dir, 'wh40k-11e').find((e) => e.target === 'u-exterminator::option:g-ext-hull|e-ext-lascannon');
     check(
       'lier une option : une Contribution, sans Correction',
       linkSave.status === 201 && linkSave.body.files.every((f) => f.kind === 'contribution') && entry?.wargearCost?.item === 'Lascannon',
@@ -336,7 +336,7 @@ try {
     check(
       'régler un lien et une option d\'un coup : le lien en Contribution, l\'option en Correction sans lien',
       bothSave.status === 201 && Boolean(groupsFix) && !readFileSync(join(dir, groupsFix!.path), 'utf8').includes('wargearCost') &&
-        readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').some((e) => e.target === 'u-exterminator::option:g-ext-sponsons|e-ext-2mm' && e.wargearCost?.quantity === 1),
+        readContributions(dir, 'wh40k-11e').some((e) => e.target === 'u-exterminator::option:g-ext-sponsons|e-ext-2mm' && e.wargearCost?.quantity === 1),
       JSON.stringify(bothSave.body),
     );
 
@@ -346,7 +346,7 @@ try {
     const unlinkSave = await save('u-meganobz', unlinked, 'Test : délier.');
     check(
       'délier un lien automatique : une Contribution qui délie',
-      unlinkSave.status === 201 && readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').some((e) => e.target === 'u-meganobz::option:g-meganobz|m-mnz-twin' && e.wargearCost === null),
+      unlinkSave.status === 201 && readContributions(dir, 'wh40k-11e').some((e) => e.target === 'u-meganobz::option:g-meganobz|m-mnz-twin' && e.wargearCost === null),
       JSON.stringify(unlinkSave.body),
     );
     const wrong = clone(ext.value as UnitValue);
@@ -366,7 +366,7 @@ try {
     check(
       'rattacher une aptitude à une option : une Contribution',
       saved.status === 201 && saved.body.files.every((f) => f.kind === 'contribution') &&
-        readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').some((e) => e.target === 'u-wolfguard-terminators::option:g-wgt|m-wgt-shield' && e.abilities?.join() === 'Storm Shield'),
+        readContributions(dir, 'wh40k-11e').some((e) => e.target === 'u-wolfguard-terminators::option:g-wgt|m-wgt-shield' && e.abilities?.join() === 'Storm Shield'),
       JSON.stringify(saved.body),
     );
     const bad = clone(wolves.value as UnitValue);
@@ -392,7 +392,7 @@ try {
     };
     draft.optionGroups![0].options.push(banner);
     const saved = await save('u-victrix', draft, 'La bannière existe dans l\'app officielle, pas dans BSData.');
-    const entry = readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').find((e) => e.target === 'u-victrix::option:g-victrix|contrib-1');
+    const entry = readContributions(dir, 'wh40k-11e').find((e) => e.target === 'u-victrix::option:g-victrix|contrib-1');
     check(
       'créer une option : une seule Contribution, qui porte l\'option, son lien au MFM et son aptitude',
       saved.status === 201 && saved.body.files.every((f) => f.kind === 'contribution') &&
@@ -413,7 +413,7 @@ try {
     const removal = await save('u-victrix', removed, 'Test : retirer l\'option créée.');
     check(
       'retirer une option créée retire sa Contribution, sans Correction',
-      removal.status === 201 && removal.body.files.every((f) => f.kind === 'contribution') && !existsSync(join(dir, 'authored/wh40k-11e/effects.json')),
+      removal.status === 201 && removal.body.files.every((f) => f.kind === 'contribution') && readContributions(dir, 'wh40k-11e').length === 0,
       JSON.stringify(removal.body),
     );
     for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
@@ -424,7 +424,7 @@ try {
   const nested = clone(warboss);
   nested.abilities[1].modifiers = [{ key: 'A', value: 1, target: 'self', conditions: [{ key: 'melee' }, { key: 'waaagh' }] }];
   const nestedSave = await save('u-warboss', nested);
-  const nestedEntry = readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').find((e) => e.target === 'u-warboss::ability:Da Boss Fixture');
+  const nestedEntry = readContributions(dir, 'wh40k-11e').find((e) => e.target === 'u-warboss::ability:Da Boss Fixture');
   check('des Modifiers conditionnés s\'enregistrent en Contribution valide', nestedSave.status === 201 && nestedEntry?.modifiers?.[0].conditions?.length === 2, JSON.stringify(nestedSave.body));
   for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
   const halfBuilt = clone(warboss);
@@ -446,7 +446,7 @@ try {
     const draft = clone(brutes.value) as { enhancements: Enh[] };
     draft.enhancements[0].weapon = kombi!.weapon;
     const saved = await save('orks::detachment:boss-brutes', draft, 'L\'Enhancement apporte son arme au porteur.');
-    const entry = readJson<AuthoredEffect[]>('authored/wh40k-11e/effects.json').find((e) => e.target === 'orks::enhancement:boss-brutes|da-gobshot-thunderbuss');
+    const entry = readContributions(dir, 'wh40k-11e').find((e) => e.target === 'orks::enhancement:boss-brutes|da-gobshot-thunderbuss');
     check(
       'la Weapon d\'une Enhancement, reprise d\'une valeur amont : une Contribution, profils compris',
       saved.status === 201 && saved.body.files.every((f) => f.kind === 'contribution') && entry?.weapon?.profiles.length === 2,
@@ -460,7 +460,7 @@ try {
     const removal = await save('orks::detachment:boss-brutes', without, 'Test : retirer la Weapon.');
     check(
       'retirer la Weapon retire la Contribution',
-      removal.status === 201 && !existsSync(join(dir, 'authored/wh40k-11e/effects.json')),
+      removal.status === 201 && readContributions(dir, 'wh40k-11e').length === 0,
       JSON.stringify(removal.body),
     );
     for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
