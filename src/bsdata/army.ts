@@ -7,7 +7,7 @@
  * disque) — deux implémentations divergentes finiraient par produire deux
  * armées différentes pour le même dépôt.
  */
-import { flattenCatalogues, type BsCatalogue } from './flatten.ts';
+import { enhancementWeapons, flattenCatalogues, type BsCatalogue, type EnhancementWeapon } from './flatten.ts';
 import type { CatalogueUnit } from './types.ts';
 
 /** Lit un catalogue par son nom de fichier, sans l'extension .json. */
@@ -28,6 +28,8 @@ export interface ArmyData {
   /** Catalogues alliés, jouables mais pas d'office : chargés à la demande. */
   available: string[];
   units: CatalogueUnit[];
+  /** Les Weapons que les Enhancements des catalogues chargés apportent. */
+  enhancementWeapons: EnhancementWeapon[];
 }
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -165,5 +167,6 @@ export async function composeArmy(
     loaded: [...loaded],
     available: [...allies].filter((a) => !loaded.has(a)),
     units,
+    enhancementWeapons: enhancementWeapons(cats),
   };
 }

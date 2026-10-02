@@ -196,8 +196,9 @@ forces, and its file.
 - **rules** — each with its Modifiers, Options, eligibility and description;
 - **enhancements** — points, whether it goes on a character or a unit, aura,
   how many units, required and excluded keywords, the units it opens Leader or
-  Support for, what it does, and the **weapon** it brings, if any (*Take it
-  from* picks a weapon the army already has).
+  Support for, what it does, and the **weapon** it brings, if any: BSData's,
+  unless a contribution replaces it (*Take it from* picks a weapon the army
+  already has).
 
 ## The stratagem sheet
 

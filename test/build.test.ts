@@ -93,6 +93,13 @@ check(
   first.conflicts.filter((c) => c.id === 'u-boyz' && c.field === 'points').map((c) => c.army).join() === 'orks',
 );
 
+section('Construction : Weapons des groupes partagés d\'Enhancements et de Crusade');
+const carries = (u: Unit, name: string) => u.weapons.some((w) => w.name === name) || (u.defaultLoadout ?? []).some((d) => d.weapon === name);
+check('la Weapon d\'une Enhancement ne va pas sur la datasheet', !carries(warboss, 'Da Gobshot Thunderbuss'), warboss.weapons.map((w) => w.name).join(', '));
+check('un groupe « Enhancements - … » est écarté comme « Enhancements »', !carries(warboss, 'Upgrade Blasta'));
+check('une Weapon de Crusade ne va pas sur la datasheet', !carries(warboss, 'Krusade Blasta'));
+check('une Weapon d\'un autre groupe partagé reste sur la datasheet', warboss.weapons.some((w) => w.name === 'Stikkbomb'), warboss.weapons.map((w) => w.name).join(', '));
+
 section('Construction : coût d\'Assigned Agent (#143)');
 const navigator = unit(first, 'agents-of-the-imperium', 'Navigator');
 const navigatorAlly = unit(first, 'astra-militarum', 'Navigator');
@@ -156,7 +163,8 @@ check(
 );
 check(
   'le loadout par défaut référence la Weapon une seule fois',
-  JSON.stringify(warboss.defaultLoadout?.filter((d) => d.kind === 'ranged')) === JSON.stringify([{ weapon: 'Kombi-rokkit', kind: 'ranged', count: 1 }]),
+  JSON.stringify(warboss.defaultLoadout?.filter((d) => d.kind === 'ranged')) ===
+    JSON.stringify([{ weapon: 'Kombi-rokkit', kind: 'ranged', count: 1 }, { weapon: 'Stikkbomb', kind: 'ranged', count: 1 }]),
   JSON.stringify(warboss.defaultLoadout),
 );
 

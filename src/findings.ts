@@ -34,3 +34,20 @@ export interface MissingEntity {
   published: boolean;
 }
 
+/**
+ * Ce qui cloche entre une Weapon d'Enhancement et le Dataset. `orphan` : BSData
+ * donne une Weapon à une Enhancement que le Dataset n'a pas (son Detachment
+ * manque au MFM), elle n'est posée nulle part. `collision` : une datasheet
+ * porte la Weapon d'une Enhancement de son Army, signe qu'un groupe partagé
+ * l'y a amenée à tort.
+ */
+export interface EnhancementWeaponFinding {
+  kind: 'orphan' | 'collision';
+  /** Les Armies où elle se présente. */
+  armies: string[];
+  /** L'Enhancement, par son nom amont. */
+  enhancement: string;
+  weapon: string;
+  /** Pour une collision : la datasheet qui la porte. */
+  unit?: string;
+}

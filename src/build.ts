@@ -25,12 +25,13 @@ import {
   type Unit,
 } from '@paintplanplay/dataset-schema';
 import { armyFaction, armyLabel, composeArmy, playableArmies } from './bsdata/army.ts';
-import type { CatalogueUnit } from './bsdata/types.ts';
+import type { EnhancementWeapon } from './bsdata/flatten.ts';
+import { weaponRef, type CatalogueUnit } from './bsdata/types.ts';
 import { applyCorrections, applyDetachmentCorrections, applyStratagemCorrections, CORE_ROOT, parseTarget, type ApplyReport } from './corrections/apply.ts';
 import type { CorrectionFile } from './corrections/files.ts';
 import { detachmentElement, reconcile, stratagemElement, upstreamElement, type CorrectionVerdict } from './corrections/lifecycle.ts';
 import { buildDetachments, toStratagem } from './detachments.ts';
-import type { MissingEntity, SourceConflict } from './findings.ts';
+import type { EnhancementWeaponFinding, MissingEntity, SourceConflict } from './findings.ts';
 import { assignIds, emptyRegistry, type IdRegistry } from './ids.ts';
 import { findRulesText, type TextFinding } from './notext.ts';
 import type { Snapshot } from './snapshot.ts';
@@ -41,7 +42,7 @@ import { applyMfm, mfmDuplicates, mfmKey, type MfmConflict, type MfmDuplicate, t
 import { coreName, coreStatus, findUnsimulated, type UnsimulatedKey } from './rules.ts';
 import { linkWargear, type WargearFinding } from './wargear.ts';
 
-export type { MissingEntity, SourceConflict } from './findings.ts';
+export type { EnhancementWeaponFinding, MissingEntity, SourceConflict } from './findings.ts';
 
 export interface BuildInput {
   snapshot: Snapshot;
@@ -84,6 +85,8 @@ export interface BuildOutput {
   kdcEffects: Record<string, unknown>;
   /** Les lignes `wargear` du MFM qu'aucune Wargear Option ne facture, et les liens posés à la main qui ne visent plus rien. */
   wargear: WargearFinding[];
+  /** Les Weapons d'Enhancement que BSData donne sans Enhancement dans le Dataset. */
+  enhancementWeapons: EnhancementWeaponFinding[];
 }
 
 /**
@@ -198,6 +201,58 @@ class OncePerUnit {
 
 const DETACHMENT_ENTITIES = new Set(['detachment', 'enhancement']);
 
+/**
+ * Les datasheets qui portent la Weapon d'une Enhancement de leur Army, sur le
+ * Dataset final : le signe qu'un groupe partagé BSData, renommé ou nouveau, l'y
+ * a amenée. Une arme qui porte seulement le nom d'une Enhancement sans Weapon
+ * n'en est pas une. Une Unit alliée ne se signale qu'une fois.
+ */
+function enhancementCollisions(files: Map<string, unknown>, gameSystem: string): EnhancementWeaponFinding[] {
+  const found = new Map<string, EnhancementWeaponFinding>();
+  for (const [path, file] of files) {
+    if (!path.startsWith(`${gameSystem}/armies/`)) continue;
+    const army = file as ArmyFile;
+    const brought = new Map<string, string>();
+    for (const d of army.detachments) for (const e of d.enhancements) if (e.weapon) brought.set(weaponRef(e.weapon), e.name);
+    for (const u of army.units)
+      for (const w of u.weapons) {
+        const enhancement = brought.get(weaponRef(w));
+        if (!enhancement) continue;
+        const key = `${u.id}|${weaponRef(w)}`;
+        const f = found.get(key) ?? found.set(key, { kind: 'collision', armies: [], enhancement, weapon: w.name, unit: u.name }).get(key)!;
+        f.armies.push(army.id);
+      }
+  }
+  return [...found.values()].map((f) => ({ ...f, armies: f.armies.sort() }));
+}
+
+/**
+ * Pose sur chaque Enhancement la Weapon que BSData lui donne, par son nom : une
+ * donnée amont, que Corrections et Contributions viennent ensuite modifier.
+ * `placements` retient, toutes Armies confondues, ce qui a trouvé preneur : une
+ * Weapon qu'aucune Army ne pose est orpheline.
+ */
+/** Une Weapon d'Enhancement de BSData, les Armies qui la voient, et si l'une d'elles l'a posée. */
+interface Placement {
+  source: EnhancementWeapon;
+  armies: Set<string>;
+  placed: boolean;
+}
+
+function equipEnhancements(armyId: string, detachments: Detachment[], found: EnhancementWeapon[], placements: Map<string, Placement>): void {
+  for (const source of found) {
+    const key = `${mfmKey(source.enhancement)}|${weaponRef(source.weapon)}`;
+    const p = placements.get(key) ?? placements.set(key, { source, armies: new Set(), placed: false }).get(key)!;
+    p.armies.add(armyId);
+    for (const d of detachments)
+      for (const e of d.enhancements)
+        if (!e.weapon && mfmKey(e.name) === mfmKey(source.enhancement)) {
+          e.weapon = structuredClone(source.weapon);
+          p.placed = true;
+        }
+  }
+}
+
 export async function build(input: BuildInput): Promise<BuildOutput> {
   const { snapshot } = input;
   const gameSystem = input.gameSystem ?? 'wh40k-11e';
@@ -217,18 +272,19 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   const mfm = snapshot.mfmFactions();
   const kdc = snapshot.kdc();
 
-  const composed: { file: string; units: CatalogueUnit[]; mfm?: MfmFaction }[] = [];
+  const composed: { file: string; units: CatalogueUnit[]; enhancementWeapons: EnhancementWeapon[]; mfm?: MfmFaction }[] = [];
   for (const file of playableArmies(all)) {
     const data = await composeArmy(file, all, [], async (f) => snapshot.readBsdata(f));
     // Une Army sans datasheet est un fichier de règles, pas une Army jouable.
     if (data.units.length === 0) continue;
-    composed.push({ file, units: data.units, mfm: mfmFactionOf(file, data.loaded, mfm) });
+    composed.push({ file, units: data.units, enhancementWeapons: data.enhancementWeapons, mfm: mfmFactionOf(file, data.loaded, mfm) });
   }
 
   const armyIds = assignIds(ids, 'armies', '*', composed, (a) => ({ keys: [`bsdata:${a.file}`], name: armyLabel(a.file) }));
 
   // 1. Upstream Sources : BSData, puis le MFM qui fait autorité sur ce qu'il publie, puis 40kdc-data.
   const once = new OncePerUnit();
+  const placements = new Map<string, Placement>();
   const merged = composed.map((army) => {
     const id = armyIds.get(army)!;
     if (!army.mfm) armiesWithoutMfm.push(army.file);
@@ -243,6 +299,7 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
     const dets = buildDetachments({ armyId: id, mfm: army.mfm, kdc, kdcFaction, ids });
     conflicts.push(...dets.conflicts);
     missing.push(...dets.missing);
+    equipEnhancements(id, dets.detachments, army.enhancementWeapons, placements);
     Object.assign(kdcEffects, dets.kdcEffects);
     return { ...army, id, units, kdcFaction, detachments: dets.detachments, stratagems: dets.stratagems };
   });
@@ -379,11 +436,18 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
     ...[...files].flatMap(([path, data]) => findRulesText(data, path)),
     ...corrections.flatMap(({ path, ...c }) => findRulesText(c, path)),
   ];
+  const enhancementWeapons: EnhancementWeaponFinding[] = [
+    ...[...placements.values()]
+      .filter((p) => !p.placed)
+      .map((p): EnhancementWeaponFinding => ({ kind: 'orphan', armies: [...p.armies].sort(), enhancement: p.source.enhancement, weapon: p.source.weapon.name })),
+    ...enhancementCollisions(files, gameSystem),
+  ].sort((a, b) => a.kind.localeCompare(b.kind) || (a.unit ?? '').localeCompare(b.unit ?? '') || a.enhancement.localeCompare(b.enhancement));
   return {
     gameSystem, files, ids, conflicts, unmatched, armiesWithoutMfm, mfmDuplicates: mfmDuplicates(mfm), missing,
     unresolvedAuthored: authored.unresolved, corrections: verdicts, contributions: authoredEffects.contributions, orphans, textCheck,
     unsimulated: findUnsimulated(files),
     kdcEffects,
     wargear,
+    enhancementWeapons,
   };
 }

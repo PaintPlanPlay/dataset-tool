@@ -92,7 +92,7 @@ with the next release.
 |---|---|
 | [Munitorum Field Manual, via BSData](https://github.com/BSData/wh40k-11e-mfm) | points, requisition brackets, paid wargear, leader/support attachments, detachment points, force dispositions, enhancements |
 | [40kdc-data](https://github.com/wn-mitch/40kdc-data) | which detachment rules and stratagems exist, their CP, timing and targets, enhancement restrictions |
-| [BSData](https://github.com/BSData/wh40k-11e) | unit profiles, weapons, wargear options, keywords |
+| [BSData](https://github.com/BSData/wh40k-11e) | unit profiles, weapons, wargear options, keywords, the weapon an enhancement brings |
 | this project | what a rule does (Modifiers and one-line descriptions), battle sizes, ally rules |
 
 When sources disagree, the one trusted for that field wins and the disagreement

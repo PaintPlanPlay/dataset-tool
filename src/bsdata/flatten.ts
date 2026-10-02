@@ -211,6 +211,46 @@ function hiddenFor(node: BsNode, primaryId: string | undefined): boolean {
   });
 }
 
+/** Une Enhancement de BSData qui apporte une Weapon, par le nom de son entrée. */
+export interface EnhancementWeapon {
+  enhancement: string;
+  weapon: Weapon;
+}
+
+/**
+ * Les Weapons que les Enhancements apportent, lues dans les groupes partagés
+ * « Enhancements… » : chaque entrée qui porte un profil d'arme, rangée
+ * directement ou sous le groupe de son Detachment. C'est l'Enhancement qui la
+ * porte, jamais la datasheet qui pourrait la prendre.
+ */
+export function enhancementWeapons(catalogues: BsCatalogue[]): EnhancementWeapon[] {
+  const byId = buildIdIndex(catalogues);
+  const out: EnhancementWeapon[] = [];
+  const seen = new Set<string>();
+  const profilesOf = (node: BsNode, depth: number): FlatProfile[] => {
+    if (depth > MAX_DEPTH) return [];
+    const own = [...(node.profiles ?? []), ...(node.infoLinks ?? []).map((l) => (l.targetId ? byId.get(l.targetId) : undefined)).filter((n): n is BsNode => Boolean(n))];
+    return [
+      ...own.filter((p) => /Weapons/i.test(p.typeName ?? '')).map(toWeapon).filter((w): w is FlatProfile => Boolean(w?.name)),
+      ...(node.selectionEntries ?? []).flatMap((e) => profilesOf(e, depth + 1)),
+    ];
+  };
+  const walk = (node: BsNode, depth: number) => {
+    if (depth > MAX_DEPTH) return;
+    for (const entry of [...(node.selectionEntries ?? []), ...(node.entryLinks ?? []).map((l) => (l.targetId ? byId.get(l.targetId) : undefined))]) {
+      if (!entry?.name || entry.hidden) continue;
+      const [weapon] = groupProfiles(profilesOf(entry, depth));
+      const key = `${entry.name}|${weapon ? weaponRef(weapon) : ''}`;
+      if (!weapon || seen.has(key)) continue;
+      seen.add(key);
+      out.push({ enhancement: entry.name.trim(), weapon });
+    }
+    for (const grp of node.selectionEntryGroups ?? []) walk(grp, depth + 1);
+  };
+  for (const cat of catalogues) for (const grp of cat.sharedSelectionEntryGroups ?? []) if (isEnhancementGroup(grp.name)) walk(grp, 0);
+  return out;
+}
+
 /** Index id -> nœud, pour résoudre les entryLink/infoLink d'un ou plusieurs catalogues. */
 export function buildIdIndex(catalogues: BsCatalogue[]): Map<string, BsNode> {
   const byId = new Map<string, BsNode>();
@@ -308,9 +348,20 @@ function boundsOf(node: BsNode): Bounds | null {
   return { min: typeof min === 'number' ? min : 0, max: typeof max === 'number' && max > 0 ? max : null };
 }
 
+/** Un groupe partagé d'Enhancements : « Enhancements », « Enhancements - Upgrades ». */
+export const isEnhancementGroup = (name: string | undefined) => /^enhancements\b/i.test((name ?? '').trim());
+
+/**
+ * Un groupe partagé dont les armes n'appartiennent pas à la datasheet qui le
+ * lie : celles d'une Enhancement vont à l'Enhancement, tant qu'elle est prise ;
+ * celles de Crusade, mode que le Dataset ne couvre pas, nulle part. Les suivre
+ * équipait d'office chaque personnage Ork de Da Gobshot Thunderbuss.
+ */
+const isForeignGear = (name: string | undefined) => isEnhancementGroup(name) || /^crusade$/i.test((name ?? '').trim());
+
 /**
  * @param own true tant qu'on est dans la datasheet elle-même. Les liens vers les
- * groupes partagés (Enhancements, Croisade, reliques de détachement) apportent
+ * autres groupes partagés (reliques de détachement, armes communes) apportent
  * des options de wargear qu'il faut suivre pour les armes, mais leurs aptitudes
  * n'appartiennent pas à l'unité : un Warboss en remontait une quarantaine.
  */
@@ -459,6 +510,7 @@ function collect(
     if (seen.has(key)) continue;
     seen.add(key);
     const target = byId.get(link.targetId);
+    if (link.type === 'selectionEntryGroup' && isForeignGear(target?.name)) continue;
     // Un lien vers un groupe partagé sort de la datasheet : on garde les armes, pas les aptitudes.
     if (target)
       collect(
