@@ -4,7 +4,7 @@
  * Effects amont écartés.
  */
 
-export type Authority = 'mfm' | 'bsdata' | '40kdc';
+export type Authority = 'mfm' | 'bsdata';
 
 /** Un désaccord entre deux Upstream Sources, tranché par la règle d'autorité. */
 export interface SourceConflict {
@@ -18,20 +18,6 @@ export interface SourceConflict {
   kept: string;
   /** La source écartée et sa valeur. */
   other: { source: Authority; value: string };
-}
-
-/**
- * Un élément qu'une source publie et que l'autre ignore. Publié quand la
- * source manquante n'est pas celle qui en décide l'existence, écarté sinon.
- */
-export interface MissingEntity {
-  army: string;
-  entity: 'detachment' | 'enhancement' | 'stratagem';
-  name: string;
-  /** La source qui ne le connaît pas. */
-  missingIn: Authority;
-  /** true s'il figure quand même dans le Dataset. */
-  published: boolean;
 }
 
 /**

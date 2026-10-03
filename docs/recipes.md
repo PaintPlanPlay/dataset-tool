@@ -544,8 +544,23 @@ picks the units; one Modifier grants the keyword:
 A keyword granted this way counts everywhere a printed keyword counts — the
 unit limit of a list included.
 
-> Adding or removing a detachment rule itself is not supported yet: which
-> rules exist comes from 40kdc-data.
+## Add a detachment rule
+
+**Where:** the detachment's sheet, **+** in the rules. Give it a name; describe
+what it does as for any rule. Removing it removes it.
+
+**What is written** — a contribution that creates it, in every army that
+publishes the detachment:
+
+```json
+{
+  "target": "space-marines::rule:shadowmark-talon|masters-of-shadow",
+  "rule": { "name": "Masters of Shadow" },
+  "eligibility": { "allOf": ["Adeptus Astartes"], "anyOf": [], "noneOf": [] },
+  "summary": "Cover against ranged attacks from more than 12\" away",
+  "reason": "…"
+}
+```
 
 ## Describe a rule that offers a choice
 
@@ -581,31 +596,37 @@ In the apps, the player ticks the option they chose.
 
 **Where:** the stratagem's sheet. Core stratagems are on the **Core** sheet.
 
-Two kinds of fields:
+Every field of a stratagem is ours, and lives in one contribution:
 
-- **what 40kdc-data publishes** — name, **Cp**, **Phases**, **Player turn**
+- **its structured fields** — name, **Cp**, **Phases**, **Player turn**
   (`your-turn`, `opponent-turn`, `either`), **Timing** (`once-per-phase`,
   `once-per-turn`, `once-per-battle`, `unlimited`), **Category**
-  (`battle-tactic`, `strategic-ploy`, `epic-deed`, `wargear`) and **Target**.
-  Changing one writes a correction, source `40kdc`;
-- **what it does** — Modifiers, Options, description. A contribution.
+  (`battle-tactic`, `strategic-ploy`, `epic-deed`, `wargear`) and **Target**,
+  together in `stratagem`;
+- **what it does** — Modifiers, Options, description.
 
 The **Target** says which units the stratagem can be used on, by keywords:
 **all of** these, **at least one of** those, **none of** the last. The apps use
 it to show a player only the stratagems that apply to the unit in front of them,
 so it is the most useful field to fix.
 
-**What is written** — for a target:
+**What is written** — the whole `stratagem`, whichever field changed:
 
 ```json
 {
   "target": "orks::stratagem:ere-we-go",
-  "source": "40kdc",
-  "patch": { "target": { "allOf": ["Infantry"], "anyOf": [], "noneOf": ["Gretchin"] } },
-  "upstream": {},
+  "stratagem": {
+    "name": "’ERE WE GO", "detachmentId": "green-tide", "cp": 1, "phases": ["movement"],
+    "playerTurn": "your-turn", "timing": "once-per-phase", "category": "strategic-ploy",
+    "target": { "allOf": ["Infantry"], "anyOf": [], "noneOf": ["Gretchin"] }
+  },
   "reason": "…"
 }
 ```
+
+A core stratagem is added or removed on the **Core** sheet the same way, with
+`"detachmentId": null`. A stratagem of a detachment is added by writing its
+contribution: no sheet offers it yet.
 
 > A stratagem playable only in the Fight phase applies its Modifiers in melee
 > only, and one playable only in the Shooting phase, to shooting only. You do
@@ -636,9 +657,10 @@ contribution if you described what it does.
 | **Excludes** | keywords that forbid the bearer |
 | **Leader to** / **Support to** | units for which the enhancement opens Leader or Support, by name |
 
-**What is written** — a correction on the enhancement. Points, *leader to* and
-*support to* override the MFM; the rest overrides 40kdc-data. When you change
-both kinds at once, the tool writes two files, one per source.
+**What is written** — points, name, *applies to*, *aura*, *leader to* and
+*support to* are a correction of the MFM; *max targets*, *requires* and
+*excludes* are ours, a contribution. When you change both kinds at once, the
+tool writes both.
 
 ## Give an enhancement a weapon
 
@@ -745,7 +767,7 @@ save — a correction that no longer forces anything is removed on its own.
 A correction is a patch on our side. The real fix is for the source to correct
 itself — then every project using it benefits, and our correction can go.
 
-1. In **Corrections (n)**, click **tell bsdata** (or **mfm**, **40kdc**). A
+1. In **Corrections (n)**, click **tell bsdata** (or **mfm**). A
    prefilled issue opens on that project's GitHub page: the element, the
    current value, the proposed value, and your reason. Submit it.
 2. When the source opens a pull request for it, paste its link in the box next

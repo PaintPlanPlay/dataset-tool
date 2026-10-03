@@ -10,7 +10,7 @@ import type { CorrectionVerdict } from '../corrections/lifecycle.ts';
 import type { SourceConflict } from '../findings.ts';
 import type { WargearFinding } from '../wargear.ts';
 
-export type Origin = 'bsdata' | 'mfm' | '40kdc' | 'analysis' | 'project' | 'correction' | 'published';
+export type Origin = 'bsdata' | 'mfm' | 'analysis' | 'project' | 'correction' | 'published';
 
 /**
  * Ce que l'interface lit : les fichiers du Dataset, et ce qu'on sait d'eux. Une
@@ -26,8 +26,6 @@ export interface DatasetView {
   conflicts?: SourceConflict[];
   /** Ce que sont devenues les Contributions à la construction. */
   contributions?: ContributionVerdict[];
-  /** Les Effects de 40kdc-data retirés des Armies au format de Rule : la deuxième lecture de la revue. */
-  kdcEffects?: Record<string, unknown>;
   /** Les lignes `wargear` du MFM qu'aucune Wargear Option ne facture, et les liens manuels qui ne visent plus rien. */
   wargear?: WargearFinding[];
 }
@@ -89,7 +87,7 @@ export function inspect(current: DatasetView, bare: DatasetView | null, target: 
     const origins: FieldOrigin[] = [
       { field: 'battleSizes', origin: bare ? 'project' : 'published' },
       { field: 'allyRules', origin: bare ? 'project' : 'published' },
-      { field: 'stratagems', origin: bare ? '40kdc' : 'published' },
+      { field: 'stratagems', origin: bare ? 'project' : 'published' },
     ];
     return { kind: 'core', army: CORE_ROOT, target: CORE_ROOT, name: 'Core', value, origins, corrections: verdicts };
   }
@@ -133,14 +131,15 @@ export function inspect(current: DatasetView, bare: DatasetView | null, target: 
       if (field === 'enhancements') continue;
       if (upstream && !same(value, (upstream as unknown as Record<string, unknown>)[field])) origins.push(correctionOrigin(field, verdicts));
       else if (!bare) origins.push({ field, origin: 'published' });
-      else origins.push({ field, origin: MFM_DETACHMENT_FIELDS.has(field) ? 'mfm' : field === 'rules' ? '40kdc' : 'bsdata' });
+      else origins.push({ field, origin: MFM_DETACHMENT_FIELDS.has(field) ? 'mfm' : field === 'rules' ? 'project' : 'bsdata' });
     }
     for (const enh of detachment.enhancements) {
       const before = upstream?.enhancements.find((e) => e.id === enh.id);
       if (upstream && !same(enh.points, before?.points)) origins.push(correctionOrigin(`enhancements › ${enh.name} › points`, verdicts));
       else origins.push({ field: `enhancements › ${enh.name} › points`, origin: bare ? 'mfm' : 'published' });
       if (upstream && !same({ ...enh, points: 0 }, { ...before, points: 0 })) origins.push(correctionOrigin(`enhancements › ${enh.name}`, verdicts));
-      else origins.push({ field: `enhancements › ${enh.name}`, origin: bare ? '40kdc' : 'published' });
+      // Son nom vient du MFM ; ses restrictions et ce qu'elle fait sont à nous.
+      else origins.push({ field: `enhancements › ${enh.name}`, origin: bare ? 'project' : 'published' });
     }
     return { kind: 'detachment', army: root, target: key, name: detachment.name, value: detachment, origins, corrections: verdicts };
   }
@@ -163,7 +162,7 @@ export function inspect(current: DatasetView, bare: DatasetView | null, target: 
     const origins = Object.entries(stratagem).map(([field, value]) =>
       upstream && !same(value, (upstream as unknown as Record<string, unknown>)[field])
         ? correctionOrigin(field, verdicts)
-        : { field, origin: (bare ? '40kdc' : 'published') as Origin },
+        : { field, origin: (bare ? 'project' : 'published') as Origin },
     );
     return { kind: 'stratagem', army: root, target, name: stratagem.name, value: stratagem, origins, corrections: verdicts };
   }

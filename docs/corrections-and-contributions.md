@@ -38,7 +38,7 @@ A correction overrides what one source says about one element.
 | Field | Required | What to put in it |
 |---|---|---|
 | `target` | yes | the address of what you are fixing — see below |
-| `source` | yes | the source being overridden: `bsdata`, `mfm` or `40kdc` |
+| `source` | yes | the source being overridden: `bsdata` or `mfm` |
 | `patch` | yes | the corrected values, and only those. At least one |
 | `upstream` | recommended | what the source says today, for the same fields. It is what lets a later build tell whether the source has fixed itself |
 | `reason` | yes | one sentence, in your own words, 240 characters at most |
@@ -47,14 +47,13 @@ A correction overrides what one source says about one element.
 ### Which source?
 
 The source that is trusted for the field
-([How it works](how-it-works.md#the-three-sources-and-who-is-trusted-for-what)
+([How it works](how-it-works.md#the-two-sources-and-who-is-trusted-for-what)
 has the full table):
 
 | You are fixing | `source` |
 |---|---|
 | a characteristic, a weapon, a keyword, an ability's presence, composition, wargear options, the weapon an enhancement brings | `bsdata` |
 | a price, paid wargear, a leader or support attachment, a detachment's points or dispositions, an enhancement's points | `mfm` |
-| a stratagem's CP, phases, timing or target; an enhancement's restrictions | `40kdc` |
 
 ### Targets
 
@@ -138,7 +137,9 @@ enhancements. Two particular cases:
 
 - `__delete` on a **unit** does not remove it: the unit is marked Legends with
   a cost of 0, so that saved lists that include it keep working;
-- a **stratagem** can be removed, not added.
+- a **stratagem** can be removed, not added: a stratagem no source has is a
+  [contribution](#contributions) (`stratagem`), and so is a detachment rule
+  (`rule`).
 
 ### How a build judges a correction
 
@@ -235,11 +236,12 @@ home army, under the address of that army. It is how the former single
 | `wargearCost` | a wargear option | the MFM line that bills the option: `{ "item": "Lascannon" }`, with `"quantity": 2` when it is paid twice per model. `null` removes an automatic link |
 | `abilities` | a wargear option | abilities of the unit, by name, that the option brings |
 | `option` | a wargear option | a whole option BSData does not have: `name`, `weapons`, `maxCarriers`, `isDefault`, optionally `perModels` |
-| `review` | a rule | set by the tool for imported readings: `concordant`, `divergent`, `seul` (ours is the only reading), `revu` (reviewed by a human) |
-| `upstream` | a rule | set by the tool: a fingerprint of 40kdc-data's own reading when the entry was written |
+| `rule` | a detachment rule | a detachment rule no source has: `{ "name": "…" }`. It is created under the identifier of the target, in every army that publishes the detachment |
+| `stratagem` | a stratagem | its structured fields: `name`, `detachmentId` (`null` for a core stratagem), `cp`, `phases`, `playerTurn`, `timing`, optionally `category` and `target`. A stratagem no source has is created under the identifier of the target, in every army that publishes its detachment; one that exists has its fields replaced — a field left out is dropped |
+| `requires`, `excludes`, `maxTargets` | an enhancement | its restrictions: the keyword groups its bearer needs (one group, every keyword in it), the keywords that forbid a bearer, how many units an upgrade equips. Absent: no restriction, one unit |
 
-A rule entry needs at least one of `modifiers`, `options`, `summary` or
-`eligibility`. A wargear option entry carries only `wargearCost`, `abilities`
+A rule entry needs at least one of `modifiers`, `options`, `summary`,
+`eligibility`, `rule` or `stratagem`. A wargear option entry carries only `wargearCost`, `abilities`
 or `option`.
 
 **Targets of contributions**
@@ -259,8 +261,8 @@ or `option`.
 | State | Meaning |
 |---|---|
 | **active** | applied |
-| **upstream changed** (flagged) | applied — but 40kdc-data changed its own reading of that rule since the entry was written, or an ability the entry names is gone. Compare the two, and correct ours on its sheet if theirs is right |
-| **rejected** | not applied: off schema, rules text, or the retired 40kdc-data effect format |
+| **flagged** | applied — but an ability the entry names is gone |
+| **rejected** | not applied: off schema, rules text, or the retired 40kdc-data effect format. A stratagem or detachment rule the entry creates is still created; only the rest is set aside |
 | **target missing** (unresolved) | the rule, option group or unit it names is not in the dataset |
 
 That flag is the one thing watched on a contribution. It never replaces what

@@ -83,11 +83,6 @@ from the list of the game's weapon abilities. Use the **+ add…** menu.
 **"…is not an MFM wargear line of this Unit"** — the option's wargear cost
 names a line that is not in **Wargear costs**. Add the line first.
 
-**"adding or removing a Detachment Rule is not supported yet"**, **"adding or
-removing a Core Stratagem is not supported yet"** — which rules and core
-stratagems exist comes from 40kdc-data; you can only describe the existing
-ones.
-
 **"the name of an Army Rule comes from BSData: correct it on its Units"** — an
 army rule's name is the one its units list under **Army rules**.
 
@@ -140,10 +135,15 @@ The source now says what your correction says: it is no longer needed. Undo it
 The source changed to a value that is neither the old one nor yours. Open the
 sheet, compare with the official document, and either correct again or undo.
 
-**A contribution is marked *upstream changed***
-40kdc-data changed its reading of that rule after ours was written. Ours is
-still applied. Compare the two — the **To review** and **Corrections** lists
-show them — and correct ours if theirs is right.
+**A contribution is marked *flagged***
+Something it names is gone — usually an ability a wargear option brought, that
+the unit no longer has. The rest is still applied: re-target it or remove the
+name.
+
+**A contribution is *rejected* but its stratagem or detachment rule is still
+there** — the stratagem or detachment rule a contribution creates is never lost
+to a mistake elsewhere in it: only the faulty part (a Modifier off schema, a
+summary that reads like rules text) is set aside. Fix it on the sheet.
 
 **My fix was merged but the app still shows the old value**
 A merge is not a release. A maintainer must click **Publish Release**; after

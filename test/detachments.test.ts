@@ -12,12 +12,13 @@ import type { CorrectionFile } from '../src/corrections/files.ts';
 import { toJson } from '../src/dataset.ts';
 import { makeReport, renderReport } from '../src/report.ts';
 import { openSnapshot } from '../src/snapshot.ts';
-import { check, fixture, section } from './check.ts';
+import { check, fixture, fixtureAuthored, section } from './check.ts';
 
 const GS = 'wh40k-11e';
 const snapshot = openSnapshot(fixture('snapshot'));
-const first = await build({ snapshot });
-const second = await build({ snapshot, ids: first.ids });
+const authored = fixtureAuthored();
+const first = await build({ snapshot, authored });
+const second = await build({ snapshot, ids: first.ids, authored });
 
 const orks = (out: BuildOutput) => out.files.get(`${GS}/armies/orks.json`) as ArmyFile;
 const det = (out: BuildOutput, name: string) => orks(out).detachments.find((d) => d.name === name) as Detachment;
@@ -27,41 +28,29 @@ const enh = (name: string) => warHorde.enhancements.find((e) => e.name === name)
 
 section('Detachments : ce qui existe et ses chiffres viennent du MFM');
 check('les Detachments du MFM sont publiés, triés', orks(first).detachments.map((d) => d.name).join(',') === 'Boss Brutes,Da Big Hunt,War Horde');
-check('un Detachment que seule 40kdc-data publie n\'entre pas dans le Dataset, et est signalé',
-  !orks(first).detachments.some((d) => d.name === 'Kult of Speed') &&
-  first.missing.some((m) => m.name === 'Kult of Speed' && m.missingIn === 'mfm' && !m.published));
 check('le coût en DP vient du MFM', warHorde.dp === 1);
-check('le désaccord de DP avec 40kdc-data est tranché pour le MFM et reporté',
-  first.conflicts.some((c) => c.entity === 'detachment' && c.field === 'dp' && c.kept === '1' && c.other.source === '40kdc' && c.other.value === '2'));
 check('les Force Dispositions viennent du MFM, en identifiants', warHorde.forceDispositions.join() === 'take-and-hold');
-check('le désaccord de Force Disposition est reporté', first.conflicts.some((c) => c.field === 'forceDispositions' && c.other.value === 'purge-the-foe'));
 check('les points d\'Enhancement viennent du MFM', enh('Follow Me Ladz').points === 25);
-check('le désaccord de points d\'Enhancement est reporté', first.conflicts.some((c) => c.entity === 'enhancement' && c.field === 'points' && c.kept === '25' && c.other.value === '20'));
-check('une Enhancement que seule 40kdc-data publie est écartée et signalée',
-  !warHorde.enhancements.some((e) => e.name === 'Bosspole') && first.missing.some((m) => m.name === 'War Horde › Bosspole' && !m.published));
+check('plus aucune autre source ne publie de Detachment : aucun désaccord à reporter', !first.conflicts.some((c) => c.entity === 'detachment' || c.entity === 'enhancement'));
 
-section('Detachments : règles et restrictions viennent de 40kdc-data ; leurs Effects ne sont qu\'une deuxième lecture');
-check('la Detachment Rule vient de 40kdc-data', warHorde.rules.length === 1 && warHorde.rules[0].name === 'Get Stuck In');
-check(
-  'la règle n\'est publiée que par son nom ; l\'Effect de 40kdc-data est gardé pour la revue',
-  JSON.stringify(warHorde.rules[0]) === JSON.stringify({ id: warHorde.rules[0].id, name: 'Get Stuck In' }) &&
-    (first.kdcEffects[`orks::rule:${warHorde.id}|${warHorde.rules[0].id}`] as { type?: string } | undefined)?.type === 'keyword-grant',
-);
-check('une restriction simple devient un groupe de mots-clés', JSON.stringify(enh('Follow Me Ladz').requires) === JSON.stringify([['Warboss']]));
+section('Detachments : règles et restrictions sont à nous');
+check('la Detachment Rule vient de sa Contribution', warHorde.rules.length === 1 && warHorde.rules[0].name === 'Get Stuck In');
+check('elle n\'est publiée que par son nom tant qu\'on n\'a rien écrit d\'autre', JSON.stringify(warHorde.rules[0]) === JSON.stringify({ id: warHorde.rules[0].id, name: 'Get Stuck In' }));
+check('une restriction simple est un groupe de mots-clés', JSON.stringify(enh('Follow Me Ladz').requires) === JSON.stringify([['Warboss']]));
 check('des restrictions alternatives restent des groupes, avec leurs exclusions',
   JSON.stringify(enh('Kunnin’ But Brutal').requires) === JSON.stringify([['Orks', 'Infantry'], ['Orks', 'Mounted']]) && enh('Kunnin’ But Brutal').excludes.join() === 'Epic Hero');
-check('l\'Effect d\'une Enhancement est gardé pour la revue, jamais publié', (first.kdcEffects[`orks::enhancement:${warHorde.id}|${enh('Follow Me Ladz').id}`] as { type?: string } | undefined)?.type === 'roll-modifier');
-check('un Effect amont porteur de texte n\'entre jamais dans le Dataset', !toJson(orks(first)).includes('FIXTURE') && first.textCheck.length === 0);
-check('un Detachment absent de 40kdc-data est publié par son nom seul, et signalé',
-  bigHunt.rules.length === 0 && bigHunt.enhancements[0].requires.length === 0 && first.missing.some((m) => m.name === 'Da Big Hunt' && m.missingIn === '40kdc' && m.published));
-check('la sous-faction reprend les données 40kdc-data de sa faction', det(first, 'War Horde') && (first.files.get(`${GS}/armies/orks-freebooterz.json`) as ArmyFile).detachments.find((d) => d.name === 'War Horde')?.rules.length === 1);
-check('l\'Army garde sa faction 40kdc-data', (first.files.get(`${GS}/index.json`) as DatasetIndex).armies.find((a) => a.id === 'orks')?.refs.kdc === 'orks');
+check('aucun texte n\'entre dans le Dataset', !toJson(orks(first)).includes('FIXTURE') && first.textCheck.length === 0);
+check('sans Contribution, un Detachment n\'a ni règle ni restriction', bigHunt.rules.length === 0 && bigHunt.enhancements[0].requires.length === 0);
+check('la sous-faction qui reprend le Detachment reprend sa règle', (first.files.get(`${GS}/armies/orks-freebooterz.json`) as ArmyFile).detachments.find((d) => d.name === 'War Horde')?.rules.length === 1);
+check('l\'index ne nomme plus que BSData et le MFM', (first.files.get(`${GS}/index.json`) as DatasetIndex).sources.map((s) => s.id).join() === 'bsdata,mfm' && (first.files.get(`${GS}/index.json`) as DatasetIndex).armies.every((a) => a.refs.kdc === undefined));
+const bare = await build({ snapshot });
+check('sans les Contributions, ni Detachment Rule ni Stratagem', (bare.files.get(`${GS}/armies/orks.json`) as ArmyFile).detachments.every((d) => d.rules.length === 0) && (bare.files.get(`${GS}/armies/orks.json`) as ArmyFile).stratagems.length === 0);
 
 section('Detachments : identifiants stables');
 check('deux constructions donnent les mêmes identifiants de Detachment et d\'Enhancement',
   toJson(orks(first).detachments.map((d) => [d.id, d.enhancements.map((e) => e.id), d.rules.map((r) => r.id)])) ===
     toJson(orks(second).detachments.map((d) => [d.id, d.enhancements.map((e) => e.id), d.rules.map((r) => r.id)])));
-check('l\'identifiant garde la référence 40kdc-data', first.ids.detachments.orks.some((e) => e.id === warHorde.id && e.keys.includes('40kdc:orks/war-horde')));
+check('l\'identifiant garde sa référence au MFM', first.ids.detachments.orks.some((e) => e.id === warHorde.id && e.keys.includes('mfm:warhorde')), JSON.stringify(first.ids.detachments.orks));
 const renamed = structuredClone(first.ids);
 renamed.detachments.orks.find((e) => e.id === warHorde.id)!.id = 'horde-de-guerre';
 check('un identifiant attribué survit, même si le nom amont en donnerait un autre', det(await build({ snapshot, ids: renamed }), 'War Horde').id === 'horde-de-guerre');
@@ -132,5 +121,4 @@ section('Detachments : schéma, texte et rapport');
 check('le fichier d\'Army avec ses Detachments est conforme au schéma', validateFile('army', orks(first)).length === 0, validateFile('army', orks(first)).join(' ; '));
 check('la construction ne produit aucun constat de texte', first.textCheck.length === 0, first.textCheck.map((f) => f.where).join(' ; '));
 const markdown = renderReport(makeReport(first, undefined));
-check('le rapport liste les éléments absents d\'une source', /## Elements missing from a source/.test(markdown));
 check('le rapport ne recopie pas le libellé écarté', !/until the end of the phase/.test(markdown));
