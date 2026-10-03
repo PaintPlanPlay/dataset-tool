@@ -46,8 +46,8 @@ keep the meaning the game gives them.
 | **Target** (of a Modifier) | who the change applies to: `self`, `attached`, `aura`, `enemy` |
 | **Target** (of a stratagem) | the units it can be used on, as a keyword filter |
 | **Unsimulated key** | a Modifier key the simulation does not play |
-| **Upstream source** | one of the three projects the dataset is built from: BSData, the MFM, 40kdc-data |
+| **Upstream source** | one of the two projects the dataset is built from: BSData and the MFM |
 | **Wargear cost** | the link from a wargear option to the MFM line that bills it |
 | **Wargear option** | one choice of a group of wargear options on a datasheet |
 | **Weapon profile** | one way of using a weapon: its range, characteristics and keywords |
-| **40kdc-data** | the community project publishing detachments, stratagems and their structure. Trusted for which rules and stratagems exist |
+| **40kdc-data** | the community project the detachment rules, stratagems and enhancement restrictions were first seeded from; no longer a source |

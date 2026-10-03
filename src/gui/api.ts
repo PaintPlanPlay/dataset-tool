@@ -134,16 +134,17 @@ export async function recordUpstreamPr(ws: Workspace, path: string, url: string)
   return finish(ws, path, `Correction ${correction.target}: upstream feedback`, false);
 }
 
-const UPSTREAM_REPOSITORY: Record<Correction['source'], string> = {
+/** Les Upstream Sources à qui une Correction se signale ; une source retirée n'en est plus une. */
+const UPSTREAM_REPOSITORY: Partial<Record<Correction['source'], string>> = {
   bsdata: 'BSData/wh40k-11e',
   mfm: 'BSData/wh40k-11e-mfm',
-  '40kdc': 'wn-mitch/40kdc-data',
 };
 
 /** Une issue préremplie chez l'Upstream Source, pour qu'elle se corrige à son tour. */
 export function upstreamDraft(ws: Workspace, path: string): { repository: string; url: string } {
   const { correction } = readCorrection(ws, path);
   const repository = UPSTREAM_REPOSITORY[correction.source];
+  if (!repository) throw new ApiError(400, `${correction.source} is no longer an Upstream Source`);
   const body = [
     `Element: \`${correction.target}\``,
     '',

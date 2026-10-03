@@ -7,7 +7,7 @@
  */
 import type { CoreFile } from '@paintplanplay/dataset-schema';
 import { validateFile } from '@paintplanplay/dataset-schema/validate';
-import { fingerprint, type AuthoredCore } from '../src/authored.ts';
+import type { AuthoredCore } from '../src/authored.ts';
 import { build } from '../src/build.ts';
 import { makeReport, renderReport } from '../src/report.ts';
 import { openSnapshot } from '../src/snapshot.ts';
@@ -127,22 +127,13 @@ check(
 );
 check('le rapport liste les Contributions écartées', /## Contributions set aside \(1\)/.test(renderReport(makeReport(withEffects, undefined))));
 
-section('Contributions (ADR 0010) : un changement de 40kdc-data est signalé, jamais appliqué');
-const upstreamOfBoss = bare.kdcEffects['u-warboss::ability:Da Boss Fixture'];
+section('Contributions (ADR 0010) : à nous pour de bon');
 const ours = [{ key: 'feel-no-pain', value: '5+', target: 'self' as const }];
-const contribution = (upstream: string) =>
-  build({
-    snapshot: openSnapshot(fixture('snapshot')),
-    authored: { battleSizes: [], referenceTargets: [], effects: [{ target: 'u-warboss::ability:Da Boss Fixture', modifiers: ours, reason: 'Ours.', upstream }] },
-  });
-const same = await contribution(fingerprint({ effect: upstreamOfBoss, summary: undefined }));
-const moved = await contribution('0123456789ab');
-const verdictOf = (o: typeof same) => o.contributions.find((c) => c.target === 'u-warboss::ability:Da Boss Fixture');
-const bossOf = (o: typeof same) =>
-  (o.files.get('wh40k-11e/armies/orks.json') as typeof orksWith).units.find((u) => u.id === 'u-warboss')!.abilities.find((a) => a.name === 'Da Boss Fixture')!;
-check('40kdc-data inchangé depuis la rédaction : active', verdictOf(same)?.state === 'active', JSON.stringify(verdictOf(same)));
-check(
-  '40kdc-data changé depuis : signalée, jamais remplacée',
-  verdictOf(moved)?.state === 'flagged' && JSON.stringify(bossOf(moved).modifiers) === JSON.stringify(ours) && verdictOf(moved)!.upstreamNow === verdictOf(same)!.upstreamNow,
-);
-check('le rapport liste les Contributions à relire', /## Contributions to review \(1\)/.test(renderReport(makeReport(moved, undefined))));
+// Une Contribution écrite du temps de la deuxième lecture garde ses anciens champs : ils ne changent rien.
+const legacy = await build({
+  snapshot: openSnapshot(fixture('snapshot')),
+  authored: { battleSizes: [], referenceTargets: [], effects: [{ target: 'u-warboss::ability:Da Boss Fixture', modifiers: ours, reason: 'Ours.', upstream: '0123456789ab', review: 'revu' } as never] },
+});
+const verdict = legacy.contributions.find((c) => c.target === 'u-warboss::ability:Da Boss Fixture');
+const boss = (legacy.files.get('wh40k-11e/armies/orks.json') as typeof orksWith).units.find((u) => u.id === 'u-warboss')!.abilities.find((a) => a.name === 'Da Boss Fixture')!;
+check('une Contribution est active, sans amont à surveiller', verdict?.state === 'active' && JSON.stringify(boss.modifiers) === JSON.stringify(ours), JSON.stringify(verdict));

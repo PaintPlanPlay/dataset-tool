@@ -17,7 +17,7 @@ const SECTIONS = [
   'abilities', 'weapons', 'optionGroups', 'defaultLoadout',
 ] as const;
 
-const SOURCE_LABEL: Record<string, string> = { bsdata: 'BSData', mfm: 'MFM', '40kdc': '40kdc-data', project: 'project' };
+const SOURCE_LABEL: Record<string, string> = { bsdata: 'BSData', mfm: 'MFM', project: 'project' };
 
 interface Props {
   sources: Record<string, string>;

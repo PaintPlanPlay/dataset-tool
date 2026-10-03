@@ -53,8 +53,7 @@ first. It is the description of the daily update's pull request, and
 | **Units removed / added**, **Armies gone / added** | | check a removal is real and not a rename upstream |
 | **Disagreements between sources** | the trusted source's value was kept, the other is shown | when the loser is right, write a correction |
 | **Corrections** | each one, *in conflict* first, then *stale*, then *active*; and the *orphaned* ones | delete the stale; decide the conflicts; fix or delete the orphans |
-| **Contributions to review** | 40kdc-data changed its reading of a rule after we wrote ours | compare; ours stays applied |
-| **Elements missing from a source** | a detachment or enhancement one source has and the other lacks. What only 40kdc-data has is *set aside* | usually nothing: a source is late |
+| **Contributions to review** | what a contribution names is gone (an ability a wargear option brought) | re-target or delete |
 | **Contributions set aside** | refused: off schema, or rules text | fix the entry |
 | **Contributions whose target is gone** | the rule or option group they applied to disappeared | re-target or delete |
 | **Modifier keys the simulation does not play** | | fix a typo, or leave it for the simulator to learn |
@@ -169,40 +168,6 @@ git -C .workspace/dataset push
 curl https://purge.jsdelivr.net/gh/PaintPlanPlay/dataset@main/manifest.json
 ```
 
-## Reviewing imported rules
-
-Modifiers can be produced in bulk — read once from the rules, outside the
-repository — and imported: **To review → Import extracted Rules…** takes a JSON
-file, a list of entries:
-
-```json
-[
-  {
-    "target": "orks::stratagem:ere-we-go",
-    "modifiers": [{ "key": "charge", "value": 2, "target": "self" }],
-    "summary": "+2 to charge"
-  }
-]
-```
-
-Each entry has a `target` (the address of a rule of the dataset) and what it
-does — `modifiers`, `options`, `summary` — never the rule's text. Each is
-compared with 40kdc-data's own reading of the same rule:
-
-| Result | Meaning | Where it goes |
-|---|---|---|
-| **concordant** | both readings agree | accepted |
-| **differs** (`divergent`) | they disagree, or theirs cannot be compared | **To review**, both side by side |
-| **one reading** (`seul`) | 40kdc-data has none | **To review** |
-
-In **To review**, open the rule to correct it on its sheet, or click
-**Validate** to accept ours as it is. Editing an imported rule on its sheet
-marks it reviewed.
-
-An import never replaces what someone wrote or reviewed by hand, and an entry
-that names a rule the dataset does not have, or that reads like rules text, is
-refused on its own — the others pass.
-
 ## After updating the tool
 
 A new version of the tool may build slightly different files: a new field, a
@@ -217,7 +182,7 @@ release, then the apps that read the new fields.
 ## Telling the sources
 
 Every active correction is a fix the source could make itself. From
-**Corrections**, **tell bsdata / mfm / 40kdc** opens a prefilled issue with that
+**Corrections**, **tell bsdata / mfm** opens a prefilled issue with that
 project; record the link of its pull request on the correction. A correction
 with a link reads, in the drift report, `upstream PR: …` — the ones without are
 your to-do list.
@@ -238,7 +203,7 @@ All commands accept `--game-system <id>` (default `wh40k-11e`).
 npm run tool -- fetch --out .workspace/.snapshot
 ```
 
-Downloads BSData, the MFM and 40kdc-data, each at its latest commit, into the
+Downloads BSData and the MFM, each at its latest commit, into the
 folder, and records those commits in `sources.json`. The only command that uses
 the network. Set `GITHUB_TOKEN` to raise GitHub's limit of 60 requests an hour:
 

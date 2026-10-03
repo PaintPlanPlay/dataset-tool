@@ -8,10 +8,9 @@
  * rattache aux Units qu'elle vient de produire — identifiant, effectif borné,
  * coût du jour — et signale celles qu'elle ne trouve plus.
  */
-import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import type { AllyRule, ArmyFile, BattleSize, CoreFile, KeywordFilter, Modifier, ReferenceTarget, RuleOption, SampleList, SampleSection, SampleUnit, Unit, WargearCost, WargearCount, Weapon, WeaponOption } from '@paintplanplay/dataset-schema';
+import type { AllyRule, ArmyFile, BattleSize, CoreFile, KeywordFilter, Modifier, ReferenceTarget, RuleOption, SampleList, SampleSection, SampleUnit, Stratagem, Unit, WargearCost, WargearCount, Weapon, WeaponOption } from '@paintplanplay/dataset-schema';
 import { validateDef } from '@paintplanplay/dataset-schema/validate';
 import { CORE_ROOT, parseTarget } from './corrections/apply.ts';
 import { toJson } from './dataset.ts';
@@ -55,43 +54,41 @@ export interface AuthoredEffect {
   option?: Omit<WeaponOption, 'id' | 'wargearCost' | 'abilities'>;
   /** Pour une Enhancement : la Weapon qu'elle apporte à son porteur. */
   weapon?: Weapon;
+  /**
+   * Une Detachment Rule qu'aucune source n'a : créée dans son Detachment, sous
+   * l'identifiant de l'adresse, partout où le Detachment est publié.
+   */
+  rule?: { name: string };
+  /**
+   * Un Stratagem et ses champs structurés : créé sous l'identifiant de
+   * l'adresse quand aucune source ne l'a, partout où son Detachment est publié ;
+   * ses champs remplacent sinon ceux de la source.
+   */
+  stratagem?: CreatedStratagem;
+  /** Pour une Enhancement : les mots-clés exigés du porteur, par groupes (ET dans un groupe, OU entre groupes). */
+  requires?: string[][];
+  /** Pour une Enhancement : les mots-clés qui interdisent le porteur. */
+  excludes?: string[];
+  /** Pour une Upgrade : les Units qu'elle peut équiper à la fois. */
+  maxTargets?: number;
   /** Pourquoi, en une phrase à nous. */
   reason: string;
-  /**
-   * Où en est sa revue, quand elle vient d'une extraction (ADR 0011) : validée
-   * parce que 40kdc-data dit pareil, en attente d'un humain, ou revue.
-   */
-  review?: 'concordant' | 'divergent' | 'seul' | 'revu';
-  /**
-   * Empreinte de ce que disait 40kdc-data (Effect et résumé) quand on l'a écrite.
-   * Un amont qui a bougé depuis est signalé, jamais appliqué.
-   */
-  upstream?: string;
 }
+
+/** Ce qu'une Contribution donne d'un Stratagem : tout, sauf son identifiant et ce qu'il fait. */
+export type CreatedStratagem = Pick<Stratagem, 'name' | 'detachmentId' | 'cp' | 'phases' | 'playerTurn' | 'timing'> & Partial<Pick<Stratagem, 'trigger' | 'category' | 'target'>>;
 
 /** Ce que devient une Contribution à la construction. */
 export interface ContributionVerdict {
   target: string;
   reason: string;
   /**
-   * `active` : appliquée ; `flagged` : appliquée, mais l'amont a changé depuis sa
-   * rédaction ; `rejected` : hors format ; `unresolved` : cible introuvable.
+   * `active` : appliquée ; `flagged` : appliquée, mais ce qu'elle nomme n'est
+   * plus là ; `rejected` : hors format ; `unresolved` : cible introuvable.
    */
   state: 'active' | 'flagged' | 'rejected' | 'unresolved';
   note: string;
-  /** Empreinte de ce que dit l'amont aujourd'hui, avant la Contribution. */
-  upstreamNow?: string;
 }
-
-/** Empreinte courte d'une valeur JSON. */
-export const fingerprint = (value: unknown) => createHash('sha1').update(JSON.stringify(value ?? null)).digest('hex').slice(0, 12);
-
-/** Ce qu'on retient de l'amont d'une règle : son Effect et son résumé. */
-/**
- * Ce qu'on retient de l'amont d'une règle : l'Effect que 40kdc-data lui donne,
- * sous la même forme qu'avant la bascule (aucun résumé amont n'existe).
- */
-const upstreamOf = (kdcEffect: unknown) => fingerprint({ effect: kdcEffect, summary: undefined });
 
 /** Une Ally Rule telle que le projet l'écrit : la règle publiée, et pourquoi. */
 export type AuthoredAllyRule = AllyRule & { reason: string };
@@ -109,7 +106,7 @@ export const authoredDir = (gameSystem: string) => `authored/${gameSystem}`;
 /** L'ancien fichier unique des Contributions : encore lu, plus jamais écrit. */
 export const EFFECTS_FILE = 'effects.json';
 export const ALLY_RULES_FILE = 'ally-rules.json';
-/** Les Contributions sur les Rules et Wargear Options, un fichier par Army d'origine (ADR 0015). */
+/** Les Contributions sur les Rules et Wargear Options, un fichier par Army d'origine. */
 export const CONTRIBUTIONS_DIR = 'armies';
 
 /** Le fichier des Contributions d'une Army, ou des Stratagems Core (`core`). */
@@ -151,13 +148,28 @@ export function layoutContributions(
   const wasIn = new Map([...previous].flatMap(([path, list]) => list.map((e) => [e.target, path] as const)));
   const out = new Map<string, AuthoredEffect[] | null>([...previous.keys()].map((p) => [p, null]));
   for (const e of effects) {
-    const home = h.homeOf(e.target);
+    const { home, canonical } = placeOf(h, e);
     const path = home ? contributionsPath(gameSystem, home) : (wasIn.get(e.target) ?? contributionsPath(gameSystem, parseTarget(e.target).root));
-    const entry = { ...e, target: h.canonical(e.target) };
+    const entry = { ...e, target: canonical };
     out.set(path, [...(out.get(path) ?? []), entry]);
   }
   for (const list of out.values()) if (list) list.sort((a, b) => a.target.localeCompare(b.target));
   return out;
+}
+
+/**
+ * Où vit ce que décrit une Contribution : les Armies qui le publient, l'Army
+ * d'origine en tête, et son adresse sous cette Army. Un Stratagem qu'elle crée
+ * n'existe encore nulle part : il suit son Detachment.
+ */
+export function placeOf(h: Homes, e: AuthoredEffect): { holders: string[]; home?: string; canonical: string } {
+  const { root, entity, name } = parseTarget(e.target);
+  let holders = h.holders(e.target);
+  if (entity === 'stratagem' && root !== CORE_ROOT && !holders.length && e.stratagem?.detachmentId)
+    holders = h.holders(`${root}::detachment:${e.stratagem.detachmentId}`);
+  const home = holders[0];
+  const unitRooted = !['rule', 'enhancement', 'stratagem', 'armyrule'].includes(entity) || root === CORE_ROOT;
+  return { holders, ...(home ? { home } : {}), canonical: home && !unitRooted ? `${home}::${entity}:${name}` : e.target };
 }
 
 /**
@@ -296,20 +308,46 @@ function allyRuleOrphans(rule: AllyRule, armies: Map<string, Unit[]>): string[] 
   ];
 }
 
+/** Les restrictions d'une Enhancement, à nous depuis le retrait de 40kdc-data. */
+const ENHANCEMENT_RESTRICTIONS = ['requires', 'excludes', 'maxTargets'] as const;
+const ENHANCEMENT_SAMPLE = { id: 'x', name: 'x', points: 0, appliesTo: 'character', aura: false, maxTargets: 1, requires: [], excludes: [] };
+
 /** Ce qu'une Contribution porte pour une Wargear Option, et seulement pour elle. */
 const OPTION_FIELDS = ['wargearCost', 'abilities', 'option'] as const;
+
+/** Ce qui, d'une Contribution, crée une Detachment Rule ou un Stratagem, sans le reste ; `undefined` si elle ne crée rien. */
+const creationOf = (e: AuthoredEffect): AuthoredEffect | undefined =>
+  e.rule !== undefined || e.stratagem !== undefined
+    ? { target: e.target, reason: e.reason, ...(e.rule !== undefined ? { rule: e.rule } : {}), ...(e.stratagem !== undefined ? { stratagem: e.stratagem } : {}) }
+    : undefined;
 
 /** Ce qui empêche de publier une Contribution ; vide si elle passe. */
 export function authoredEffectProblems(e: AuthoredEffect): string[] {
   const problems: string[] = [];
-  const { entity } = parseTarget(e.target);
+  const { root, entity } = parseTarget(e.target);
   const forOption = OPTION_FIELDS.some((k) => e[k] !== undefined);
+  if (e.rule !== undefined) {
+    if (entity !== 'rule') problems.push('only a Detachment Rule is created by `rule`');
+    if (typeof e.rule?.name !== 'string' || !e.rule.name.trim()) problems.push('rule: a name is expected');
+    else problems.push(...inspectString(e.rule.name).map((r) => `rule/name: ${r}`));
+  }
+  if (e.stratagem !== undefined) {
+    if (entity !== 'stratagem') problems.push('only a Stratagem is created by `stratagem`');
+    else problems.push(...validateDef('stratagem', { id: 'x', ...e.stratagem }).map((f) => `stratagem${f.path}: ${f.message}`));
+    if (entity === 'stratagem' && (root === CORE_ROOT) !== (e.stratagem?.detachmentId === null))
+      problems.push(root === CORE_ROOT ? 'a Core Stratagem has no Detachment' : 'a Stratagem of an Army names its Detachment');
+  }
   if (entity === 'option') {
     if (!forOption) problems.push('a Wargear Option Contribution carries a wargear cost, abilities or a created option');
     if (e.modifiers !== undefined || e.options !== undefined || e.summary !== undefined || e.eligibility !== undefined || e.weapon !== undefined)
       problems.push('a Wargear Option carries no Modifiers, summary or Weapon of its own');
   } else if (forOption) problems.push('a wargear cost, abilities or a created option belong to a Wargear Option');
   if (e.weapon !== undefined && entity !== 'enhancement') problems.push('only an Enhancement brings a Weapon');
+  for (const k of ENHANCEMENT_RESTRICTIONS)
+    if (e[k] !== undefined) {
+      if (entity !== 'enhancement') problems.push(`only an Enhancement has \`${k}\``);
+      problems.push(...validateDef('enhancement', { ...ENHANCEMENT_SAMPLE, [k]: e[k] }).filter((f) => f.path.startsWith(`/${k}`)).map((f) => `${k}${f.path.slice(k.length + 1)}: ${f.message}`));
+    }
   if (e.wargearCost) problems.push(...validateDef('wargearCost', e.wargearCost).map((f) => `wargearCost${f.path}: ${f.message}`));
   if (e.abilities !== undefined)
     problems.push(...(Array.isArray(e.abilities) && e.abilities.every((a) => typeof a === 'string' && a.trim()) ? [] : ['abilities: names expected']));
@@ -317,7 +355,10 @@ export function authoredEffectProblems(e: AuthoredEffect): string[] {
   if (e.weapon !== undefined) problems.push(...validateDef('weapon', e.weapon).map((f) => `weapon${f.path}: ${f.message}`));
   if (e.eligibility !== undefined) problems.push(...validateDef('keywordFilter', e.eligibility).map((f) => `eligibility${f.path}: ${f.message}`));
   if (e.effect !== undefined) problems.push('an Effect in the retired 40kdc-data format: write it as Modifiers (ADR 0011)');
-  else if (!forOption && e.weapon === undefined && e.modifiers === undefined && e.options === undefined && e.summary === undefined && e.eligibility === undefined)
+  else if (
+    !forOption && e.weapon === undefined && e.modifiers === undefined && e.options === undefined && e.summary === undefined && e.eligibility === undefined &&
+    e.rule === undefined && e.stratagem === undefined && ENHANCEMENT_RESTRICTIONS.every((k) => e[k] === undefined)
+  )
     problems.push('neither Modifiers nor summary');
   if (e.modifiers !== undefined) problems.push(...validateDef('modifiers', e.modifiers).map((f) => `Modifiers${f.path}: ${f.message}`));
   if (e.options !== undefined)
@@ -329,16 +370,14 @@ export function authoredEffectProblems(e: AuthoredEffect): string[] {
 }
 
 /**
- * Pose les Modifiers, Options, Eligibility et Descriptions écrits par le projet
- * sur les fichiers construits. `kdcEffects` donne, par adresse, la lecture de
- * 40kdc-data : c'est elle que l'empreinte d'une Contribution compare, pour
- * signaler qu'elle a bougé depuis.
+ * Pose sur les fichiers construits ce que le projet écrit : Detachment Rules
+ * et Stratagems qu'il crée, restrictions d'Enhancement, Modifiers, Options,
+ * Eligibility et Descriptions, Wargear Options.
  */
 export function applyAuthoredEffects(
   files: Map<string, unknown>,
   gameSystem: string,
   effects: AuthoredEffect[],
-  kdcEffects: Record<string, unknown> = {},
 ): {
   unresolved: string[];
   rejected: { target: string; reason: string }[];
@@ -356,8 +395,10 @@ export function applyAuthoredEffects(
   /** Ce que décrit déjà une Contribution, par adresse sous l'Army d'origine. */
   const described = new Map<string, string>();
 
-  for (const e of effects) {
-    const canonical = h.canonical(e.target);
+  for (const written of effects) {
+    let e = written;
+    const place = placeOf(h, e);
+    const canonical = place.canonical;
     const first = described.get(canonical);
     if (first !== undefined) {
       const note = `${first} already describes the same element: write it once, under its home Army`;
@@ -366,14 +407,35 @@ export function applyAuthoredEffects(
       continue;
     }
     described.set(canonical, e.target);
+    // Un identifiant de Stratagem est unique dans son Army : en créer un sous un identifiant pris par un autre Detachment se refuse.
+    if (e.stratagem) {
+      const { root, name } = parseTarget(e.target);
+      const lists = root === CORE_ROOT ? [core?.stratagems ?? []] : armies.filter((a) => place.holders.includes(a.id)).map((a) => a.stratagems);
+      if (lists.some((l) => l.some((x) => x.id === name && x.detachmentId !== e.stratagem!.detachmentId))) {
+        const note = `the identifier ${name} is already a Stratagem of another Detachment: choose another one`;
+        rejected.push({ target: e.target, reason: note });
+        contributions.push({ target: e.target, reason: e.reason, state: 'rejected', note });
+        continue;
+      }
+    }
     const problems = authoredEffectProblems(e);
+    // Une Detachment Rule ou un Stratagem n'existe que par sa Contribution : un défaut ailleurs ne l'efface pas, il en écarte le reste.
+    let refused: string | undefined;
     if (problems.length) {
+      const creation = creationOf(e);
       rejected.push({ target: e.target, reason: problems[0] });
-      contributions.push({ target: e.target, reason: e.reason, state: 'rejected', note: problems[0] });
-      continue;
+      if (!creation || authoredEffectProblems(creation).length) {
+        contributions.push({ target: e.target, reason: e.reason, state: 'rejected', note: problems[0] });
+        continue;
+      }
+      refused = problems[0];
+      e = creation;
     }
     const body = {
       ...(e.weapon !== undefined ? { weapon: e.weapon } : {}),
+      ...(e.requires !== undefined ? { requires: e.requires } : {}),
+      ...(e.excludes !== undefined ? { excludes: e.excludes } : {}),
+      ...(e.maxTargets !== undefined ? { maxTargets: e.maxTargets } : {}),
       ...(e.modifiers !== undefined ? { modifiers: e.modifiers } : {}),
       ...(e.options !== undefined ? { options: e.options } : {}),
       ...(e.eligibility !== undefined ? { eligibility: e.eligibility } : {}),
@@ -382,7 +444,6 @@ export function applyAuthoredEffects(
     const { root, entity, name } = parseTarget(e.target);
     let hits = 0;
     const missingAbilities = new Set<string>();
-    const upstreamNow = upstreamOf(kdcEffects[e.target]);
     const take = (el: object) => {
       Object.assign(el, body);
       hits++;
@@ -414,24 +475,46 @@ export function applyAuthoredEffects(
     } else if (entity === 'rule' || entity === 'enhancement') {
       // Écrite une fois sous l'Army d'origine, elle vaut dans chaque Army qui publie ce Detachment.
       const [detachmentId, elementId] = name.split('|');
-      const holders = new Set(h.holders(e.target));
+      const holders = new Set(place.holders);
       for (const a of armies)
         if (holders.has(a.id))
-          for (const d of a.detachments)
-            if (d.id === detachmentId)
-              for (const el of entity === 'rule' ? d.rules : d.enhancements)
-                if (el.id === elementId) take(el);
+          for (const d of a.detachments) {
+            if (d.id !== detachmentId) continue;
+            if (entity === 'rule' && e.rule) {
+              const found = d.rules.find((r) => r.id === elementId);
+              if (found) found.name = e.rule.name;
+              else d.rules.push({ id: elementId, name: e.rule.name });
+            }
+            for (const el of entity === 'rule' ? d.rules : d.enhancements) if (el.id === elementId) take(el);
+          }
     } else if (entity === 'armyrule') {
-      const holders = new Set(h.holders(e.target));
+      const holders = new Set(place.holders);
       for (const a of armies) if (holders.has(a.id)) for (const r of a.armyRules ?? []) if (r.id === name) take(r);
-    } else if (entity === 'stratagem' && root === CORE_ROOT) {
-      for (const s of core?.stratagems ?? []) if (s.id === name) take(s);
     } else if (entity === 'stratagem') {
-      const detachmentId = armies.find((a) => a.id === root)?.stratagems.find((s) => s.id === name)?.detachmentId;
-      const holders = new Set(h.holders(e.target));
-      for (const a of armies) if (holders.has(a.id)) for (const s of a.stratagems) if (s.id === name && s.detachmentId === detachmentId) take(s);
+      const lists =
+        root === CORE_ROOT
+          ? [core?.stratagems].filter((l) => l !== undefined)
+          : armies.filter((a) => place.holders.includes(a.id)).map((a) => a.stratagems);
+      const detachmentId = e.stratagem
+        ? e.stratagem.detachmentId
+        : root === CORE_ROOT
+          ? null
+          : armies.find((a) => a.id === root)?.stratagems.find((s) => s.id === name)?.detachmentId;
+      for (const list of lists) {
+        let s = list.find((x) => x.id === name && x.detachmentId === detachmentId);
+        if (e.stratagem) {
+          // Ses champs structurés viennent tous de la Contribution : ceux qu'elle omet tombent.
+          if (s) for (const k of ['trigger', 'category', 'target'] as const) delete s[k];
+          else list.push((s = { id: name, ...e.stratagem }));
+          Object.assign(s, e.stratagem);
+          list.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+        }
+        if (s) take(s);
+      }
     }
-    if (!hits) {
+    if (refused !== undefined)
+      contributions.push({ target: e.target, reason: e.reason, state: 'rejected', note: `${hits ? 'created, the rest set aside' : 'the target is not in the Dataset'}: ${refused}` });
+    else if (!hits) {
       unresolved.push(e.target);
       contributions.push({ target: e.target, reason: e.reason, state: 'unresolved', note: 'the target is not in the Dataset' });
     } else if (missingAbilities.size)
@@ -441,10 +524,7 @@ export function applyAuthoredEffects(
         state: 'flagged',
         note: `not an ability of the Unit any more, left out: ${[...missingAbilities].join(', ')}`,
       });
-    else if (entity === 'option') contributions.push({ target: e.target, reason: e.reason, state: 'active', note: 'applied' });
-    else if (e.upstream && e.upstream !== upstreamNow)
-      contributions.push({ target: e.target, reason: e.reason, state: 'flagged', note: '40kdc-data changed this rule since the Contribution was written: review it, it stays applied', upstreamNow });
-    else contributions.push({ target: e.target, reason: e.reason, state: 'active', note: 'applied, over 40kdc-data', upstreamNow });
+    else contributions.push({ target: e.target, reason: e.reason, state: 'active', note: 'applied' });
   }
   return { unresolved, rejected, contributions, wargearLinks };
 }

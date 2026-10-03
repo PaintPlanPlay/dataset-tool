@@ -18,14 +18,14 @@ import { toJson } from '../src/dataset.ts';
 import { homes } from '../src/home.ts';
 import { rulesIn } from '../src/rules.ts';
 import { openSnapshot } from '../src/snapshot.ts';
-import { check, fixture, section } from './check.ts';
+import { check, fixture, fixtureAuthored, section } from './check.ts';
 
 const snapshot = openSnapshot(fixture('snapshot'));
-const authored = (effects: AuthoredEffect[]): AuthoredCore => ({ battleSizes: [], referenceTargets: [], effects });
+const authored = (effects: AuthoredEffect[]): AuthoredCore => fixtureAuthored(effects);
 const army = (files: Map<string, unknown>, id: string) => files.get(`wh40k-11e/armies/${id}.json`) as ArmyFile;
 const ruleIn = (a: ArmyFile) => a.detachments.find((d) => d.id === 'war-horde')!.rules.find((r) => r.id === 'get-stuck-in')!;
 
-const bare = await build({ snapshot });
+const bare = await build({ snapshot, authored: fixtureAuthored() });
 
 section('Army d\'origine : le Codex qui possède le plus de datasheets');
 {
@@ -36,7 +36,7 @@ section('Army d\'origine : le Codex qui possède le plus de datasheets');
   check('une Army Rule aussi', h.canonical('orks-freebooterz::armyrule:waaagh') === 'orks::armyrule:waaagh');
   check('une Unit appartient à l\'Army où elle n\'est pas alliée', h.homeOf('u-navigator::ability:Navigator') === 'agents-of-the-imperium');
   check('une adresse d\'Unit ne se réécrit pas', h.canonical('u-boyz::ability:Mob Fixture') === 'u-boyz::ability:Mob Fixture');
-  check('un élément introuvable n\'a pas d\'Army d\'origine', h.homeOf('orks::rule:war-horde|nothing') === undefined && h.holders('orks::rule:war-horde|nothing').length === 0);
+  check('un élément introuvable n\'a pas d\'Army d\'origine', h.homeOf('orks::enhancement:war-horde|nothing') === undefined && h.holders('orks::enhancement:war-horde|nothing').length === 0);
   check('un Stratagem Core reste au cœur', h.homeOf('core::stratagem:command-re-roll') === 'core');
   const shared = rulesIn(bare.files).filter((r) => r.body.name === ruleIn(army(bare.files, 'orks')).name);
   check('la Rule partagée n\'est listée qu\'une fois, sous les Orks', shared.length === 1 && shared[0].target === 'orks::rule:war-horde|get-stuck-in' && shared[0].army === 'orks', JSON.stringify(shared.map((r) => r.target)));
@@ -83,7 +83,7 @@ section('Les Contributions se rangent dans le fichier de leur Army d\'origine');
     { target: 'orks-freebooterz::rule:war-horde|get-stuck-in', summary: 'Sustained Hits 1 in melee', reason: 'Describe the War Horde rule.' },
     { target: 'u-navigator::ability:Navigator', summary: 'Moves units around', reason: 'Describe the Navigator.' },
     { target: 'core::stratagem:command-re-roll', summary: 'Re-roll one roll', reason: 'Describe a Core Stratagem.' },
-    { target: 'orks::rule:war-horde|gone', summary: 'Lost', reason: 'Its rule is gone.' },
+    { target: 'orks::enhancement:war-horde|gone', summary: 'Lost', reason: 'Its rule is gone.' },
   ];
   const previous = new Map([
     ['authored/wh40k-11e/effects.json', effects],
@@ -94,7 +94,7 @@ section('Les Contributions se rangent dans le fichier de leur Army d\'origine');
   check('la Rule partagée chez les Orks, sous leur adresse', at('orks').includes('orks::rule:war-horde|get-stuck-in'), JSON.stringify([...layout.keys()]));
   check('l\'aptitude chez l\'Army qui possède l\'Unit', at('agents-of-the-imperium').join() === 'u-navigator::ability:Navigator');
   check('le Stratagem Core dans son propre fichier', at('core').join() === 'core::stratagem:command-re-roll');
-  check('une cible introuvable reste où elle était', layout.get('authored/wh40k-11e/effects.json')?.map((e) => e.target).join() === 'orks::rule:war-horde|gone');
+  check('une cible introuvable reste où elle était', layout.get('authored/wh40k-11e/effects.json')?.map((e) => e.target).join() === 'orks::enhancement:war-horde|gone');
   check('un fichier qui n\'a plus rien à porter disparaît', layout.get('authored/wh40k-11e/armies/astra-militarum.json') === null);
 }
 

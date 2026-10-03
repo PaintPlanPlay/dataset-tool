@@ -29,7 +29,6 @@ Each number is a link.
 |---|---|
 | **Corrections** | every correction and contribution of the dataset, with a filter by target, file or reason |
 | **Disagreements** | where two sources disagree and the trusted one won. Nothing is broken: this is a list of places worth a look — sometimes the loser was right, and a correction is due |
-| **To review** | imported readings of rules that differ from 40kdc-data's, or have no second reading. See [Maintaining the dataset](maintaining.md#reviewing-imported-rules) |
 | **Unsimulated keys** | Modifier keys the simulation does not play — a typo to fix on the rule, or something the simulator has yet to learn |
 
 ### Freshness
@@ -168,7 +167,7 @@ Lists what is applied to the open sheet. For each entry: its state, its kind
 (*Correction · mfm*, *Contribution · project*), its reason, the values it
 forces, and its file.
 
-- **tell bsdata / mfm / 40kdc** opens a prefilled issue with that source, so it
+- **tell bsdata / mfm** opens a prefilled issue with that source, so it
   can fix itself. Paste the link of the pull request the source opens in the
   box next to it: it is recorded on the correction and shown in reports.
 - **Delete** removes the correction. This is itself a pending change —

@@ -8,7 +8,7 @@ It exists in two forms in this repository, which say the same thing:
 - `schema/src/index.ts` — TypeScript types, with a comment on every field;
 - `schema/dataset.schema.json` — a JSON Schema, which is what the checks run.
 
-The current version is **2.5.0**; every published file carries the version it
+The current version is **2.6.0**; every published file carries the version it
 conforms to in `schemaVersion`.
 
 If you only use the interface, you can skip the file layout and go straight to
@@ -50,17 +50,16 @@ What a build contains.
 
 ```json
 {
-  "schemaVersion": "2.5.0",
+  "schemaVersion": "2.6.0",
   "gameSystem": { "id": "wh40k-11e", "name": "Warhammer 40,000", "edition": "11th" },
   "sources": [
     { "id": "bsdata", "repository": "BSData/wh40k-11e", "commit": "cc1830f…" },
-    { "id": "mfm", "repository": "BSData/wh40k-11e-mfm", "commit": "8e0e635…", "version": "1.5" },
-    { "id": "40kdc", "repository": "wn-mitch/40kdc-data", "commit": "709ecd9…" }
+    { "id": "mfm", "repository": "BSData/wh40k-11e-mfm", "commit": "8e0e635…", "version": "1.5" }
   ],
   "armies": [
     {
       "id": "adepta-sororitas", "name": "Adepta Sororitas", "faction": "Imperium", "units": 138,
-      "refs": { "bsdata": "Imperium - Adepta Sororitas", "mfm": "adepta-sororitas", "kdc": "adepta-sororitas" }
+      "refs": { "bsdata": "Imperium - Adepta Sororitas", "mfm": "adepta-sororitas" }
     }
   ]
 }
@@ -80,7 +79,7 @@ What a build contains.
 
 ```json
 {
-  "schemaVersion": "2.5.0",
+  "schemaVersion": "2.6.0",
   "gameSystem": "wh40k-11e",
   "id": "orks",
   "name": "Orks",
@@ -338,7 +337,7 @@ Each **wargear option**:
 | `dp` | whole number, or `null` | cost in detachment points; `null` when the MFM does not give it | MFM |
 | `forceDispositions` | list of text | the force dispositions it grants: `take-and-hold`, `disruption`… | MFM |
 | `uniqueTag` | text | two detachments carrying the same tag cannot be taken together | MFM |
-| `rules` | list of [rules](#rule) | its detachment rules | 40kdc-data for which exist, this project for what they do |
+| `rules` | list of [rules](#rule) | its detachment rules | this project |
 | `enhancements` | list of [enhancements](#enhancement) | | see below |
 
 ### Enhancement
@@ -359,13 +358,13 @@ Each **wargear option**:
 | Field | Type | Meaning | Comes from |
 |---|---|---|---|
 | `id` | identifier | | registry |
-| `name` | name | | MFM / 40kdc-data |
+| `name` | name | | MFM |
 | `points` | whole number | | MFM |
 | `appliesTo` | `character` or `unit` | an enhancement goes on a character, an upgrade on a unit | MFM (marked `(Upgrade)` in the name) |
 | `aura` | true / false | | MFM (marked `(Aura)`) |
-| `maxTargets` | whole number | how many units an upgrade can equip in one list | 40kdc-data |
-| `requires` | list of groups of keywords | the bearer must have **every** keyword of **one** group. `[["Big Mek"], ["Mek"]]`: a Big Mek, or a Mek. Empty: no restriction | 40kdc-data |
-| `excludes` | list of keywords | keywords that forbid the bearer | 40kdc-data |
+| `maxTargets` | whole number | how many units an upgrade can equip in one list | this project |
+| `requires` | list of groups of keywords | the bearer must have **every** keyword of **one** group. `[["Big Mek"], ["Mek"]]`: a Big Mek, or a Mek. Empty: no restriction | this project |
+| `excludes` | list of keywords | keywords that forbid the bearer | this project |
 | `leaderTo`, `supportTo` | lists of unit names | units for which the enhancement opens Leader or Support | MFM |
 | `weapon` | a [weapon](#weapon) | the weapon it brings to its bearer while taken. Its cost stays the enhancement's | this project |
 | `modifiers`, `options`, `summary` | | the [body of a rule](#rule) | this project |
@@ -395,11 +394,12 @@ Each **wargear option**:
 | `phases` | list, at least one | `command`, `movement`, `shooting`, `charge`, `fight` |
 | `playerTurn` | | `your-turn`, `opponent-turn` or `either` |
 | `timing` | | `once-per-phase`, `once-per-turn`, `once-per-battle` or `unlimited` |
+| `trigger` | optional | the moment within the phase it is played: `start-of-phase`, `targeted`, `after-own-action`, `after-enemy-attacks`, `enemy-moved`, `enemy-falls-back`, `charge-declared`, `charge-ended`, `reinforcements`, `unit-destroyed`, `after-roll`, `end-of-phase`, `end-of-turn`. Absent: during the phase, as a unit is selected |
 | `category` | optional | `battle-tactic`, `strategic-ploy`, `epic-deed` or `wargear` |
 | `target` | [keyword filter](#keyword-filter), optional | the units it can be used on. Absent: the dataset does not know how to restrict it |
 | `modifiers`, `options`, `summary` | | the [body of a rule](#rule) |
 
-Everything but the last line comes from 40kdc-data.
+All of it is written by this project, as a contribution.
 
 ### Rule
 
@@ -469,7 +469,7 @@ What holds for every army of the game system.
 
 ```json
 {
-  "schemaVersion": "2.5.0",
+  "schemaVersion": "2.6.0",
   "gameSystem": "wh40k-11e",
   "stratagems": [ … ],
   "battleSizes": [ … ],
@@ -562,7 +562,7 @@ The first thing an app reads; at the root of the dataset repository.
 
 ```json
 {
-  "schemaVersion": "2.5.0",
+  "schemaVersion": "2.6.0",
   "gameSystem": "wh40k-11e",
   "releaseUrl": "https://cdn.jsdelivr.net/gh/PaintPlanPlay/dataset@{tag}/",
   "current": "mfm-1-5",
@@ -575,7 +575,7 @@ The first thing an app reads; at the root of the dataset repository.
       "frozen": false,
       "latest": "wh40k-11e-mfm-1-5-r3",
       "releases": [
-        { "tag": "wh40k-11e-mfm-1-5-r3", "number": 3, "publishedAt": "2026-10-02T11:53:12.082Z", "schemaVersion": "2.5.0" }
+        { "tag": "wh40k-11e-mfm-1-5-r3", "number": 3, "publishedAt": "2026-10-02T11:53:12.082Z", "schemaVersion": "2.6.0" }
       ]
     }
   ]
@@ -610,7 +610,7 @@ The permanent identifiers, by kind of entity (`armies`, `detachments`,
 {
   "detachments": {
     "orks": [
-      { "id": "blitz-brigade", "keys": ["40kdc:orks/blitz-brigade", "mfm:blitzbrigade"], "name": "Blitz Brigade" }
+      { "id": "blitz-brigade", "keys": ["mfm:blitzbrigade"], "name": "Blitz Brigade" }
     ]
   }
 }

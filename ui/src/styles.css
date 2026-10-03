@@ -408,10 +408,6 @@ button.danger { background: var(--late); border-color: var(--late); color: #fff;
 .button-row button { width: 100%; }
 .button-reason { color: var(--muted); font-size: 11px; line-height: 1.3; }
 
-.review-bar { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.75rem; }
-.review-readings { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; font-size: 0.9em; }
-.review-readings ul { margin: 0.25rem 0 0; padding-left: 1.1rem; }
-.review-readings pre { white-space: pre-wrap; font-size: 0.85em; margin: 0.25rem 0 0; }
 
 .add-first { align-self: flex-start; font-size: 0.9em; }
 

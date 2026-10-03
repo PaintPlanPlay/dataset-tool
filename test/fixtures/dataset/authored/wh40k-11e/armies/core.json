@@ -1,0 +1,21 @@
+[
+  {
+    "target": "core::stratagem:command-re-roll",
+    "stratagem": {
+      "name": "COMMAND RE-ROLL",
+      "detachmentId": null,
+      "cp": 1,
+      "phases": [
+        "command",
+        "movement",
+        "shooting",
+        "charge",
+        "fight"
+      ],
+      "playerTurn": "either",
+      "timing": "once-per-phase",
+      "category": "battle-tactic"
+    },
+    "reason": "Frozen from 40kdc-data before dropping it as a source."
+  }
+]
