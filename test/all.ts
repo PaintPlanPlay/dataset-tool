@@ -11,6 +11,7 @@ await import('./abilities.test.ts');
 await import('./supreme.test.ts');
 await import('./authored.test.ts');
 await import('./home.test.ts');
+await import('./created.test.ts');
 await import('./rules.test.ts');
 await import('./ruleform.test.ts');
 await import('./review.test.ts');
