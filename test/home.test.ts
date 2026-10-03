@@ -18,14 +18,14 @@ import { toJson } from '../src/dataset.ts';
 import { homes } from '../src/home.ts';
 import { rulesIn } from '../src/rules.ts';
 import { openSnapshot } from '../src/snapshot.ts';
-import { check, fixture, section } from './check.ts';
+import { check, fixture, fixtureAuthored, section } from './check.ts';
 
 const snapshot = openSnapshot(fixture('snapshot'));
-const authored = (effects: AuthoredEffect[]): AuthoredCore => ({ battleSizes: [], referenceTargets: [], effects });
+const authored = (effects: AuthoredEffect[]): AuthoredCore => fixtureAuthored(effects);
 const army = (files: Map<string, unknown>, id: string) => files.get(`wh40k-11e/armies/${id}.json`) as ArmyFile;
 const ruleIn = (a: ArmyFile) => a.detachments.find((d) => d.id === 'war-horde')!.rules.find((r) => r.id === 'get-stuck-in')!;
 
-const bare = await build({ snapshot });
+const bare = await build({ snapshot, authored: fixtureAuthored() });
 
 section('Army d\'origine : le Codex qui possède le plus de datasheets');
 {

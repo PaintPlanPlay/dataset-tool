@@ -102,8 +102,8 @@ reach the page.
 
 The page starts empty. In the left column, click **Update data**.
 
-It downloads the dataset as published, and a fresh copy of the three sources
-(BSData, the Munitorum Field Manual, 40kdc-data). A log scrolls under the
+It downloads the dataset as published, and a fresh copy of the two sources
+(BSData and the Munitorum Field Manual). A log scrolls under the
 buttons; it takes a few minutes. When it ends, the left column shows the
 versions you are working from and a green line: *Up to date with the Upstream
 Sources and the Dataset*.

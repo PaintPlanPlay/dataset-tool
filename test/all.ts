@@ -14,7 +14,6 @@ await import('./home.test.ts');
 await import('./created.test.ts');
 await import('./rules.test.ts');
 await import('./ruleform.test.ts');
-await import('./review.test.ts');
 await import('./release.test.ts');
 await import('./workflows.test.ts');
 await import('./gui.test.ts');

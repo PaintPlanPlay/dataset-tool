@@ -1,0 +1,85 @@
+[
+  {
+    "target": "orks::enhancement:war-horde|follow-me-ladz",
+    "requires": [
+      [
+        "Warboss"
+      ]
+    ],
+    "reason": "Frozen from 40kdc-data before dropping it as a source."
+  },
+  {
+    "target": "orks::enhancement:war-horde|kunnin-but-brutal",
+    "requires": [
+      [
+        "Orks",
+        "Infantry"
+      ],
+      [
+        "Orks",
+        "Mounted"
+      ]
+    ],
+    "excludes": [
+      "Epic Hero"
+    ],
+    "reason": "Frozen from 40kdc-data before dropping it as a source."
+  },
+  {
+    "target": "orks::rule:war-horde|get-stuck-in",
+    "rule": {
+      "name": "Get Stuck In"
+    },
+    "reason": "Frozen from 40kdc-data before dropping it as a source."
+  },
+  {
+    "target": "orks::stratagem:ere-we-go",
+    "stratagem": {
+      "name": "'ERE WE GO",
+      "detachmentId": "war-horde",
+      "cp": 1,
+      "phases": [
+        "movement",
+        "charge"
+      ],
+      "playerTurn": "your-turn",
+      "timing": "once-per-phase",
+      "category": "strategic-ploy",
+      "target": {
+        "allOf": [
+          "Orks"
+        ],
+        "anyOf": [],
+        "noneOf": [
+          "Vehicle"
+        ]
+      }
+    },
+    "reason": "Frozen from 40kdc-data before dropping it as a source."
+  },
+  {
+    "target": "orks::stratagem:unbridled-carnage",
+    "stratagem": {
+      "name": "UNBRIDLED CARNAGE",
+      "detachmentId": "war-horde",
+      "cp": 2,
+      "phases": [
+        "fight"
+      ],
+      "playerTurn": "either",
+      "timing": "once-per-phase",
+      "category": "battle-tactic",
+      "target": {
+        "allOf": [
+          "Orks"
+        ],
+        "anyOf": [
+          "Infantry",
+          "Walker"
+        ],
+        "noneOf": []
+      }
+    },
+    "reason": "Frozen from 40kdc-data before dropping it as a source."
+  }
+]

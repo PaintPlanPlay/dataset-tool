@@ -10,10 +10,10 @@ import { validateFile } from '@paintplanplay/dataset-schema/validate';
 import { authoredEffectProblems, layoutContributions, type AuthoredCore, type AuthoredEffect } from '../src/authored.ts';
 import { build } from '../src/build.ts';
 import { openSnapshot } from '../src/snapshot.ts';
-import { check, fixture, section } from './check.ts';
+import { check, fixture, fixtureAuthored, section } from './check.ts';
 
 const snapshot = openSnapshot(fixture('snapshot'));
-const authored = (effects: AuthoredEffect[]): AuthoredCore => ({ battleSizes: [], referenceTargets: [], effects });
+const authored = (effects: AuthoredEffect[]): AuthoredCore => fixtureAuthored(effects);
 const army = (files: Map<string, unknown>, id: string) => files.get(`wh40k-11e/armies/${id}.json`) as ArmyFile;
 const both = ['orks', 'orks-freebooterz'];
 
@@ -85,17 +85,20 @@ section('Ce qui se refuse');
     snapshot,
     authored: authored([{ ...base, target: 'orks::stratagem:x', stratagem: { name: 'X', detachmentId: 'no-such-detachment', cp: 1, phases: ['command'], playerTurn: 'either', timing: 'once-per-turn' } }]),
   });
+  // Écrit sous une autre Army, le Stratagem créé dans Da Big Hunt reprend l'identifiant de celui de War Horde.
+  const fixtureEffects = fixtureAuthored().effects!;
   const taken = await build({
     snapshot,
-    authored: authored([{ ...base, target: 'orks::stratagem:ere-we-go', stratagem: { name: 'X', detachmentId: 'da-big-hunt', cp: 1, phases: ['command'], playerTurn: 'either', timing: 'once-per-turn' } }]),
+    authored: { ...fixtureAuthored(), effects: [...fixtureEffects, { ...base, target: 'orks-freebooterz::stratagem:ere-we-go', stratagem: { name: 'X', detachmentId: 'da-big-hunt', cp: 1, phases: ['command'], playerTurn: 'either', timing: 'once-per-turn' } }] },
   });
-  check('un identifiant déjà pris par le Stratagem d\'un autre Detachment', taken.contributions[0]?.state === 'rejected', JSON.stringify(taken.contributions));
-  check('un Stratagem dans un Detachment inconnu reste introuvable', ghost.contributions[0]?.state === 'unresolved', JSON.stringify(ghost.contributions));
+  const takenVerdict = taken.contributions.find((c) => c.reason === 'A test.');
+  check('un identifiant déjà pris par le Stratagem d\'un autre Detachment', takenVerdict?.state === 'rejected', JSON.stringify(takenVerdict));
+  check('un Stratagem dans un Detachment inconnu reste introuvable', ghost.contributions.find((c) => c.reason === 'A test.')?.state === 'unresolved');
 }
 
 section('Rangées sous l\'Army d\'origine du Detachment');
 {
-  const bare = await build({ snapshot });
+  const bare = await build({ snapshot, authored: fixtureAuthored() });
   const layout = layoutContributions('wh40k-11e', created, bare.files);
   const orks = layout.get('authored/wh40k-11e/armies/orks.json')?.map((e) => e.target) ?? [];
   check('le Stratagem créé sous les Freebooterz va chez les Orks, sous leur adresse', orks.includes('orks::stratagem:big-push'), orks.join());

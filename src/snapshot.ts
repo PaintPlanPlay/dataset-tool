@@ -8,14 +8,12 @@
  *   sources.json          commits et versions de chaque source
  *   bsdata/<catalogue>.json
  *   mfm/<faction>.yaml, mfm/meta.yaml
- *   40kdc/core/…, 40kdc/enrichment/…   voir `upstream/kdc.ts`
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { SourceRef } from '@paintplanplay/dataset-schema';
 import type { BsCatalogue, BsFile } from './bsdata/flatten.ts';
-import { readKdc, type KdcData } from './upstream/kdc.ts';
 import { readFaction, type MfmFaction, type MfmMeta, type RawFaction } from './upstream/mfm.ts';
 
 export interface Snapshot {
@@ -26,20 +24,18 @@ export interface Snapshot {
   readBsdata(file: string): BsCatalogue;
   mfmFactions(): MfmFaction[];
   mfmMeta(): MfmMeta | null;
-  /** 40kdc-data, `null` quand l'instantané n'en porte pas. */
-  kdc(): KdcData | null;
 }
 
 export function openSnapshot(dir: string): Snapshot {
   const sourcesFile = join(dir, 'sources.json');
   if (!existsSync(sourcesFile)) throw new Error(`invalid snapshot: ${sourcesFile} missing`);
-  const sources = JSON.parse(readFileSync(sourcesFile, 'utf8')) as SourceRef[];
+  // Un instantané pris avant le retrait de 40kdc-data le nomme encore : il n'en est plus une source.
+  const sources = (JSON.parse(readFileSync(sourcesFile, 'utf8')) as SourceRef[]).filter((s) => s.id !== '40kdc');
 
   const bsDir = join(dir, 'bsdata');
   const mfmDir = join(dir, 'mfm');
   const cache = new Map<string, BsCatalogue>();
   let factions: MfmFaction[] | null = null;
-  let kdc: KdcData | null | undefined;
 
   return {
     dir,
@@ -73,10 +69,6 @@ export function openSnapshot(dir: string): Snapshot {
       if (!existsSync(file)) return null;
       const raw = parseYaml(readFileSync(file, 'utf8')) as { version?: unknown; lastUpdated?: unknown };
       return { version: String(raw.version ?? ''), lastUpdated: String(raw.lastUpdated ?? '') };
-    },
-    kdc() {
-      if (kdc === undefined) kdc = readKdc(join(dir, '40kdc'));
-      return kdc;
     },
   };
 }

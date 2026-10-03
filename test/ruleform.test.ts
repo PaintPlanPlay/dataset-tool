@@ -6,7 +6,7 @@
  *
  *   npx tsx test/ruleform.test.ts
  */
-import { mkdtempSync, rmSync } from 'node:fs';
+import { cpSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SIMULATED_CONDITIONS, SIMULATED_MODIFIERS, type Stratagem, type Unit } from '@paintplanplay/dataset-schema';
@@ -20,6 +20,8 @@ import { openSnapshot } from '../src/snapshot.ts';
 import { check, fixture, section } from './check.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'dataset-ruleform-'));
+// Les Stratagems du Dataset de test sont des Contributions : il les faut.
+cpSync(fixture('dataset'), dir, { recursive: true });
 const ws = await openWorkspace({ datasetDir: dir, snapshotDir: fixture('snapshot') });
 const gui = await startGui(ws, 0);
 const get = async <T>(path: string) => {

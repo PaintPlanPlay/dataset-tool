@@ -8,7 +8,6 @@
  * rattache aux Units qu'elle vient de produire — identifiant, effectif borné,
  * coût du jour — et signale celles qu'elle ne trouve plus.
  */
-import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { AllyRule, ArmyFile, BattleSize, CoreFile, KeywordFilter, Modifier, ReferenceTarget, RuleOption, SampleList, SampleSection, SampleUnit, Stratagem, Unit, WargearCost, WargearCount, Weapon, WeaponOption } from '@paintplanplay/dataset-schema';
@@ -66,18 +65,14 @@ export interface AuthoredEffect {
    * ses champs remplacent sinon ceux de la source.
    */
   stratagem?: CreatedStratagem;
+  /** Pour une Enhancement : les mots-clés exigés du porteur, par groupes (ET dans un groupe, OU entre groupes). */
+  requires?: string[][];
+  /** Pour une Enhancement : les mots-clés qui interdisent le porteur. */
+  excludes?: string[];
+  /** Pour une Upgrade : les Units qu'elle peut équiper à la fois. */
+  maxTargets?: number;
   /** Pourquoi, en une phrase à nous. */
   reason: string;
-  /**
-   * Où en est sa revue, quand elle vient d'une extraction (ADR 0011) : validée
-   * parce que 40kdc-data dit pareil, en attente d'un humain, ou revue.
-   */
-  review?: 'concordant' | 'divergent' | 'seul' | 'revu';
-  /**
-   * Empreinte de ce que disait 40kdc-data (Effect et résumé) quand on l'a écrite.
-   * Un amont qui a bougé depuis est signalé, jamais appliqué.
-   */
-  upstream?: string;
 }
 
 /** Ce qu'une Contribution donne d'un Stratagem : tout, sauf son identifiant et ce qu'il fait. */
@@ -88,24 +83,12 @@ export interface ContributionVerdict {
   target: string;
   reason: string;
   /**
-   * `active` : appliquée ; `flagged` : appliquée, mais l'amont a changé depuis sa
-   * rédaction ; `rejected` : hors format ; `unresolved` : cible introuvable.
+   * `active` : appliquée ; `flagged` : appliquée, mais ce qu'elle nomme n'est
+   * plus là ; `rejected` : hors format ; `unresolved` : cible introuvable.
    */
   state: 'active' | 'flagged' | 'rejected' | 'unresolved';
   note: string;
-  /** Empreinte de ce que dit l'amont aujourd'hui, avant la Contribution. */
-  upstreamNow?: string;
 }
-
-/** Empreinte courte d'une valeur JSON. */
-export const fingerprint = (value: unknown) => createHash('sha1').update(JSON.stringify(value ?? null)).digest('hex').slice(0, 12);
-
-/** Ce qu'on retient de l'amont d'une règle : son Effect et son résumé. */
-/**
- * Ce qu'on retient de l'amont d'une règle : l'Effect que 40kdc-data lui donne,
- * sous la même forme qu'avant la bascule (aucun résumé amont n'existe).
- */
-const upstreamOf = (kdcEffect: unknown) => fingerprint({ effect: kdcEffect, summary: undefined });
 
 /** Une Ally Rule telle que le projet l'écrit : la règle publiée, et pourquoi. */
 export type AuthoredAllyRule = AllyRule & { reason: string };
@@ -325,8 +308,18 @@ function allyRuleOrphans(rule: AllyRule, armies: Map<string, Unit[]>): string[] 
   ];
 }
 
+/** Les restrictions d'une Enhancement, à nous depuis le retrait de 40kdc-data. */
+const ENHANCEMENT_RESTRICTIONS = ['requires', 'excludes', 'maxTargets'] as const;
+const ENHANCEMENT_SAMPLE = { id: 'x', name: 'x', points: 0, appliesTo: 'character', aura: false, maxTargets: 1, requires: [], excludes: [] };
+
 /** Ce qu'une Contribution porte pour une Wargear Option, et seulement pour elle. */
 const OPTION_FIELDS = ['wargearCost', 'abilities', 'option'] as const;
+
+/** Ce qui, d'une Contribution, crée une Detachment Rule ou un Stratagem, sans le reste ; `undefined` si elle ne crée rien. */
+const creationOf = (e: AuthoredEffect): AuthoredEffect | undefined =>
+  e.rule !== undefined || e.stratagem !== undefined
+    ? { target: e.target, reason: e.reason, ...(e.rule !== undefined ? { rule: e.rule } : {}), ...(e.stratagem !== undefined ? { stratagem: e.stratagem } : {}) }
+    : undefined;
 
 /** Ce qui empêche de publier une Contribution ; vide si elle passe. */
 export function authoredEffectProblems(e: AuthoredEffect): string[] {
@@ -350,6 +343,11 @@ export function authoredEffectProblems(e: AuthoredEffect): string[] {
       problems.push('a Wargear Option carries no Modifiers, summary or Weapon of its own');
   } else if (forOption) problems.push('a wargear cost, abilities or a created option belong to a Wargear Option');
   if (e.weapon !== undefined && entity !== 'enhancement') problems.push('only an Enhancement brings a Weapon');
+  for (const k of ENHANCEMENT_RESTRICTIONS)
+    if (e[k] !== undefined) {
+      if (entity !== 'enhancement') problems.push(`only an Enhancement has \`${k}\``);
+      problems.push(...validateDef('enhancement', { ...ENHANCEMENT_SAMPLE, [k]: e[k] }).filter((f) => f.path.startsWith(`/${k}`)).map((f) => `${k}${f.path.slice(k.length + 1)}: ${f.message}`));
+    }
   if (e.wargearCost) problems.push(...validateDef('wargearCost', e.wargearCost).map((f) => `wargearCost${f.path}: ${f.message}`));
   if (e.abilities !== undefined)
     problems.push(...(Array.isArray(e.abilities) && e.abilities.every((a) => typeof a === 'string' && a.trim()) ? [] : ['abilities: names expected']));
@@ -359,7 +357,7 @@ export function authoredEffectProblems(e: AuthoredEffect): string[] {
   if (e.effect !== undefined) problems.push('an Effect in the retired 40kdc-data format: write it as Modifiers (ADR 0011)');
   else if (
     !forOption && e.weapon === undefined && e.modifiers === undefined && e.options === undefined && e.summary === undefined && e.eligibility === undefined &&
-    e.rule === undefined && e.stratagem === undefined
+    e.rule === undefined && e.stratagem === undefined && ENHANCEMENT_RESTRICTIONS.every((k) => e[k] === undefined)
   )
     problems.push('neither Modifiers nor summary');
   if (e.modifiers !== undefined) problems.push(...validateDef('modifiers', e.modifiers).map((f) => `Modifiers${f.path}: ${f.message}`));
@@ -372,16 +370,14 @@ export function authoredEffectProblems(e: AuthoredEffect): string[] {
 }
 
 /**
- * Pose les Modifiers, Options, Eligibility et Descriptions écrits par le projet
- * sur les fichiers construits. `kdcEffects` donne, par adresse, la lecture de
- * 40kdc-data : c'est elle que l'empreinte d'une Contribution compare, pour
- * signaler qu'elle a bougé depuis.
+ * Pose sur les fichiers construits ce que le projet écrit : Detachment Rules
+ * et Stratagems qu'il crée, restrictions d'Enhancement, Modifiers, Options,
+ * Eligibility et Descriptions, Wargear Options.
  */
 export function applyAuthoredEffects(
   files: Map<string, unknown>,
   gameSystem: string,
   effects: AuthoredEffect[],
-  kdcEffects: Record<string, unknown> = {},
 ): {
   unresolved: string[];
   rejected: { target: string; reason: string }[];
@@ -399,7 +395,8 @@ export function applyAuthoredEffects(
   /** Ce que décrit déjà une Contribution, par adresse sous l'Army d'origine. */
   const described = new Map<string, string>();
 
-  for (const e of effects) {
+  for (const written of effects) {
+    let e = written;
     const place = placeOf(h, e);
     const canonical = place.canonical;
     const first = described.get(canonical);
@@ -410,21 +407,35 @@ export function applyAuthoredEffects(
       continue;
     }
     described.set(canonical, e.target);
-    const problems = authoredEffectProblems(e);
     // Un identifiant de Stratagem est unique dans son Army : en créer un sous un identifiant pris par un autre Detachment se refuse.
-    if (!problems.length && e.stratagem) {
+    if (e.stratagem) {
       const { root, name } = parseTarget(e.target);
       const lists = root === CORE_ROOT ? [core?.stratagems ?? []] : armies.filter((a) => place.holders.includes(a.id)).map((a) => a.stratagems);
-      if (lists.some((l) => l.some((x) => x.id === name && x.detachmentId !== e.stratagem!.detachmentId)))
-        problems.push(`the identifier ${name} is already a Stratagem of another Detachment: choose another one`);
+      if (lists.some((l) => l.some((x) => x.id === name && x.detachmentId !== e.stratagem!.detachmentId))) {
+        const note = `the identifier ${name} is already a Stratagem of another Detachment: choose another one`;
+        rejected.push({ target: e.target, reason: note });
+        contributions.push({ target: e.target, reason: e.reason, state: 'rejected', note });
+        continue;
+      }
     }
+    const problems = authoredEffectProblems(e);
+    // Une Detachment Rule ou un Stratagem n'existe que par sa Contribution : un défaut ailleurs ne l'efface pas, il en écarte le reste.
+    let refused: string | undefined;
     if (problems.length) {
+      const creation = creationOf(e);
       rejected.push({ target: e.target, reason: problems[0] });
-      contributions.push({ target: e.target, reason: e.reason, state: 'rejected', note: problems[0] });
-      continue;
+      if (!creation || authoredEffectProblems(creation).length) {
+        contributions.push({ target: e.target, reason: e.reason, state: 'rejected', note: problems[0] });
+        continue;
+      }
+      refused = problems[0];
+      e = creation;
     }
     const body = {
       ...(e.weapon !== undefined ? { weapon: e.weapon } : {}),
+      ...(e.requires !== undefined ? { requires: e.requires } : {}),
+      ...(e.excludes !== undefined ? { excludes: e.excludes } : {}),
+      ...(e.maxTargets !== undefined ? { maxTargets: e.maxTargets } : {}),
       ...(e.modifiers !== undefined ? { modifiers: e.modifiers } : {}),
       ...(e.options !== undefined ? { options: e.options } : {}),
       ...(e.eligibility !== undefined ? { eligibility: e.eligibility } : {}),
@@ -433,7 +444,6 @@ export function applyAuthoredEffects(
     const { root, entity, name } = parseTarget(e.target);
     let hits = 0;
     const missingAbilities = new Set<string>();
-    const upstreamNow = upstreamOf(kdcEffects[e.target]);
     const take = (el: object) => {
       Object.assign(el, body);
       hits++;
@@ -502,7 +512,9 @@ export function applyAuthoredEffects(
         if (s) take(s);
       }
     }
-    if (!hits) {
+    if (refused !== undefined)
+      contributions.push({ target: e.target, reason: e.reason, state: 'rejected', note: `${hits ? 'created, the rest set aside' : 'the target is not in the Dataset'}: ${refused}` });
+    else if (!hits) {
       unresolved.push(e.target);
       contributions.push({ target: e.target, reason: e.reason, state: 'unresolved', note: 'the target is not in the Dataset' });
     } else if (missingAbilities.size)
@@ -512,10 +524,7 @@ export function applyAuthoredEffects(
         state: 'flagged',
         note: `not an ability of the Unit any more, left out: ${[...missingAbilities].join(', ')}`,
       });
-    else if (entity === 'option') contributions.push({ target: e.target, reason: e.reason, state: 'active', note: 'applied' });
-    else if (e.upstream && e.upstream !== upstreamNow)
-      contributions.push({ target: e.target, reason: e.reason, state: 'flagged', note: '40kdc-data changed this rule since the Contribution was written: review it, it stays applied', upstreamNow });
-    else contributions.push({ target: e.target, reason: e.reason, state: 'active', note: 'applied, over 40kdc-data', upstreamNow });
+    else contributions.push({ target: e.target, reason: e.reason, state: 'active', note: 'applied' });
   }
   return { unresolved, rejected, contributions, wargearLinks };
 }

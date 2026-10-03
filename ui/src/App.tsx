@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError, type DraftCheck, type Inspection, type Mark, type Overview, type PendingChange, type Sheet, type Suggestions } from './api.ts';
-import { CorrectionsDialog, DisagreementsDialog, LeaveDialog, ReviewDialog, SaveDialog, UnsimulatedDialog } from './Dialogs.tsx';
+import { CorrectionsDialog, DisagreementsDialog, LeaveDialog, SaveDialog, UnsimulatedDialog } from './Dialogs.tsx';
 import { Ctx, Field, type EditorContext } from './editor/Editor.tsx';
 import { same, setAt, type Path } from './editor/values.ts';
 import { SchemaSet, type Located } from './schema.ts';
@@ -115,7 +115,7 @@ export function App() {
   const [suggestions, setSuggestions] = useState<Suggestions | null>(null);
   const [pending, setPending] = useState<PendingChange[]>([]);
   const [corrections, setCorrections] = useState(0);
-  const [dialog, setDialog] = useState<null | 'save' | 'corrections' | 'all' | 'disagreements' | 'unsimulated' | 'review'>(null);
+  const [dialog, setDialog] = useState<null | 'save' | 'corrections' | 'all' | 'disagreements' | 'unsimulated'>(null);
   const [leaving, setLeaving] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [findings, setFindings] = useState<string[]>([]);
@@ -270,7 +270,6 @@ export function App() {
         onCorrections={() => setDialog('all')}
         onDisagreements={() => setDialog('disagreements')}
         onUnsimulated={() => setDialog('unsimulated')}
-        onReview={() => setDialog('review')}
       />
       <main className="sheet">
         <SheetBar
@@ -317,17 +316,6 @@ export function App() {
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog === 'review' && (
-        <ReviewDialog
-          armies={overview?.armies ?? []}
-          onOpen={(s) => {
-            setDialog(null);
-            open(s);
-          }}
-          onChanged={() => void afterWrite()}
-          onClose={() => setDialog(null)}
-        />
-      )}
       {dialog === 'unsimulated' && (
         <UnsimulatedDialog
           onOpen={(s) => {
@@ -365,7 +353,7 @@ export function App() {
   );
 }
 
-const SOURCE_LABEL: Record<string, string> = { bsdata: 'BSData', mfm: 'MFM', '40kdc': '40kdc-data', project: 'project' };
+const SOURCE_LABEL: Record<string, string> = { bsdata: 'BSData', mfm: 'MFM', project: 'project' };
 
 /** D'où vient chaque partie d'une fiche : là que partira une Correction, ou qu'on écrit une Contribution. */
 function SectionSources({ sources }: { sources: Record<string, string> }) {
