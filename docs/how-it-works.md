@@ -7,7 +7,7 @@ makes everything else in the documentation easier to follow.
 ## The dataset is built, not typed
 
 The dataset describes about forty armies and thousands of units. Typing that by
-hand would be slow and full of mistakes, and three community projects already
+hand would be slow and full of mistakes, and two community projects already
 publish most of it. So the dataset is **built**: a program reads those
 projects, combines them, and writes the files.
 
@@ -16,8 +16,8 @@ projects, combines them, and writes the files.
 ┌──────────────────┐            ┌───────────────────────┐
 │ BSData           │            │ corrections/          │  written by people,
 │ MFM (via BSData) │──┐         │ authored/             │  through the tool
-│ 40kdc-data       │  │         ├───────────────────────┤
-└──────────────────┘  ├─build──▶│ wh40k-11e/            │  written by the build,
+└──────────────────┘  │         ├───────────────────────┤
+                      ├─build──▶│ wh40k-11e/            │  written by the build,
                       │         │ registry/             │  never by hand
    corrections/  ─────┤         ├───────────────────────┤
    authored/     ─────┘         │ manifest.json         │──release──▶ read by the apps
@@ -31,17 +31,21 @@ Two things follow, and they are the heart of the project:
 - **What people write is kept apart**, in `corrections/` and `authored/`, and
   applied again by every build. A fix survives every update of the sources.
 
-## The three sources, and who is trusted for what
+## The two sources, and who is trusted for what
 
-Each source is good at something. When two of them disagree, the one trusted
-for that field wins, and the disagreement is reported so a human can look at it.
+Each source is good at something. When they disagree, the one trusted for that
+field wins, and the disagreement is reported so a human can look at it. What no
+source publishes is written by this project.
 
 | Source | What it is | Trusted for |
 |---|---|---|
 | [BSData](https://github.com/BSData/wh40k-11e) | the community data files behind army builders | unit profiles, weapons, wargear options, keywords, abilities (by name), unit composition, the weapon an enhancement brings |
 | [Munitorum Field Manual, via BSData](https://github.com/BSData/wh40k-11e-mfm) (MFM) | the points document, transcribed | points and their bands, paid wargear, leader and support attachments, which detachments exist, their detachment points, force dispositions, which enhancements exist and their points |
-| [40kdc-data](https://github.com/wn-mitch/40kdc-data) | a structured database of detachments and stratagems | which detachment rules and stratagems exist, their CP, phases, timing and targets, enhancement restrictions |
-| this project | — | what a rule does (Modifiers, descriptions), battle sizes, ally rules, default targets, the sample list |
+| this project | — | which detachment rules and stratagems exist, their CP, phases, timing and targets, enhancement restrictions, what a rule does (Modifiers, descriptions), battle sizes, ally rules, default targets, the sample list |
+
+The detachment rules, stratagems and enhancement restrictions were first seeded
+from [40kdc-data](https://github.com/wn-mitch/40kdc-data), then frozen into
+contributions: the tool no longer reads it.
 
 Field by field, this is what the sheet headers of the interface show:
 
@@ -53,15 +57,16 @@ Field by field, this is what the sheet headers of the interface show:
 | Unit | what each ability does | this project |
 | Detachment | name, detachment points, force dispositions, unique tag | MFM |
 | Detachment | enhancements: existence, points, units they open Leader or Support for | MFM |
-| Detachment | enhancements: name, unit or character, aura, how many units, required and excluded keywords | 40kdc-data |
+| Detachment | enhancements: name, unit or character, aura | MFM |
+| Detachment | enhancements: how many units, required and excluded keywords | this project |
+| Detachment | which detachment rules exist | this project |
 | Detachment | enhancements: the weapon one brings | BSData |
 | Detachment | what each detachment rule and enhancement does | this project |
-| Stratagem | name, CP, phases, whose turn, timing, category, target | 40kdc-data |
+| Stratagem | which exist; name, CP, phases, whose turn, timing, category, target | this project |
 | Stratagem | what it does | this project |
 | Army rule | name | BSData |
 | Army rule | what it does | this project |
-| Core | core stratagems | 40kdc-data |
-| Core | battle sizes, ally rules | this project |
+| Core | core stratagems, battle sizes, ally rules | this project |
 
 An enhancement's weapon belongs to the enhancement, never to the datasheets
 that may take it: BSData lists it in a shared `Enhancements` group that every
@@ -72,8 +77,8 @@ altogether: the Dataset does not cover Crusade.
 Two consequences worth knowing:
 
 - **The MFM decides what exists** among detachments and enhancements. A
-  detachment only 40kdc-data knows about does not enter the dataset; it is
-  listed in the build report as "set aside".
+  detachment rule or a stratagem is only ever added to a detachment the MFM
+  publishes.
 - A unit absent from the MFM — usually Legends — keeps the cost BSData gives it.
 
 ## What a build does, in order
@@ -82,18 +87,18 @@ Two consequences worth knowing:
    including the units it may field from other catalogues.
 2. **Apply the MFM** over it: prices, paid wargear, attachments. The base cost
    and the cost brackets are computed from the price grid.
-3. **Build detachments and stratagems** from the MFM and 40kdc-data, matched by
-   name.
+3. **Build detachments** from the MFM, with their enhancements.
 4. **Apply the corrections** from `corrections/`.
 5. **Add what the project writes**: battle sizes, ally rules, default targets
    and the sample list go into `core.json`; then the contributions of
-   `authored/…/armies/*.json` put Modifiers and descriptions on the rules —
+   `authored/…/armies/*.json` create the detachment rules and stratagems, set
+   enhancement restrictions, and put Modifiers and descriptions on the rules —
    once per element, in every army that publishes it.
 6. **Link paid wargear** to the wargear options that it bills.
 7. **Check for rules text.** One finding and nothing is written.
 
 The build never touches the network: it reads a **snapshot**, a frozen copy of
-the three sources taken by **Update data** (or `fetch`). The same snapshot
+the two sources taken by **Update data** (or `fetch`). The same snapshot
 always gives the same dataset.
 
 ## Corrections: fixing a source
@@ -123,18 +128,13 @@ catches up, the tool tells you the correction can go.
 
 ## Contributions: what only this project writes
 
-Some things no source publishes: what a rule *does*, in a form an app can
-simulate; the battle sizes; the ally rules. These are **contributions**. They
+Some things no source publishes: the detachment rules and stratagems, and what
+a rule *does*, in a form an app can simulate; the battle sizes; the ally rules. These are **contributions**. They
 are not fixes waiting for a source to catch up — they are ours for good.
 
 You never choose between a correction and a contribution. You edit a field on a
 sheet; the field's domain decides. Changing a cost writes a correction against
 the MFM; describing what an ability does writes a contribution.
-
-One guard remains: 40kdc-data also publishes its own reading of what rules do.
-It is never published in the dataset, but when it changes after we wrote ours,
-the contribution is flagged *upstream changed* so someone can compare the two.
-Ours stays applied.
 
 [Corrections and contributions](corrections-and-contributions.md) describes the
 files themselves.

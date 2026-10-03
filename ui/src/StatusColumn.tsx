@@ -31,12 +31,11 @@ interface Props {
   onCorrections: () => void;
   onDisagreements: () => void;
   onUnsimulated: () => void;
-  onReview: () => void;
 }
 
 const ACTION: Record<PendingChange['action'], string> = { added: 'new', modified: 'changed', deleted: 'removed' };
 
-export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOpen, onCorrections, onDisagreements, onUnsimulated, onReview }: Props) {
+export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOpen, onCorrections, onDisagreements, onUnsimulated }: Props) {
   const [report, setReport] = useState<JobReport | null>(null);
   const [lines, setLines] = useState<string[]>([]);
   const [asking, setAsking] = useState<ButtonState | null>(null);
@@ -133,12 +132,6 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
         <dd>
           <button type="button" className="link" onClick={onDisagreements} title="Where two Upstream Sources disagree and the authoritative one won">
             {overview?.disagreements ?? '—'}
-          </button>
-        </dd>
-        <dt>To review</dt>
-        <dd>
-          <button type="button" className="link" onClick={onReview} title="Extracted Rules whose reading differs from 40kdc-data, or has no second reading">
-            {overview?.toReview ?? '—'}
           </button>
         </dd>
         <dt>Unsimulated keys</dt>

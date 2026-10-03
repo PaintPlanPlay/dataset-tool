@@ -9,7 +9,6 @@ import type { PendingChange } from '../../src/gui/pending.ts';
 import type { CorrectionItem, DraftCheck, SavedFile, Sheet, Suggestions } from '../../src/gui/sheets.ts';
 import type { SourceConflict } from '../../src/findings.ts';
 import type { UnsimulatedKey } from '../../src/rules.ts';
-import type { ImportResult, ReviewItem } from '../../src/review.ts';
 import type { JsonSchema } from './schema.ts';
 
 export type { ButtonName, ButtonState, Overview } from '../../src/gui/overview.ts';
@@ -60,9 +59,6 @@ export const api = {
   suggest: (army: string, unit: string) => call<Suggestions>(`/api/suggest?army=${encodeURIComponent(army)}&unit=${encodeURIComponent(unit)}`),
   disagreements: () => call<SourceConflict[]>('/api/disagreements'),
   unsimulated: () => call<(UnsimulatedKey & { sheet: string })[]>('/api/unsimulated'),
-  review: (army: string, type: string) => call<ReviewItem[]>(`/api/review?army=${encodeURIComponent(army)}&type=${encodeURIComponent(type)}`),
-  importReview: (rules: unknown[]) => post<ImportResult>('/api/review/import', { rules }),
-  validateReview: (target: string) => post('/api/review/validate', { target }),
   recordPr: (path: string, url: string) => post('/api/corrections/upstream-pr', { path, url }),
   upstreamDraft: (path: string) => call<{ repository: string; url: string }>(`/api/upstream-draft?path=${encodeURIComponent(path)}`),
 };

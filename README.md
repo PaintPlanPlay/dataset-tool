@@ -20,13 +20,13 @@ read or write code to fix a number.**
 
 ## The idea in one minute
 
-Nobody types the dataset by hand. Three community projects already publish most
+Nobody types the dataset by hand. Two community projects already publish most
 of it, and the tool **builds** the dataset from them:
 
 ```
 BSData ─────────┐
-MFM (via BSData)├──▶  Dataset Tool  ──▶  a pull request  ──▶  a release
-40kdc-data ─────┘      (builds it)       (reviewed by a human)  (apps read it)
+MFM (via BSData)┴──▶  Dataset Tool  ──▶  a pull request  ──▶  a release
+                       (builds it)       (reviewed by a human)  (apps read it)
         ▲
         └── plus what this project writes itself: corrections and contributions
 ```
@@ -91,9 +91,8 @@ with the next release.
 | Source | Trusted for |
 |---|---|
 | [Munitorum Field Manual, via BSData](https://github.com/BSData/wh40k-11e-mfm) | points, requisition brackets, paid wargear, leader/support attachments, detachment points, force dispositions, enhancements |
-| [40kdc-data](https://github.com/wn-mitch/40kdc-data) | which detachment rules and stratagems exist, their CP, timing and targets, enhancement restrictions |
 | [BSData](https://github.com/BSData/wh40k-11e) | unit profiles, weapons, wargear options, keywords, the weapon an enhancement brings |
-| this project | what a rule does (Modifiers and one-line descriptions), battle sizes, ally rules |
+| this project | which detachment rules and stratagems exist, their CP, timing and targets, enhancement restrictions (first seeded from [40kdc-data](https://github.com/wn-mitch/40kdc-data)), what a rule does (Modifiers and one-line descriptions), battle sizes, ally rules |
 
 When sources disagree, the one trusted for that field wins and the disagreement
 is reported. [How it works](docs/how-it-works.md) has the field-by-field table.
@@ -129,7 +128,7 @@ dataset schema, published from `schema/` (TypeScript types in
 | Folder | What lives there |
 |---|---|
 | `schema/` | the contract between this tool and the apps: types, JSON Schema, validation |
-| `src/bsdata/`, `src/upstream/` | reading the three sources |
+| `src/bsdata/`, `src/upstream/` | reading the two sources |
 | `src/build.ts` | the build: sources, then corrections, then contributions |
 | `src/corrections/` | applying corrections, and telling whether each is still needed |
 | `src/authored.ts`, `src/rules.ts` | what the project writes itself |

@@ -30,19 +30,18 @@ import { weaponRef, type CatalogueUnit } from './bsdata/types.ts';
 import { applyCorrections, applyDetachmentCorrections, applyStratagemCorrections, CORE_ROOT, parseTarget, type ApplyReport } from './corrections/apply.ts';
 import type { CorrectionFile } from './corrections/files.ts';
 import { detachmentElement, reconcile, stratagemElement, upstreamElement, type CorrectionVerdict } from './corrections/lifecycle.ts';
-import { buildDetachments, toStratagem } from './detachments.ts';
-import type { EnhancementWeaponFinding, MissingEntity, SourceConflict } from './findings.ts';
+import { buildDetachments } from './detachments.ts';
+import type { EnhancementWeaponFinding, SourceConflict } from './findings.ts';
 import { assignIds, emptyRegistry, type IdRegistry } from './ids.ts';
 import { findRulesText, type TextFinding } from './notext.ts';
 import type { Snapshot } from './snapshot.ts';
-import { kdcFactionFor } from './upstream/kdc.ts';
 import { unitAbilities } from './abilities.ts';
 import { applyAuthoredEffects, resolveAuthored, type AuthoredCore, type ContributionVerdict } from './authored.ts';
 import { applyMfm, mfmDuplicates, mfmKey, type MfmConflict, type MfmDuplicate, type MfmFaction } from './upstream/mfm.ts';
 import { coreName, coreStatus, findUnsimulated, type UnsimulatedKey } from './rules.ts';
 import { linkWargear, type WargearFinding } from './wargear.ts';
 
-export type { EnhancementWeaponFinding, MissingEntity, SourceConflict } from './findings.ts';
+export type { EnhancementWeaponFinding, SourceConflict } from './findings.ts';
 
 export interface BuildInput {
   snapshot: Snapshot;
@@ -67,8 +66,6 @@ export interface BuildOutput {
   armiesWithoutMfm: string[];
   /** Lignes du MFM écartées parce qu'une autre porte déjà leur nom dans la même faction. */
   mfmDuplicates: MfmDuplicate[];
-  /** Detachments et Enhancements qu'une source publie et que l'autre ignore. */
-  missing: MissingEntity[];
   /** Units nommées par les fichiers écrits par le projet et introuvables. */
   unresolvedAuthored: string[];
   /** État de chaque Correction face à l'amont de cette construction. */
@@ -81,8 +78,6 @@ export interface BuildOutput {
   textCheck: TextFinding[];
   /** Clés de Modifier que la Simulation ne sait pas jouer : à corriger, dans la saisie ou dans le simulateur. */
   unsimulated: UnsimulatedKey[];
-  /** Les Effects de 40kdc-data que les Armies au format de Rule ne publient plus, par adresse : la deuxième lecture de la revue. */
-  kdcEffects: Record<string, unknown>;
   /** Les lignes `wargear` du MFM qu'aucune Wargear Option ne facture, et les liens posés à la main qui ne visent plus rien. */
   wargear: WargearFinding[];
   /** Les Weapons d'Enhancement que BSData donne sans Enhancement dans le Dataset. */
@@ -265,12 +260,9 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   const conflicts: SourceConflict[] = [];
   const unmatched: BuildOutput['unmatched'] = [];
   const armiesWithoutMfm: string[] = [];
-  const missing: MissingEntity[] = [];
-  const kdcEffects: Record<string, unknown> = {};
 
   const all = snapshot.bsdataFiles();
   const mfm = snapshot.mfmFactions();
-  const kdc = snapshot.kdc();
 
   const composed: { file: string; units: CatalogueUnit[]; enhancementWeapons: EnhancementWeapon[]; mfm?: MfmFaction }[] = [];
   for (const file of playableArmies(all)) {
@@ -282,7 +274,7 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
 
   const armyIds = assignIds(ids, 'armies', '*', composed, (a) => ({ keys: [`bsdata:${a.file}`], name: armyLabel(a.file) }));
 
-  // 1. Upstream Sources : BSData, puis le MFM qui fait autorité sur ce qu'il publie, puis 40kdc-data.
+  // 1. Upstream Sources : BSData, puis le MFM qui fait autorité sur ce qu'il publie.
   const once = new OncePerUnit();
   const placements = new Map<string, Placement>();
   const merged = composed.map((army) => {
@@ -295,13 +287,10 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
     for (const c of report.conflicts) once.report(`conflict:${c.unitId}:${c.field}`, own.get(c.unitId) ?? true, () => conflicts.push(conflictOf(id, c)));
     for (const u of report.unmatched) once.report(`unmatched:${u.id}`, own.get(u.id) ?? true, () => unmatched.push({ army: id, ...u }));
 
-    const kdcFaction = kdc ? kdcFactionFor([armyLabel(army.file), army.mfm?.name], kdc.factions) : undefined;
-    const dets = buildDetachments({ armyId: id, mfm: army.mfm, kdc, kdcFaction, ids });
-    conflicts.push(...dets.conflicts);
-    missing.push(...dets.missing);
-    equipEnhancements(id, dets.detachments, army.enhancementWeapons, placements);
-    Object.assign(kdcEffects, dets.kdcEffects);
-    return { ...army, id, units, kdcFaction, detachments: dets.detachments, stratagems: dets.stratagems };
+    // Detachment Rules et Stratagems ne viennent d'aucune source : les Contributions les créent.
+    const detachments = buildDetachments({ armyId: id, mfm: army.mfm, ids });
+    equipEnhancements(id, detachments, army.enhancementWeapons, placements);
+    return { ...army, id, units, detachments, stratagems: [] as Stratagem[] };
   });
   once.flush();
 
@@ -312,16 +301,8 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   const upstreamDetachments = new Map<string, Detachment[]>(merged.map((a) => [a.id, a.detachments]));
   const upstreamStratagems = new Map<string, Stratagem[]>(merged.map((a) => [a.id, a.stratagems]));
 
-  // Les Stratagems Core ne dépendent d'aucune Army.
-  const coreKdc = kdc?.coreStratagems() ?? [];
-  const coreIds = assignIds(ids, 'stratagems', CORE_ROOT, coreKdc, (s) => ({ keys: [`40kdc:${s.id}`], name: s.name }));
-  const coreStratagems = coreKdc
-    .map((s) => {
-      const ability = kdc!.ability(s.ability_id ?? '', []);
-      if (ability?.effect !== undefined) kdcEffects[`${CORE_ROOT}::stratagem:${coreIds.get(s)}`] = ability.effect;
-      return toStratagem(s, coreIds.get(s)!, null, ability);
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+  // Les Stratagems Core ne dépendent d'aucune Army ; ce sont aussi les Contributions qui les créent.
+  const coreStratagems: Stratagem[] = [];
   upstreamStratagems.set(CORE_ROOT, coreStratagems);
 
   // 2. Corrections, par-dessus.
@@ -353,14 +334,7 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
     strats.report.orphans.forEach(orphan);
 
     const datasetUnits = corrected.units
-      .map((u) =>
-        toDatasetUnit(
-          u,
-          unitAbilities(u, kdc, (target, effect) => {
-            kdcEffects[target] = effect;
-          }),
-        ),
-      )
+      .map((u) => toDatasetUnit(u, unitAbilities(u)))
       .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
     // Les Army Rules, stockées une fois ; chaque Unit les désigne par identifiant.
     const armyRuleNames = [...new Set(datasetUnits.flatMap((u) => u.armyRules))].sort((a, b) => a.localeCompare(b));
@@ -384,7 +358,7 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
       name: file.name,
       faction: file.faction,
       units: datasetUnits.length,
-      refs: { bsdata: army.file, ...(army.mfm ? { mfm: army.mfm.slug } : {}), ...(army.kdcFaction ? { kdc: army.kdcFaction.id } : {}) },
+      refs: { bsdata: army.file, ...(army.mfm ? { mfm: army.mfm.slug } : {}) },
     });
   }
   once.flush();
@@ -426,7 +400,7 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   files.set(corePath(gameSystem), coreFile);
 
   // Les Effects et résumés écrits par le projet, par-dessus tout le reste.
-  const authoredEffects = applyAuthoredEffects(files, gameSystem, input.authored?.effects ?? [], kdcEffects);
+  const authoredEffects = applyAuthoredEffects(files, gameSystem, input.authored?.effects ?? []);
   authored.unresolved.push(...authoredEffects.unresolved);
 
   // Le Wargear Cost, une fois le MFM, les Corrections et les Contributions posés.
@@ -443,10 +417,9 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
     ...enhancementCollisions(files, gameSystem),
   ].sort((a, b) => a.kind.localeCompare(b.kind) || (a.unit ?? '').localeCompare(b.unit ?? '') || a.enhancement.localeCompare(b.enhancement));
   return {
-    gameSystem, files, ids, conflicts, unmatched, armiesWithoutMfm, mfmDuplicates: mfmDuplicates(mfm), missing,
+    gameSystem, files, ids, conflicts, unmatched, armiesWithoutMfm, mfmDuplicates: mfmDuplicates(mfm),
     unresolvedAuthored: authored.unresolved, corrections: verdicts, contributions: authoredEffects.contributions, orphans, textCheck,
     unsimulated: findUnsimulated(files),
-    kdcEffects,
     wargear,
     enhancementWeapons,
   };

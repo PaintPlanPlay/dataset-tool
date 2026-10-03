@@ -136,7 +136,8 @@ try {
   const all = (await call<CorrectionItem[]>('/api/corrections')).body;
   const filtered = (await call<CorrectionItem[]>('/api/corrections?q=mek')).body;
   check('les Corrections d\'une fiche, avec leur état', ofBoss.length === 2 && ofBoss.every((c) => c.sheet === 'u-warboss') && ofBoss.some((c) => c.state === 'active'), JSON.stringify(ofBoss));
-  check('celles de tout le Dataset, filtrables', all.length === 4 && filtered.length === 1 && filtered[0].path.endsWith('mek-gunz-attacks.json'));
+  // 4 Corrections, et les 6 Contributions du Dataset de test.
+  check('celles de tout le Dataset, filtrables', all.length === 10 && filtered.length === 1 && filtered[0].path.endsWith('mek-gunz-attacks.json'), JSON.stringify(all.map((c) => c.target)));
   const points = ofBoss.find((c) => c.path.endsWith('warboss-points.json'))!;
   await call('/api/corrections/delete', { path: points.path });
   list = await pending();
@@ -278,9 +279,9 @@ try {
   const summarySave = await save('u-warboss', summarised);
   const effects = readContributions(dir, 'wh40k-11e');
   check(
-    'un résumé modifié produit une Contribution, pas une Correction, avec l\'empreinte de l\'amont',
+    'un résumé modifié produit une Contribution, pas une Correction',
     summarySave.status === 201 && summarySave.body.files.every((f) => f.kind === 'contribution') &&
-      effects.some((e) => e.target === 'u-warboss::ability:Da Boss Fixture' && e.summary === '+1 to wound while leading.' && typeof e.upstream === 'string'),
+      effects.some((e) => e.target === 'u-warboss::ability:Da Boss Fixture' && e.summary === '+1 to wound while leading.'),
     JSON.stringify(summarySave.body),
   );
   list = await pending();
@@ -413,7 +414,7 @@ try {
     const removal = await save('u-victrix', removed, 'Test : retirer l\'option créée.');
     check(
       'retirer une option créée retire sa Contribution, sans Correction',
-      removal.status === 201 && removal.body.files.every((f) => f.kind === 'contribution') && readContributions(dir, 'wh40k-11e').length === 0,
+      removal.status === 201 && removal.body.files.every((f) => f.kind === 'contribution') && !readContributions(dir, 'wh40k-11e').some((e) => e.target.startsWith('u-victrix::')),
       JSON.stringify(removal.body),
     );
     for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
@@ -460,7 +461,7 @@ try {
     const removal = await save('orks::detachment:boss-brutes', without, 'Test : retirer la Weapon.');
     check(
       'retirer la Weapon retire la Contribution',
-      removal.status === 201 && readContributions(dir, 'wh40k-11e').length === 0,
+      removal.status === 201 && !readContributions(dir, 'wh40k-11e').some((e) => e.target === 'orks::enhancement:boss-brutes|da-gobshot-thunderbuss'),
       JSON.stringify(removal.body),
     );
     for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
@@ -485,7 +486,19 @@ try {
   for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
   const newRule = clone(horde.value) as { rules: { id: string; name: string }[] };
   newRule.rules.push({ id: 'new-rule', name: 'New Rule' });
-  check('ajouter une Detachment Rule est refusé plutôt qu\'ignoré en silence', (await save('orks::detachment:war-horde', newRule)).status === 400 && git('status', '--porcelain') === '');
+  const ruleSave = await save('orks::detachment:war-horde', newRule, 'A rule the sources do not have.');
+  check(
+    'ajouter une Detachment Rule : une Contribution qui la crée',
+    ruleSave.status === 201 && ruleSave.body.files.every((f) => f.kind === 'contribution') &&
+      readContributions(dir, 'wh40k-11e').some((e) => e.target === 'orks::rule:war-horde|new-rule' && e.rule?.name === 'New Rule'),
+    JSON.stringify(ruleSave.body),
+  );
+  await refresh();
+  const withRule = await sheet('orks::detachment:war-horde');
+  const dropped = clone(withRule.value) as { rules: { id: string }[] };
+  dropped.rules = dropped.rules.filter((r) => r.id !== 'new-rule');
+  const dropSave = await save('orks::detachment:war-horde', dropped, 'Test : retirer la règle créée.');
+  check('la retirer retire sa Contribution', dropSave.status === 201 && !readContributions(dir, 'wh40k-11e').some((e) => e.target === 'orks::rule:war-horde|new-rule'));
   for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
 
   const core = await sheet('core');
@@ -496,7 +509,8 @@ try {
   check(
     'une Battle Size et un Stratagem Core s\'enregistrent',
     coreSave.status === 201 && existsSync(join(dir, 'authored/wh40k-11e/battle-sizes.json')) &&
-      coreSave.body.files.some((f) => f.kind === 'correction' && readJson<Correction>(f.path).target === 'core::stratagem:command-re-roll'),
+      coreSave.body.files.every((f) => f.kind === 'contribution') &&
+      readContributions(dir, 'wh40k-11e').some((e) => e.target === 'core::stratagem:command-re-roll' && e.stratagem?.cp === 2),
     JSON.stringify(coreSave.body),
   );
   for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
