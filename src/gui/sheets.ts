@@ -546,7 +546,7 @@ function localTarget(files: Map<string, unknown>, army: string) {
 
 /**
  * Les écritures qui rangent ces Contributions dans le fichier de leur Army
- * d'origine (ADR 0015) : seulement les fichiers qui changent, `null`
+ * d'origine : seulement les fichiers qui changent, `null`
  * pour un fichier qui n'a plus rien à porter.
  */
 export function contributionWrites(ws: Workspace, effects: AuthoredEffect[]): { path: string; content: string | null }[] {

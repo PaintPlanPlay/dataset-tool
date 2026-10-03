@@ -1,6 +1,6 @@
 /**
  * Lire le schéma du Dataset pour savoir comment afficher une valeur : résoudre
- * ses références (y compris vers les schémas d'Effect vendus de 40kdc-data), et
+ * ses références, et
  * reconnaître quelle branche d'un `oneOf` une valeur emprunte.
  */
 export interface JsonSchema {

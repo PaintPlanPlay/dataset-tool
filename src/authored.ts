@@ -106,7 +106,7 @@ export const authoredDir = (gameSystem: string) => `authored/${gameSystem}`;
 /** L'ancien fichier unique des Contributions : encore lu, plus jamais écrit. */
 export const EFFECTS_FILE = 'effects.json';
 export const ALLY_RULES_FILE = 'ally-rules.json';
-/** Les Contributions sur les Rules et Wargear Options, un fichier par Army d'origine (ADR 0015). */
+/** Les Contributions sur les Rules et Wargear Options, un fichier par Army d'origine. */
 export const CONTRIBUTIONS_DIR = 'armies';
 
 /** Le fichier des Contributions d'une Army, ou des Stratagems Core (`core`). */
