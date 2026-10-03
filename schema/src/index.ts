@@ -291,6 +291,11 @@ export const SIMULATED_MODIFIERS: Record<string, { label: string; side: 'attack'
   torrent: { label: 'Torrent', side: 'attack' },
   /** Blast : +1 attaque par tranche de 5 figurines de la cible. */
   blast: { label: 'Blast', side: 'attack' },
+  /**
+   * Hazardous : après l'attaque, un jet de risque par arme — sur 1-2 au D6,
+   * l'Unit qui attaque subit une blessure mortelle. La Simulation en dit le coût.
+   */
+  hazardous: { label: 'Hazardous', side: 'attack' },
   T: { label: 'Toughness', side: 'defence' },
   /** Save, écrite comme sur une fiche : `-1` l'améliore de 1 ; un seuil (« 4+ ») la remplace. */
   Sv: { label: 'Save', side: 'defence' },
@@ -308,7 +313,6 @@ export const SIMULATED_MODIFIERS: Record<string, { label: string; side: 'attack'
 export const DISPLAYED_MODIFIERS: Record<string, { label: string }> = {
   precision: { label: 'Precision' },
   assault: { label: 'Assault' },
-  hazardous: { label: 'Hazardous' },
   pistol: { label: 'Pistol' },
   'indirect-fire': { label: 'Indirect Fire' },
   cleave: { label: 'Cleave' },
@@ -365,6 +369,8 @@ export const SIMULATED_CONDITIONS: Record<string, { label: string }> = {
   ranged: { label: 'when shooting' },
   /** Le contraire de `target-keyword` : la cible n'a pas ce Keyword (« non-Monster/Vehicle » en fait deux). */
   'target-not-keyword': { label: 'target is not' },
+  /** L'Unit n'a pas bougé de plus de 3" : ce que [HEAVY] demande. */
+  'short-move': { label: 'moved 3" or less' },
   'target-keyword': { label: 'target is' },
   charged: { label: 'after charging' },
   stationary: { label: 'remained stationary' },

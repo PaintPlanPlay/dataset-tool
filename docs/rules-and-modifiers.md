@@ -100,12 +100,13 @@ simulation.
 | `reroll-damage` | attack | `all` | re-roll the Damage roll |
 | `torrent` | attack | none | every attack hits, without a roll |
 | `blast` | attack | none | +1 attack per 5 models in the target |
+| `hazardous` | attack | none | after attacking, one hazard roll per weapon: on a 1-2 the attacking unit suffers a mortal wound. The simulation shows that cost |
 | `T`, `W` | defence | a number | added to Toughness, Wounds |
 | `Sv` | defence | a number written as on a datasheet (`-1` improves), or a threshold (`4+`) that replaces it | Save |
 | `invulnerable-save` | defence | a threshold | `4+`. With several sources, the best one applies |
 
 Weapon abilities with a number are written with the keys above and a condition:
-[LANCE] is `wound 1` if `charged`; [HEAVY] is `hit 1` if `stationary`;
+[LANCE] is `wound 1` if `charged`; [HEAVY] is `hit 1` if `short-move` (the unit moved 3" or less);
 [RAPID FIRE N] is `A N` within `half-range`; [MELTA N] is `D N` within
 `half-range`; [ANTI-X N+] is `crit-wound N+` if `target-keyword: X`.
 
@@ -122,7 +123,7 @@ simulated. These keys are known — the build does not list them as anomalies:
 
 | Family | Keys |
 |---|---|
-| Weapon abilities | `precision`, `assault`, `hazardous`, `pistol`, `indirect-fire`, `cleave` (a number) |
+| Weapon abilities | `precision`, `assault`, `pistol`, `indirect-fire`, `cleave` (a number) |
 | Unit abilities, like core rules | `deep-strike`, `lone-operative`, `fights-first`, `scouts` (inches), `infiltrators`, `mobile` |
 | Movement | `M` (inches), `normal-move` (dice: an extra move), `surge-move` (dice), `fall-back-and-shoot`, `fall-back-and-charge`, `advance-and-shoot`, `advance-and-charge`, `advance` and `charge` (added to the roll), `reroll-advance`, `reroll-charge`, `pile-in`, `ingress`, `assault-disembark` |
 | Reserves and reactions | `strategic-reserves`, `overwatch`, `heroic-intervention` |
@@ -200,6 +201,7 @@ hold.
 | `stationary` | — | the unit remained stationary |
 | `half-range` | — | the target is within half range |
 | `target-not-keyword` | a keyword | the unit attacked does **not** have that keyword. "Non-MONSTER/VEHICLE" is two of them |
+| `short-move` | — | the unit moved 3" or less this turn — what [HEAVY] asks |
 
 **Situations**
 
