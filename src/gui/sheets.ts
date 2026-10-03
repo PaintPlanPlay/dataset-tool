@@ -13,7 +13,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { dirname, join } from 'node:path';
 import { canonicalWeaponKeyword, SIMULATED_CONDITIONS, SIMULATED_MODIFIERS, UNIT_MODIFIERS, type AllyRule, type ArmyFile, type BattleSize, type CoreFile, type Detachment, type Enhancement, type OptionGroup, type Stratagem, type Unit, type Weapon, type WeaponOption } from '@paintplanplay/dataset-schema';
 import { validateDef, validateFile, type FieldError } from '@paintplanplay/dataset-schema/validate';
-import { ALLY_RULES_FILE, authoredDir, authoredEffectProblems, EFFECTS_FILE, fingerprint, type AuthoredAllyRule, type AuthoredEffect } from '../authored.ts';
+import { ALLY_RULES_FILE, authoredDir, authoredEffectProblems, fingerprint, layoutContributions, readContributionFiles, readContributions, type AuthoredAllyRule, type AuthoredEffect } from '../authored.ts';
+import { homes } from '../home.ts';
 import { parseRangeInches } from '../bsdata/flatten.ts';
 import { weaponRef } from '../bsdata/types.ts';
 import { ADD, CORE_ROOT, DELETE, parseTarget } from '../corrections/apply.ts';
@@ -150,15 +151,19 @@ export function sheetOf(ws: Workspace, target: string): Sheet {
   }
 
   const contributions = new Map((view.contributions ?? []).map((v) => [v.target, v]));
+  const local = localTarget(view.files, found.army);
+  const where = contributionFiles(ws);
   for (const e of readEffects(ws)) {
-    if (sheetOfTarget(e.target) !== found.target) continue;
-    const base = pathOf(found.kind, value, e.target);
+    // Écrite sous l'Army d'origine, elle se montre aussi sur la fiche d'une Army qui reprend l'élément.
+    const target = local(e.target);
+    if (sheetOfTarget(target) !== found.target) continue;
+    const base = pathOf(found.kind, value, target);
     if (base === null) continue;
     const state = contributions.get(e.target)?.state ?? 'active';
     for (const k of [...RULE_BODY, ...ENHANCEMENT_BODY, ...OPTION_BODY.filter((f) => f !== 'option')] as const)
-      if (e[k] !== undefined) marks.push({ path: `${base}/${k}`, kind: 'contribution', file: effectsPath(ws), reason: e.reason, state, value: e[k] });
+      if (e[k] !== undefined) marks.push({ path: `${base}/${k}`, kind: 'contribution', file: where.get(e.target) ?? '', reason: e.reason, state, value: e[k] });
     // Une Wargear Option créée est tout entière une Contribution.
-    if (e.option !== undefined) marks.push({ path: base, kind: 'contribution', file: effectsPath(ws), reason: e.reason, state, value: e.option });
+    if (e.option !== undefined) marks.push({ path: base, kind: 'contribution', file: where.get(e.target) ?? '', reason: e.reason, state, value: e.option });
   }
 
   const wargear = found.kind === 'unit' ? (view.wargear ?? []).filter((f) => f.unitId === found.target) : [];
@@ -507,11 +512,53 @@ function danglingReferences(kind: Inspection['kind'], view: DatasetView, army: s
 
 // ----------------------------------------------------------------- écrire
 
-export const effectsPath = (ws: Workspace) => `${authoredDir(ws.gameSystem)}/${EFFECTS_FILE}`;
+/** Toutes les Contributions sur les Rules et Wargear Options du dépôt, quel que soit leur fichier. */
+export const readEffects = (ws: Workspace): AuthoredEffect[] => readContributions(ws.datasetDir, ws.gameSystem);
 
-export function readEffects(ws: Workspace): AuthoredEffect[] {
-  const abs = join(ws.datasetDir, effectsPath(ws));
-  return existsSync(abs) ? (JSON.parse(readFileSync(abs, 'utf8')) as AuthoredEffect[]) : [];
+/** Le fichier de chaque Contribution, par adresse. */
+const contributionFiles = (ws: Workspace) =>
+  new Map([...readContributionFiles(ws.datasetDir, ws.gameSystem)].flatMap(([path, list]) => list.map((e) => [e.target, path] as const)));
+
+/**
+ * Une adresse vue depuis une Army : celle d'un élément qu'elle reprend d'une
+ * autre Army prend sa racine, pour se montrer sur sa fiche.
+ */
+function localTarget(files: Map<string, unknown>, army: string) {
+  const h = homes(files);
+  return (target: string) => {
+    const { root } = parseTarget(target);
+    const holders = h.holders(target);
+    // Une Unit est la racine de son adresse : rien à traduire.
+    return root !== army && holders.includes(root) && holders.includes(army) ? `${army}${target.slice(root.length)}` : target;
+  };
+}
+
+/**
+ * Les écritures qui rangent ces Contributions dans le fichier de leur Army
+ * d'origine (ADR 0015) : seulement les fichiers qui changent, `null`
+ * pour un fichier qui n'a plus rien à porter.
+ */
+export function contributionWrites(ws: Workspace, effects: AuthoredEffect[]): { path: string; content: string | null }[] {
+  const previous = readContributionFiles(ws.datasetDir, ws.gameSystem);
+  const layout = layoutContributions(ws.gameSystem, effects, datasetOf(ws).files, previous);
+  return [...layout]
+    .map(([path, list]) => ({ path, content: list?.length ? toJson(list) : null }))
+    .filter((w) => {
+      const abs = join(ws.datasetDir, w.path);
+      return (existsSync(abs) ? readFileSync(abs, 'utf8') : null) !== w.content;
+    });
+}
+
+/** Écrit ce que `contributionWrites` prépare. */
+export function writeContributions(ws: Workspace, effects: AuthoredEffect[]): void {
+  for (const w of contributionWrites(ws, effects)) {
+    const abs = join(ws.datasetDir, w.path);
+    if (w.content === null) rmSync(abs, { force: true });
+    else {
+      mkdirSync(dirname(abs), { recursive: true });
+      writeFileSync(abs, w.content);
+    }
+  }
 }
 
 export interface SavedFile {
@@ -569,9 +616,12 @@ export async function saveSheet(ws: Workspace, input: SaveInput): Promise<{ file
   }
 
   if (plan.contributions.length) {
-    const byTarget = new Map(readEffects(ws).map((e) => [e.target, e]));
-    const verdicts = new Map((view.contributions ?? []).map((v) => [v.target, v]));
-    for (const c of plan.contributions) {
+    // Une Contribution s'écrit sous l'Army d'origine de ce qu'elle décrit, quelle que soit la fiche d'où on l'écrit.
+    const h = homes(view.files);
+    const byTarget = new Map(readEffects(ws).map((e) => [h.canonical(e.target), e]));
+    const verdicts = new Map((view.contributions ?? []).map((v) => [h.canonical(v.target), v]));
+    for (const written of plan.contributions) {
+      const c = { ...written, target: h.canonical(written.target) };
       const was = byTarget.get(c.target);
       if (c.remove) {
         byTarget.delete(c.target);
@@ -600,9 +650,8 @@ export async function saveSheet(ws: Workspace, input: SaveInput): Promise<{ file
       if (problems.length) throw new ApiError(400, `${c.target}: refused`, problems);
       byTarget.set(c.target, entry);
     }
-    const next = [...byTarget.values()].sort((a, b) => a.target.localeCompare(b.target));
-    // Plus aucune Contribution : le fichier disparaît, plutôt que de rester vide.
-    writes.push({ path: effectsPath(ws), content: next.length ? toJson(next) : null, kind: 'contribution' });
+    // Un fichier qui ne porte plus aucune Contribution disparaît, plutôt que de rester vide.
+    for (const w of contributionWrites(ws, [...byTarget.values()])) writes.push({ ...w, kind: 'contribution' });
   }
 
   if (plan.battleSizes) {
@@ -730,16 +779,16 @@ export function listCorrections(ws: Workspace, sheet = '', q = ''): CorrectionIt
       ...(c.upstream ? { upstream: c.upstream } : {}),
       ...(c.upstreamPr ? { upstreamPr: c.upstreamPr } : {}),
     })),
-    ...readEffects(ws).map((e): CorrectionItem => ({
+    ...[...readContributionFiles(ws.datasetDir, ws.gameSystem)].flatMap(([path, list]) => list.map((e): CorrectionItem => ({
       kind: 'contribution',
-      path: effectsPath(ws),
+      path,
       target: e.target,
       sheet: sheetOfTarget(e.target),
       source: 'project',
       reason: e.reason,
       state: contributions.get(e.target)?.state ?? 'active',
       note: contributions.get(e.target)?.note ?? '',
-    })),
+    }))),
   ];
   const needle = q.trim().toLowerCase();
   return items.filter(
@@ -761,7 +810,7 @@ export function deleteCorrection(ws: Workspace, input: { path?: string; target?:
     const effects = readEffects(ws);
     const next = effects.filter((e) => e.target !== input.target);
     if (next.length === effects.length) throw new ApiError(404, `no Contribution for ${input.target}`);
-    writeFileSync(join(ws.datasetDir, effectsPath(ws)), toJson(next));
+    writeContributions(ws, next);
   } else throw new ApiError(400, 'a Correction path or a Contribution target is expected');
   void refreshing(ws);
 }

@@ -8,7 +8,8 @@ They live in the [dataset repository](https://github.com/PaintPlanPlay/dataset):
 
 ```
 corrections/wh40k-11e/<army>/<name>.json     one file per correction
-authored/wh40k-11e/effects.json              every contribution about a rule or a wargear option
+authored/wh40k-11e/armies/<army>.json        every contribution about a rule or a wargear option of that army
+authored/wh40k-11e/armies/core.json          contributions about core stratagems
 authored/wh40k-11e/battle-sizes.json         battle sizes
 authored/wh40k-11e/ally-rules.json           ally rules
 authored/wh40k-11e/reference-targets.json    default targets of the simulation
@@ -188,9 +189,24 @@ Contributions are what the project writes itself. They do not override a
 source, so they have no `source` and no state to watch — with one exception,
 below.
 
-### `effects.json`: rules and wargear options
+### `armies/<army>.json`: rules and wargear options
 
-One list, one entry per target, sorted by target.
+One file per army, each a list with one entry per target, sorted by target.
+`armies/core.json` holds the core stratagems.
+
+**An element several armies publish is written once.** The Space Marines
+chapters take most of their detachments from the Space Marines codex; the
+Freebooterz take Orks datasheets; Oath of Moment is the army rule of a dozen
+armies. A contribution about such an element is written **once**, under its
+**home army** — the army that publishes it and owns the most datasheets of its
+own: the parent codex rather than its chapters, and for a unit, an army where it
+is not an ally. It then applies in every army that publishes the element. The
+interface does this for you, whichever army's sheet you edit from; a second
+contribution on the same element under another army is rejected.
+
+`dataset-tool tidy --dataset <dir>` moves every contribution to the file of its
+home army, under the address of that army. It is how the former single
+`effects.json` was split; the tool still reads that file if it finds one.
 
 ```json
 [
@@ -250,10 +266,9 @@ or `option`.
 That flag is the one thing watched on a contribution. It never replaces what
 we wrote: it only asks for a second look.
 
-`effects.json` is one shared file, so two pull requests that both change it can
-conflict. The interface keeps entries sorted and compares them one by one to
-keep that rare; if it happens, the second pull request is redone on top of the
-first.
+Two pull requests about the same army change the same file, and can conflict.
+The interface keeps entries sorted and compares them one by one to keep that
+rare; if it happens, the second pull request is redone on top of the first.
 
 ### `battle-sizes.json`
 

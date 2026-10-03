@@ -315,6 +315,6 @@ keywords.
 ## Where a rule's Modifiers are stored
 
 Whatever sheet you edit them on, Modifiers, Options, eligibility and summaries
-are saved as **contributions** in `authored/wh40k-11e/effects.json`, one entry
-per rule. See
+are saved as **contributions** in `authored/wh40k-11e/armies/<army>.json`, one
+entry per rule, in the file of the army the rule belongs to. See
 [Corrections and contributions](corrections-and-contributions.md#contributions).

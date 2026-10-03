@@ -6,25 +6,18 @@
  * n'en est écrit si l'une d'elles recopie du texte de règles ou vise une Rule
  * absente — elle est refusée, les autres passent.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
 import { authoredEffectProblems, type AuthoredEffect } from '../authored.ts';
-import { toJson } from '../dataset.ts';
 import { compareReadings, kdcReading, type ExtractedRule, type ImportResult, type ReviewItem } from '../review.ts';
 import { rulesIn } from '../rules.ts';
 import { ApiError, datasetOf, refreshing } from './api.ts';
-import { effectsPath, readEffects } from './sheets.ts';
+import { readEffects, writeContributions } from './sheets.ts';
 import { sheetOfTarget } from './targets.ts';
 import type { Workspace } from './workspace.ts';
 
 const IMPORT_REASON = 'Read from the rules outside the repository, then compared to 40kdc-data.';
 const WAITING = new Set(['divergent', 'seul']);
 
-function writeEffects(ws: Workspace, effects: AuthoredEffect[]): void {
-  const abs = join(ws.datasetDir, effectsPath(ws));
-  mkdirSync(dirname(abs), { recursive: true });
-  writeFileSync(abs, toJson([...effects].sort((a, b) => a.target.localeCompare(b.target))));
-}
+const writeEffects = (ws: Workspace, effects: AuthoredEffect[]) => writeContributions(ws, effects);
 
 export function importExtracted(ws: Workspace, rules: ExtractedRule[]): ImportResult {
   const view = datasetOf(ws);

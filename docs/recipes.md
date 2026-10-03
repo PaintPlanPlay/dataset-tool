@@ -422,7 +422,7 @@ line in the menu (it starts on *— not billed —*), and set the number after
 "2 Multi-meltas"). The resulting amount is shown, read from the line: you never
 type an amount on an option. **unlink** removes the link.
 
-**What is written** — a **contribution**, in `authored/wh40k-11e/effects.json`:
+**What is written** — a **contribution**, in the file of the unit's army, `authored/wh40k-11e/armies/<army>.json`:
 
 ```json
 {
