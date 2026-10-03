@@ -138,7 +138,9 @@ enhancements. Two particular cases:
 
 - `__delete` on a **unit** does not remove it: the unit is marked Legends with
   a cost of 0, so that saved lists that include it keep working;
-- a **stratagem** can be removed, not added.
+- a **stratagem** can be removed, not added: a stratagem no source has is a
+  [contribution](#contributions) (`stratagem`), and so is a detachment rule
+  (`rule`).
 
 ### How a build judges a correction
 
@@ -235,11 +237,13 @@ home army, under the address of that army. It is how the former single
 | `wargearCost` | a wargear option | the MFM line that bills the option: `{ "item": "Lascannon" }`, with `"quantity": 2` when it is paid twice per model. `null` removes an automatic link |
 | `abilities` | a wargear option | abilities of the unit, by name, that the option brings |
 | `option` | a wargear option | a whole option BSData does not have: `name`, `weapons`, `maxCarriers`, `isDefault`, optionally `perModels` |
+| `rule` | a detachment rule | a detachment rule no source has: `{ "name": "…" }`. It is created under the identifier of the target, in every army that publishes the detachment |
+| `stratagem` | a stratagem | its structured fields: `name`, `detachmentId` (`null` for a core stratagem), `cp`, `phases`, `playerTurn`, `timing`, optionally `category` and `target`. A stratagem no source has is created under the identifier of the target, in every army that publishes its detachment; one that exists has its fields replaced — a field left out is dropped |
 | `review` | a rule | set by the tool for imported readings: `concordant`, `divergent`, `seul` (ours is the only reading), `revu` (reviewed by a human) |
 | `upstream` | a rule | set by the tool: a fingerprint of 40kdc-data's own reading when the entry was written |
 
-A rule entry needs at least one of `modifiers`, `options`, `summary` or
-`eligibility`. A wargear option entry carries only `wargearCost`, `abilities`
+A rule entry needs at least one of `modifiers`, `options`, `summary`,
+`eligibility`, `rule` or `stratagem`. A wargear option entry carries only `wargearCost`, `abilities`
 or `option`.
 
 **Targets of contributions**
