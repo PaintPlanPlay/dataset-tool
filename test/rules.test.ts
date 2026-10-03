@@ -87,6 +87,11 @@ const granting = await build({
 const grantingRule = orksOf(granting.files).detachments.find((d) => d.id === warHorde.id)!.rules[0];
 check('le Modifier et l\'Eligibility sont publiés', grantingRule.modifiers?.[0].key === 'gain-keyword' && grantingRule.eligibility?.allOf.join() === 'Gretchin');
 check('gain-keyword est une clé connue : pas une anomalie', !granting.unsimulated.some((f) => f.key === 'gain-keyword'), JSON.stringify(granting.unsimulated));
+const displayed = await build({
+  snapshot,
+  authored: fixtureAuthored([{ target: `orks::stratagem:${ereWeGo.id}`, modifiers: [{ key: 'advance', value: 2, target: 'self' }, { key: 'advanse', value: 2, target: 'self' }], reason: 'A displayed key, and a typo.' }]),
+});
+check('une clé affichée est connue, seule la faute de frappe est relevée', displayed.unsimulated.map((u) => u.key).join() === 'advanse', JSON.stringify(displayed.unsimulated));
 check('elle n\'est pas pour autant une option de combat', !('gain-keyword' in SIMULATED_MODIFIERS) && 'gain-keyword' in UNIT_MODIFIERS);
 check('l\'Army reste conforme au schéma', validateFile('army', orksOf(granting.files)).length === 0);
 const misgranted = await build({

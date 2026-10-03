@@ -1053,6 +1053,23 @@
             "unlimited"
           ]
         },
+        "trigger": {
+          "enum": [
+            "start-of-phase",
+            "targeted",
+            "after-own-action",
+            "after-enemy-attacks",
+            "enemy-moved",
+            "enemy-falls-back",
+            "charge-declared",
+            "charge-ended",
+            "reinforcements",
+            "unit-destroyed",
+            "after-roll",
+            "end-of-phase",
+            "end-of-turn"
+          ]
+        },
         "category": {
           "enum": [
             "battle-tactic",

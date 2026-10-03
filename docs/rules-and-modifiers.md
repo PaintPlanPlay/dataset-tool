@@ -92,11 +92,42 @@ For `hit`, `wound`, `A`, `S`, `AP` and `D`, the simulation plays plain numbers
 only. A dice value such as `D3` is accepted in the dataset, and ignored by the
 simulation.
 
+**Characteristics and weapon abilities** (since schema 2.6.0)
+
+| Key | Side | Value | Meaning |
+|---|---|---|---|
+| `BS`, `WS` | attack | a number, **written as on a datasheet** | `-1` improves the skill by one. Not the same as `hit`: the roll to reach changes, with no ±1 cap |
+| `reroll-damage` | attack | `all` | re-roll the Damage roll |
+| `torrent` | attack | none | every attack hits, without a roll |
+| `blast` | attack | none | +1 attack per 5 models in the target |
+| `T`, `W` | defence | a number | added to Toughness, Wounds |
+| `Sv` | defence | a number written as on a datasheet (`-1` improves), or a threshold (`4+`) that replaces it | Save |
+| `invulnerable-save` | defence | a threshold | `4+`. With several sources, the best one applies |
+
+Weapon abilities with a number are written with the keys above and a condition:
+[LANCE] is `wound 1` if `charged`; [HEAVY] is `hit 1` if `stationary`;
+[RAPID FIRE N] is `A N` within `half-range`; [MELTA N] is `D N` within
+`half-range`; [ANTI-X N+] is `crit-wound N+` if `target-keyword: X`.
+
 **On the unit itself**
 
 | Key | Value | Meaning |
 |---|---|---|
 | `gain-keyword` | a keyword — required | the unit gains this keyword, which then counts everywhere a printed keyword counts: `Battleline` doubles its unit limit |
+
+### Keys the apps show without simulating
+
+What happens outside the attack sequence is shown in a rule's display, never
+simulated. These keys are known — the build does not list them as anomalies:
+
+| Family | Keys |
+|---|---|
+| Weapon abilities | `precision`, `assault`, `hazardous`, `pistol`, `indirect-fire`, `cleave` (a number) |
+| Unit abilities, like core rules | `deep-strike`, `lone-operative`, `fights-first`, `scouts` (inches), `infiltrators`, `mobile` |
+| Movement | `M` (inches), `normal-move` (dice: an extra move), `surge-move` (dice), `fall-back-and-shoot`, `fall-back-and-charge`, `advance-and-shoot`, `advance-and-charge`, `advance` and `charge` (added to the roll), `reroll-advance`, `reroll-charge`, `pile-in`, `ingress`, `assault-disembark` |
+| Reserves and reactions | `strategic-reserves`, `overwatch`, `heroic-intervention` |
+| Command and morale | `battle-shock` (forces a roll; a number modifies it), `OC`, `Ld`, `cp`, `stratagem-cost` |
+| Outside attacks | `mortal-wounds` (dice), `heal` (wounds or models, dice), `desperate-escape` (the enemy is forced into it), `hazard-rolls` (a number) |
 
 ### Any other key
 
@@ -168,12 +199,21 @@ hold.
 | `charged` | — | the unit charged this turn |
 | `stationary` | — | the unit remained stationary |
 | `half-range` | — | the target is within half range |
+| `target-not-keyword` | a keyword | the unit attacked does **not** have that keyword. "Non-MONSTER/VEHICLE" is two of them |
 
 **Situations**
 
 Any other condition is a **situation**: something the simulation cannot know,
 which the player switches on once for the whole simulation. `waaagh` for "the
 Waaagh! is active", `riled-up`, `below-half-strength`…
+
+Use these spellings for the situations that come back across armies:
+`in-engagement`, `leading`, `target-within` (inches), `target-beyond`
+(inches), `wholly-within` (inches), `battle-shocked`, `target-battle-shocked`,
+`on-objective`, `target-on-objective`, `below-half-strength`,
+`below-starting-strength`, `warlord`, `first-battle-round`, `damaged`. An
+army rule's state takes the rule's name: `waaagh`, `riled-up`,
+`oath-of-moment`…
 
 A situation is recognised by its exact spelling: `riled-up` and `Riled-up` are
 two different switches for the player. Use the autocomplete, and prefer lower

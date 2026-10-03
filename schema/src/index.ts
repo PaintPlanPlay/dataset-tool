@@ -11,7 +11,7 @@
  */
 
 /** Version du schéma à laquelle un fichier se conforme. */
-export const SCHEMA_VERSION = '2.5.0';
+export const SCHEMA_VERSION = '2.6.0';
 
 /** Un wargame à une édition donnée. Le Dataset est rangé par Game System. */
 export interface GameSystem {
@@ -279,6 +279,71 @@ export const SIMULATED_MODIFIERS: Record<string, { label: string; side: 'attack'
   'fight-on-death': { label: 'Fight on Death', side: 'defence' },
   /** Bonus au jet de Fight on Death (« +1 si riled up », par une Condition). */
   'fight-on-death-roll': { label: 'to Fight on Death roll', side: 'defence' },
+  /**
+   * Ballistic / Weapon Skill, écrits comme sur une fiche : `-1` améliore de 1.
+   * Ce n'est pas `hit` : le jet à atteindre change, sans plafond de ±1.
+   */
+  BS: { label: 'BS', side: 'attack' },
+  WS: { label: 'WS', side: 'attack' },
+  /** Relance du jet de Damage : `all`. */
+  'reroll-damage': { label: 're-roll Damage', side: 'attack' },
+  /** Torrent : chaque attaque touche, sans jet. */
+  torrent: { label: 'Torrent', side: 'attack' },
+  /** Blast : +1 attaque par tranche de 5 figurines de la cible. */
+  blast: { label: 'Blast', side: 'attack' },
+  T: { label: 'Toughness', side: 'defence' },
+  /** Save, écrite comme sur une fiche : `-1` l'améliore de 1 ; un seuil (« 4+ ») la remplace. */
+  Sv: { label: 'Save', side: 'defence' },
+  W: { label: 'Wounds', side: 'defence' },
+  /** Sauvegarde invulnérable, un seuil (« 4+ ») : la meilleure des sources s'applique. */
+  'invulnerable-save': { label: 'invulnerable save', side: 'defence' },
+};
+
+/**
+ * Les clés de Modifier qu'une application affiche sans les simuler : ce
+ * qu'elles changent se joue hors de la séquence d'attaque (mouvement, réserves,
+ * commandement, moral, blessures mortelles…). Elles sont connues : ni une
+ * faute de frappe, ni une anomalie.
+ */
+export const DISPLAYED_MODIFIERS: Record<string, { label: string }> = {
+  precision: { label: 'Precision' },
+  assault: { label: 'Assault' },
+  hazardous: { label: 'Hazardous' },
+  pistol: { label: 'Pistol' },
+  'indirect-fire': { label: 'Indirect Fire' },
+  cleave: { label: 'Cleave' },
+  'deep-strike': { label: 'Deep Strike' },
+  'lone-operative': { label: 'Lone Operative' },
+  'fights-first': { label: 'Fights First' },
+  scouts: { label: 'Scouts' },
+  infiltrators: { label: 'Infiltrators' },
+  mobile: { label: 'Mobile' },
+  M: { label: 'Move' },
+  'normal-move': { label: 'Normal move' },
+  'surge-move': { label: 'surge move' },
+  'fall-back-and-shoot': { label: 'shoot after Falling Back' },
+  'fall-back-and-charge': { label: 'charge after Falling Back' },
+  'advance-and-shoot': { label: 'shoot after Advancing' },
+  'advance-and-charge': { label: 'charge after Advancing' },
+  advance: { label: 'to Advance rolls' },
+  charge: { label: 'to charge rolls' },
+  'reroll-advance': { label: 're-roll Advance' },
+  'reroll-charge': { label: 're-roll charge' },
+  'pile-in': { label: 'pile-in' },
+  ingress: { label: 'ingress move' },
+  'assault-disembark': { label: 'assault disembark' },
+  'desperate-escape': { label: 'Desperate Escape' },
+  'hazard-rolls': { label: 'hazard rolls' },
+  'strategic-reserves': { label: 'Strategic Reserves' },
+  overwatch: { label: 'Fire Overwatch' },
+  'heroic-intervention': { label: 'Heroic Intervention' },
+  'battle-shock': { label: 'Battle-shock' },
+  OC: { label: 'OC' },
+  Ld: { label: 'Leadership' },
+  cp: { label: 'CP' },
+  'stratagem-cost': { label: 'Stratagem cost' },
+  'mortal-wounds': { label: 'mortal wounds' },
+  heal: { label: 'heal' },
 };
 
 /**
@@ -298,6 +363,8 @@ export const UNIT_MODIFIERS: Record<string, { label: string }> = {
 export const SIMULATED_CONDITIONS: Record<string, { label: string }> = {
   melee: { label: 'in melee' },
   ranged: { label: 'when shooting' },
+  /** Le contraire de `target-keyword` : la cible n'a pas ce Keyword (« non-Monster/Vehicle » en fait deux). */
+  'target-not-keyword': { label: 'target is not' },
   'target-keyword': { label: 'target is' },
   charged: { label: 'after charging' },
   stationary: { label: 'remained stationary' },
@@ -372,6 +439,28 @@ export type StratagemTiming = 'once-per-phase' | 'once-per-turn' | 'once-per-bat
 export type StratagemCategory = 'battle-tactic' | 'strategic-ploy' | 'epic-deed' | 'wargear';
 
 /**
+ * Le moment d'une Play Window, dans sa phase : la formule
+ * de GW qui dit quand un Stratagem se joue. Absent : pendant la phase, en
+ * choisissant l'Unit qui agit.
+ */
+export const STRATAGEM_TRIGGERS = {
+  'start-of-phase': { label: 'Start of the phase' },
+  'targeted': { label: 'When an enemy unit selects its targets' },
+  'after-own-action': { label: 'When your unit acts' },
+  'after-enemy-attacks': { label: 'After an enemy unit has attacked' },
+  'enemy-moved': { label: 'After an enemy unit moves' },
+  'enemy-falls-back': { label: 'When an enemy unit Falls Back' },
+  'charge-declared': { label: 'When an enemy unit declares a charge' },
+  'charge-ended': { label: 'After an enemy unit charges' },
+  'reinforcements': { label: 'Reinforcements step' },
+  'unit-destroyed': { label: 'When a unit is destroyed' },
+  'after-roll': { label: 'Just after a roll' },
+  'end-of-phase': { label: 'End of the phase' },
+  'end-of-turn': { label: 'End of the turn' },
+} as const satisfies Record<string, { label: string }>;
+export type StratagemTrigger = keyof typeof STRATAGEM_TRIGGERS;
+
+/**
  * Les Units qu'un Stratagem peut cibler, par mots-clés : toutes celles de
  * `allOf`, au moins une de `anyOf` quand il n'est pas vide, aucune de `noneOf`.
  * Absente : le Dataset ne sait pas restreindre sa cible.
@@ -391,6 +480,8 @@ export interface Stratagem extends RuleBody {
   phases: Phase[];
   playerTurn: PlayerTurn;
   timing: StratagemTiming;
+  /** Le moment, dans sa phase, où il se joue ; absent : pendant la phase. */
+  trigger?: StratagemTrigger;
   category?: StratagemCategory;
   target?: StratagemTarget;
 }
