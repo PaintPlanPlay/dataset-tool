@@ -4,7 +4,6 @@
  * tout le Dataset), et les désaccords entre sources.
  */
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import type { Modifier } from '@paintplanplay/dataset-schema';
 import { api, type CorrectionItem, type SourceConflict } from './api.ts';
 import { toast } from './Toast.tsx';
 
@@ -81,7 +80,7 @@ export function LeaveDialog({ onSave, onDiscard, onCancel }: { onSave: () => voi
   );
 }
 
-const STATE_LABEL: Record<string, string> = { active: 'active', stale: 'stale', conflict: 'in conflict', flagged: 'upstream changed', rejected: 'rejected', unresolved: 'target missing' };
+const STATE_LABEL: Record<string, string> = { active: 'active', stale: 'stale', conflict: 'in conflict', flagged: 'flagged', rejected: 'rejected', unresolved: 'target missing' };
 
 /**
  * Les Corrections et Contributions d'une fiche, ou de tout le Dataset. En
@@ -236,110 +235,6 @@ export function UnsimulatedDialog({ onOpen, onClose }: { onOpen: (sheet: string)
                 {u.rule}
               </button>
               <span className="muted"> · {u.target}</span>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </Modal>
-  );
-}
-
-/** Un Modifier en une ligne, tel qu'on le saisit : « hit 1 · self · if melee ». */
-const modifierLine = (m: Modifier) =>
-  [`${m.key}${m.value !== undefined ? ` ${m.value}` : ''}`, m.target, ...(m.conditions?.length ? [`if ${m.conditions.map((c) => `${c.key}${c.value !== undefined ? ` ${c.value}` : ''}`).join(', ')}`] : [])].join(' · ');
-
-const RULE_TYPES = ['', 'ability', 'armyrule', 'rule', 'enhancement', 'stratagem'];
-
-/**
- * Les Rules extraites qui attendent un humain : celles dont la lecture diffère
- * de 40kdc-data, côte à côte, et celles qui n'ont que la nôtre. Valider les
- * passe en « revu » ; les retoucher se fait sur leur fiche. Un lot extrait
- * s'importe ici, en JSON.
- */
-export function ReviewDialog({ armies, onOpen, onChanged, onClose }: { armies: { id: string; name: string }[]; onOpen: (sheet: string) => void; onChanged: () => void; onClose: () => void }) {
-  const [army, setArmy] = useState('');
-  const [type, setType] = useState('');
-  const [items, setItems] = useState<Awaited<ReturnType<typeof api.review>> | null>(null);
-  const reload = useCallback(() => void api.review(army, type).then(setItems), [army, type]);
-  useEffect(reload, [reload]);
-  const importFile = async (file: File) => {
-    const t = toast.busy(`Importing ${file.name}…`);
-    try {
-      const rules = JSON.parse(await file.text()) as unknown[];
-      const r = await api.importReview(rules);
-      const refused = r.rejected.map((x) => `${x.target} (${x.reason})`).join('; ');
-      if (r.rejected.length) toast.error(`${r.written} Rule(s) imported, ${r.rejected.length} refused`, refused, t);
-      else toast.ok(`${r.written} Rule(s) imported`, undefined, t);
-      onChanged();
-      reload();
-    } catch (e) {
-      toast.error(`${file.name} not imported`, (e as Error).message, t);
-    }
-  };
-  return (
-    <Modal title={`Rules to review (${items?.length ?? '…'})`} onClose={onClose} wide>
-      <div className="review-bar">
-        <select value={army} onChange={(e) => setArmy(e.target.value)}>
-          <option value="">All armies</option>
-          {armies.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
-        <select value={type} onChange={(e) => setType(e.target.value)}>
-          {RULE_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t || 'All Rules'}
-            </option>
-          ))}
-        </select>
-        <label className="link">
-          Import extracted Rules…
-          <input type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && void importFile(e.target.files[0])} />
-        </label>
-      </div>
-      <ul className="corrections">
-        {items?.map((i) => (
-          <li key={i.target} className="correction">
-            <div className="correction-head">
-              <span className="kind">{i.status === 'divergent' ? 'differs' : 'one reading'}</span>
-              <button type="button" className="link" onClick={() => onOpen(i.sheet)}>
-                {i.rule}
-              </button>
-              <span className="muted">
-                {' '}
-                · {i.type} · {i.army}
-              </span>
-              <button
-                type="button"
-                className="link"
-                style={{ marginLeft: 'auto' }}
-                onClick={() =>
-                  void api.validateReview(i.target).then(
-                    () => {
-                      toast.ok(`${i.rule} validated`);
-                      onChanged();
-                      reload();
-                    },
-                    (e: Error) => toast.error(`${i.rule} not validated`, e.message),
-                  )
-                }
-              >
-                Validate
-              </button>
-            </div>
-            <div className="review-readings">
-              <div>
-                <strong>Ours</strong>
-                <ul>{i.ours.map((m, k) => <li key={k}>{modifierLine(m)}</li>)}</ul>
-              </div>
-              {i.status === 'divergent' && (
-                <div>
-                  <strong>40kdc-data</strong>
-                  {i.kdc ? <ul>{i.kdc.map((m, k) => <li key={k}>{modifierLine(m)}</li>)}</ul> : <pre>{JSON.stringify(i.kdcEffect, null, 1)}</pre>}
-                </div>
-              )}
             </div>
           </li>
         ))}

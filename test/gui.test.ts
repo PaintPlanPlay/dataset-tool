@@ -89,7 +89,7 @@ try {
     JSON.stringify(boss.origins),
   );
   const det = (await get<Sheet>(`/api/sheet?target=${encodeURIComponent(warHorde!.target)}`)).body;
-  check('Detachment : DP du MFM, règles de 40kdc-data', originOf(det, 'dp')?.origin === 'mfm' && originOf(det, 'rules')?.origin === '40kdc');
+  check('Detachment : DP du MFM, règles à nous', originOf(det, 'dp')?.origin === 'mfm' && originOf(det, 'rules')?.origin === 'project');
 
   section('Interface locale : écrire');
   const boyz = (await get<Sheet>('/api/sheet?target=u-boyz')).body;
@@ -336,7 +336,8 @@ try {
         source(fresh, 'bsdata')?.commit === snapshotHeads.bsdata && source(fresh, 'mfm')?.version === '1.4',
       JSON.stringify(fresh.versions),
     );
-    check('le nombre de Corrections du Dataset', fresh.corrections === 4, String(fresh.corrections));
+    // 4 Corrections et les 6 Contributions du Dataset de test.
+    check('le nombre de Corrections et de Contributions du Dataset', fresh.corrections === 10, String(fresh.corrections));
     check('tout est à jour : Update data est grisé', fresh.upToDate === true && !fresh.buttons.update.enabled, JSON.stringify(fresh.buttons.update));
     check(
       'chaque bouton dit s\'il est actif, et pourquoi pas',

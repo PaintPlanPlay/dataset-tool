@@ -7,7 +7,7 @@
  * sources et l'état des Corrections, et le bruit en dernier.
  */
 import type { ArmyFile, DatasetIndex, Unit } from '@paintplanplay/dataset-schema';
-import type { BuildOutput, MissingEntity, SourceConflict } from './build.ts';
+import type { BuildOutput, SourceConflict } from './build.ts';
 import type { ContributionVerdict } from './authored.ts';
 import { STATE_LABEL, type CorrectionVerdict } from './corrections/lifecycle.ts';
 
@@ -43,7 +43,6 @@ export interface DriftReport {
   flaggedContributions: ContributionVerdict[];
   orphans: { target: string; why: string }[];
   unmatched: BuildOutput['unmatched'];
-  missing: MissingEntity[];
   /** Les Contributions refusées : hors schéma, porteuses de texte, ou à l'ancien format. */
   rejectedContributions: ContributionVerdict[];
   /** Les Contributions dont la cible n'est plus dans le Dataset : une Wargear Option créée dont le groupe a disparu. */
@@ -172,7 +171,6 @@ export function makeReport(out: BuildOutput, previous: Map<string, unknown> | un
     flaggedContributions: out.contributions.filter((c) => c.state === 'flagged'),
     orphans: out.orphans,
     unmatched: out.unmatched,
-    missing: out.missing,
     rejectedContributions: out.contributions.filter((c) => c.state === 'rejected'),
     unresolvedContributions: out.contributions.filter((c) => c.state === 'unresolved'),
     unsimulated: out.unsimulated,
@@ -259,14 +257,8 @@ export function renderReport(r: DriftReport): string {
 
   if (r.flaggedContributions.length) {
     L.push(`## Contributions to review (${r.flaggedContributions.length})`, '');
-    L.push('40kdc-data changed these rules after we wrote our own Effect or summary, or what a Contribution names is gone. Ours stays applied until someone decides.', '');
+    L.push('What these Contributions name is gone. They stay applied, without it, until someone decides.', '');
     L.push(...r.flaggedContributions.map((c) => `- \`${c.target}\` — ${c.note} · ${c.reason}`), '');
-  }
-
-  if (r.missing.length) {
-    L.push(`## Elements missing from a source (${r.missing.length})`, '');
-    L.push('The MFM decides what exists; what only 40kdc-data publishes does not enter the Dataset.', '');
-    L.push(...bounded(r.missing, 60, (m) => `- ${m.entity} **${m.name}** · ${m.army} — missing from ${m.missingIn}, ${m.published ? 'published' : 'set aside'}`), '');
   }
 
   if (r.rejectedContributions.length) {

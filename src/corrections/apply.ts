@@ -325,9 +325,9 @@ const STRATAGEM_FIELDS = new Set(['name', 'cp', 'phases', 'playerTurn', 'timing'
 
 /**
  * Applique les Corrections de Stratagem d'une Army, ou des Stratagems Core
- * (racine `core`). La cible d'un Stratagem est ce qu'on corrige le plus : 40kdc-
- * data ne la renseigne pas toujours, et c'est elle qui filtre le panneau du
- * Game Dashboard (ADR 0004, principe repris).
+ * (racine `core`). Les champs d'un Stratagem sont aujourd'hui des
+ * Contributions : une Correction qui en vise un ne trouve plus rien à corriger
+ * et reste orpheline.
  */
 export function applyStratagemCorrections<T extends { id: string }>(
   root: string,

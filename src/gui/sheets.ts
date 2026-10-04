@@ -13,7 +13,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { dirname, join } from 'node:path';
 import { canonicalWeaponKeyword, SIMULATED_CONDITIONS, SIMULATED_MODIFIERS, UNIT_MODIFIERS, type AllyRule, type ArmyFile, type BattleSize, type CoreFile, type Detachment, type Enhancement, type OptionGroup, type Stratagem, type Unit, type Weapon, type WeaponOption } from '@paintplanplay/dataset-schema';
 import { validateDef, validateFile, type FieldError } from '@paintplanplay/dataset-schema/validate';
-import { ALLY_RULES_FILE, authoredDir, authoredEffectProblems, fingerprint, layoutContributions, readContributionFiles, readContributions, type AuthoredAllyRule, type AuthoredEffect } from '../authored.ts';
+import { ALLY_RULES_FILE, authoredDir, authoredEffectProblems, layoutContributions, readContributionFiles, readContributions, type AuthoredAllyRule, type AuthoredEffect } from '../authored.ts';
 import { homes } from '../home.ts';
 import { parseRangeInches } from '../bsdata/flatten.ts';
 import { weaponRef } from '../bsdata/types.ts';
@@ -43,13 +43,13 @@ const SECTION_SOURCES: Record<Inspection['kind'], Record<string, Origin>> = {
     weapons: 'bsdata', optionGroups: 'bsdata', defaultLoadout: 'bsdata', abilities: 'project',
     points: 'mfm', costBrackets: 'mfm', pricing: 'mfm', assignedPricing: 'mfm', wargear: 'mfm', leaderTargets: 'mfm', supportTargets: 'mfm',
   },
-  detachment: { name: 'mfm', dp: 'mfm', forceDispositions: 'mfm', uniqueTag: 'mfm', rules: 'project', enhancements: '40kdc' },
+  detachment: { name: 'mfm', dp: 'mfm', forceDispositions: 'mfm', uniqueTag: 'mfm', rules: 'project', enhancements: 'mfm' },
   stratagem: {
-    name: '40kdc', cp: '40kdc', phases: '40kdc', playerTurn: '40kdc', timing: '40kdc', category: '40kdc', target: '40kdc',
+    name: 'project', cp: 'project', phases: 'project', playerTurn: 'project', timing: 'project', category: 'project', target: 'project',
     modifiers: 'project', options: 'project', summary: 'project',
   },
   armyRule: { name: 'bsdata', modifiers: 'project', options: 'project', summary: 'project' },
-  core: { battleSizes: 'project', allyRules: 'project', stratagems: '40kdc' },
+  core: { battleSizes: 'project', allyRules: 'project', stratagems: 'project' },
 };
 
 /** Champs d'Unit corrigés à même l'Unit, par source. Les autres ont leur propre adresse ou sont dérivés. */
@@ -58,19 +58,17 @@ const UNIT_FIELDS: Record<string, Source> = {
   composition: 'bsdata', optionGroups: 'bsdata', defaultLoadout: 'bsdata', pricing: 'mfm', assignedPricing: 'mfm', wargear: 'mfm',
 };
 const DETACHMENT_FIELDS: Record<string, Source> = { name: 'mfm', dp: 'mfm', forceDispositions: 'mfm', uniqueTag: 'mfm' };
-const ENHANCEMENT_FIELDS: Record<string, Source> = {
-  points: 'mfm', leaderTo: 'mfm', supportTo: 'mfm',
-  name: '40kdc', appliesTo: '40kdc', aura: '40kdc', maxTargets: '40kdc', requires: '40kdc', excludes: '40kdc',
-};
-const STRATAGEM_FIELDS: Record<string, Source> = {
-  name: '40kdc', cp: '40kdc', phases: '40kdc', playerTurn: '40kdc', timing: '40kdc', category: '40kdc', target: '40kdc',
-};
+const ENHANCEMENT_FIELDS: Record<string, Source> = { name: 'mfm', points: 'mfm', appliesTo: 'mfm', aura: 'mfm', leaderTo: 'mfm', supportTo: 'mfm' };
+/** Les champs structurés d'un Stratagem : tous à nous, portés ensemble par sa Contribution. */
+const STRATAGEM_FIELDS = ['name', 'detachmentId', 'cp', 'phases', 'playerTurn', 'timing', 'category', 'target'] as const;
 /** Ce qu'une Contribution porte : ce qu'une règle fait, jamais ses chiffres. */
 const RULE_BODY = ['modifiers', 'options', 'eligibility', 'summary'] as const;
 /** Ce qu'une Contribution porte pour une Wargear Option : sa ligne du MFM, ce qu'elle apporte, et l'option elle-même quand on l'a créée. */
 const OPTION_BODY = ['wargearCost', 'abilities', 'option'] as const;
-/** Ce qu'une Contribution porte pour une Enhancement, en plus de ce que fait sa règle : sa Weapon. */
-const ENHANCEMENT_BODY = ['weapon'] as const;
+/** Ce qu'une Contribution porte pour une Enhancement, en plus de ce que fait sa règle : sa Weapon et ses restrictions. */
+const ENHANCEMENT_BODY = ['weapon', 'requires', 'excludes', 'maxTargets'] as const;
+/** Ce qu'une Contribution porte pour créer une Detachment Rule, ou donner ses champs à un Stratagem. */
+const CREATED_BODY = ['rule', 'stratagem'] as const;
 
 // -------------------------------------------------------------------- lire
 
@@ -164,6 +162,9 @@ export function sheetOf(ws: Workspace, target: string): Sheet {
       if (e[k] !== undefined) marks.push({ path: `${base}/${k}`, kind: 'contribution', file: where.get(e.target) ?? '', reason: e.reason, state, value: e[k] });
     // Une Wargear Option créée est tout entière une Contribution.
     if (e.option !== undefined) marks.push({ path: base, kind: 'contribution', file: where.get(e.target) ?? '', reason: e.reason, state, value: e.option });
+    // Les champs d'un Stratagem, le nom d'une Detachment Rule : à nous aussi.
+    for (const [k, v] of Object.entries(e.stratagem ?? {})) marks.push({ path: `${base}/${k}`, kind: 'contribution', file: where.get(e.target) ?? '', reason: e.reason, state, value: v });
+    if (e.rule !== undefined) marks.push({ path: `${base}/name`, kind: 'contribution', file: where.get(e.target) ?? '', reason: e.reason, state, value: e.rule.name });
   }
 
   const wargear = found.kind === 'unit' ? (view.wargear ?? []).filter((f) => f.unitId === found.target) : [];
@@ -394,9 +395,16 @@ function detachmentPlan(army: string, current: Detachment, upstream: Detachment 
   const target = `${army}::detachment:${current.id}`;
   plan.corrections.push(...fieldChanges(target, 'detachment', DETACHMENT_FIELDS, current as unknown as Value, upstream as unknown as Value, draft as unknown as Value));
 
-  for (const [was, now] of pair(current.rules, draft.rules, (r) => r.id).kept) {
-    const body = bodyChange(`${army}::rule:${current.id}|${was.id}`, was as unknown as Value, now as unknown as Value);
-    if (body) plan.contributions.push(body);
+  // Les Detachment Rules sont à nous : en ajouter, en renommer ou en retirer, c'est leur Contribution.
+  const rules = pair(current.rules, draft.rules, (r) => r.id);
+  const ruleTarget = (r: { id: string }) => `${army}::rule:${current.id}|${r.id}`;
+  for (const r of rules.added)
+    plan.contributions.push({ target: ruleTarget(r), body: { ...bodyChange(ruleTarget(r), undefined, r as unknown as Value)?.body, rule: { name: r.name } }, current: undefined });
+  for (const r of rules.removed) plan.contributions.push({ target: ruleTarget(r), body: {}, current: r as unknown as Value, remove: true });
+  for (const [was, now] of rules.kept) {
+    const body = bodyChange(ruleTarget(was), was as unknown as Value, now as unknown as Value);
+    const renamed = was.name !== now.name ? { rule: { name: now.name } } : {};
+    if (body || Object.keys(renamed).length) plan.contributions.push({ target: ruleTarget(was), body: { ...body?.body, ...renamed }, current: was as unknown as Value });
   }
 
   const enhancements = pair(current.enhancements, draft.enhancements, (e) => e.id);
@@ -418,13 +426,17 @@ function detachmentPlan(army: string, current: Detachment, upstream: Detachment 
   return plan;
 }
 
-function stratagemPlan(root: string, current: Stratagem, upstream: Stratagem | undefined, draft: Stratagem): Plan {
-  const target = `${root}::stratagem:${current.id}`;
-  const body = bodyChange(target, current as unknown as Value, draft as unknown as Value);
-  return {
-    corrections: fieldChanges(target, `stratagem-${current.name}`, STRATAGEM_FIELDS, current as unknown as Value, upstream as unknown as Value, draft as unknown as Value),
-    contributions: body ? [body] : [],
-  };
+/** Les champs structurés d'un Stratagem, tels que sa Contribution les porte. */
+const stratagemFields = (s: Stratagem) =>
+  Object.fromEntries(STRATAGEM_FIELDS.filter((k) => s[k] !== undefined).map((k) => [k, s[k]])) as unknown as AuthoredEffect['stratagem'];
+
+/** Tout d'un Stratagem est à nous : ses champs structurés comme ce qu'il fait. */
+function stratagemPlan(root: string, current: Stratagem | undefined, draft: Stratagem): ContributionChange | null {
+  const target = `${root}::stratagem:${draft.id}`;
+  const body = bodyChange(target, current as unknown as Value, draft as unknown as Value)?.body ?? {};
+  const fields = stratagemFields(draft);
+  if (!current || !same(stratagemFields(current), fields)) body.stratagem = fields;
+  return Object.keys(body).length ? { target, body, current: current as unknown as Value } : null;
 }
 
 /** Une Army Rule : son nom vient de BSData ; ce qu'elle fait est une Contribution. */
@@ -434,14 +446,19 @@ function armyRulePlan(target: string, current: Value, draft: Value): Plan {
   return { corrections: [], contributions: body ? [body] : [] };
 }
 
-function corePlan(current: CoreFile, upstream: CoreFile | undefined, draft: CoreFile): Plan {
+function corePlan(current: CoreFile, draft: CoreFile): Plan {
   const plan: Plan = { corrections: [], contributions: [] };
   if (!same(current.battleSizes, draft.battleSizes)) plan.battleSizes = draft.battleSizes;
   if (!same(current.allyRules ?? [], draft.allyRules ?? [])) plan.allyRules = draft.allyRules ?? [];
-  for (const [was, now] of pair(current.stratagems, draft.stratagems, (s) => s.id).kept) {
-    const sub = stratagemPlan(CORE_ROOT, was, upstream?.stratagems.find((s) => s.id === was.id), now);
-    plan.corrections.push(...sub.corrections);
-    plan.contributions.push(...sub.contributions);
+  const stratagems = pair(current.stratagems, draft.stratagems, (s) => s.id);
+  for (const s of stratagems.added) {
+    const created = stratagemPlan(CORE_ROOT, undefined, { ...s, detachmentId: null });
+    if (created) plan.contributions.push(created);
+  }
+  for (const s of stratagems.removed) plan.contributions.push({ target: `${CORE_ROOT}::stratagem:${s.id}`, body: {}, current: s as unknown as Value, remove: true });
+  for (const [was, now] of stratagems.kept) {
+    const changed = stratagemPlan(CORE_ROOT, was, now);
+    if (changed) plan.contributions.push(changed);
   }
   return plan;
 }
@@ -494,12 +511,6 @@ function danglingReferences(kind: Inspection['kind'], view: DatasetView, army: s
     );
   }
   // Créer ou retirer une règle entière n'est pas une Correction : c'est une entité à nous, qui n'a pas encore sa place.
-  const sameIds = (was: { id: string }[] | undefined, now: { id: string }[] | undefined) =>
-    same((was ?? []).map((x) => x.id).sort(), (now ?? []).map((x) => x.id).sort());
-  if (kind === 'detachment' && !sameIds((current as unknown as Detachment).rules, (draft as unknown as Detachment).rules))
-    out.push('/rules: adding or removing a Detachment Rule is not supported yet');
-  if (kind === 'core' && !sameIds((current as unknown as CoreFile).stratagems, (draft as unknown as CoreFile).stratagems))
-    out.push('/stratagems: adding or removing a Core Stratagem is not supported yet');
   if (kind === 'detachment') {
     const before = new Map(((current as unknown as Detachment).enhancements ?? []).map((e) => [e.id, e]));
     ((draft as unknown as Detachment).enhancements ?? []).forEach((e, i) => {
@@ -535,7 +546,7 @@ function localTarget(files: Map<string, unknown>, army: string) {
 
 /**
  * Les écritures qui rangent ces Contributions dans le fichier de leur Army
- * d'origine (ADR 0015) : seulement les fichiers qui changent, `null`
+ * d'origine : seulement les fichiers qui changent, `null`
  * pour un fichier qui n'a plus rien à porter.
  */
 export function contributionWrites(ws: Workspace, effects: AuthoredEffect[]): { path: string; content: string | null }[] {
@@ -599,10 +610,10 @@ export async function saveSheet(ws: Workspace, input: SaveInput): Promise<{ file
       : found.kind === 'detachment'
         ? detachmentPlan(found.army, current as unknown as Detachment, upstream as unknown as Detachment, draft as unknown as Detachment)
         : found.kind === 'stratagem'
-          ? stratagemPlan(found.army, current as unknown as Stratagem, upstream as unknown as Stratagem, draft as unknown as Stratagem)
+          ? { corrections: [], contributions: [stratagemPlan(found.army, current as unknown as Stratagem, draft as unknown as Stratagem)].filter((c) => c !== null) }
           : found.kind === 'armyRule'
             ? armyRulePlan(found.target, current, draft)
-            : corePlan(current as unknown as CoreFile, upstream as unknown as CoreFile, draft as unknown as CoreFile);
+            : corePlan(current as unknown as CoreFile, draft as unknown as CoreFile);
 
   // Tout se prépare et se contrôle avant la première écriture : tout ou rien.
   const writes: { path: string; content: string | null; kind: SavedFile['kind'] }[] = [];
@@ -619,7 +630,6 @@ export async function saveSheet(ws: Workspace, input: SaveInput): Promise<{ file
     // Une Contribution s'écrit sous l'Army d'origine de ce qu'elle décrit, quelle que soit la fiche d'où on l'écrit.
     const h = homes(view.files);
     const byTarget = new Map(readEffects(ws).map((e) => [h.canonical(e.target), e]));
-    const verdicts = new Map((view.contributions ?? []).map((v) => [h.canonical(v.target), v]));
     for (const written of plan.contributions) {
       const c = { ...written, target: h.canonical(written.target) };
       const was = byTarget.get(c.target);
@@ -627,21 +637,15 @@ export async function saveSheet(ws: Workspace, input: SaveInput): Promise<{ file
         byTarget.delete(c.target);
         continue;
       }
-      // Une Wargear Option n'a pas d'amont dans 40kdc-data : rien à surveiller.
-      const forRule = parseTarget(c.target).entity !== 'option';
-      const upstreamNow = verdicts.get(c.target)?.upstreamNow ?? fingerprint({ effect: view.kdcEffects?.[c.target], summary: undefined });
-      // Retoucher une Rule extraite, c'est l'avoir revue.
       const entry: AuthoredEffect = {
-        ...(was ? without(was as unknown as Value, 'reason', 'upstream') : {}),
+        ...(was ? without(was as unknown as Value, 'reason', 'upstream', 'review') : {}),
         ...c.body,
         target: c.target,
         reason,
-        ...(forRule ? { upstream: upstreamNow } : {}),
-        ...(was?.review ? { review: 'revu' } : {}),
       } as AuthoredEffect;
       // Une Weapon retirée sort de la Contribution ; une Contribution qui ne porte plus rien disparaît.
       if (entry.weapon === null) delete entry.weapon;
-      const CARRIED = [...RULE_BODY, ...ENHANCEMENT_BODY, ...OPTION_BODY] as const;
+      const CARRIED = [...RULE_BODY, ...ENHANCEMENT_BODY, ...OPTION_BODY, ...CREATED_BODY] as const;
       if (!CARRIED.some((k) => entry[k] !== undefined)) {
         byTarget.delete(c.target);
         continue;

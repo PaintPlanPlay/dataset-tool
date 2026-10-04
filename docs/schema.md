@@ -54,13 +54,12 @@ What a build contains.
   "gameSystem": { "id": "wh40k-11e", "name": "Warhammer 40,000", "edition": "11th" },
   "sources": [
     { "id": "bsdata", "repository": "BSData/wh40k-11e", "commit": "cc1830f…" },
-    { "id": "mfm", "repository": "BSData/wh40k-11e-mfm", "commit": "8e0e635…", "version": "1.5" },
-    { "id": "40kdc", "repository": "wn-mitch/40kdc-data", "commit": "709ecd9…" }
+    { "id": "mfm", "repository": "BSData/wh40k-11e-mfm", "commit": "8e0e635…", "version": "1.5" }
   ],
   "armies": [
     {
       "id": "adepta-sororitas", "name": "Adepta Sororitas", "faction": "Imperium", "units": 138,
-      "refs": { "bsdata": "Imperium - Adepta Sororitas", "mfm": "adepta-sororitas", "kdc": "adepta-sororitas" }
+      "refs": { "bsdata": "Imperium - Adepta Sororitas", "mfm": "adepta-sororitas" }
     }
   ]
 }
@@ -338,7 +337,7 @@ Each **wargear option**:
 | `dp` | whole number, or `null` | cost in detachment points; `null` when the MFM does not give it | MFM |
 | `forceDispositions` | list of text | the force dispositions it grants: `take-and-hold`, `disruption`… | MFM |
 | `uniqueTag` | text | two detachments carrying the same tag cannot be taken together | MFM |
-| `rules` | list of [rules](#rule) | its detachment rules | 40kdc-data for which exist, this project for what they do |
+| `rules` | list of [rules](#rule) | its detachment rules | this project |
 | `enhancements` | list of [enhancements](#enhancement) | | see below |
 
 ### Enhancement
@@ -359,13 +358,13 @@ Each **wargear option**:
 | Field | Type | Meaning | Comes from |
 |---|---|---|---|
 | `id` | identifier | | registry |
-| `name` | name | | MFM / 40kdc-data |
+| `name` | name | | MFM |
 | `points` | whole number | | MFM |
 | `appliesTo` | `character` or `unit` | an enhancement goes on a character, an upgrade on a unit | MFM (marked `(Upgrade)` in the name) |
 | `aura` | true / false | | MFM (marked `(Aura)`) |
-| `maxTargets` | whole number | how many units an upgrade can equip in one list | 40kdc-data |
-| `requires` | list of groups of keywords | the bearer must have **every** keyword of **one** group. `[["Big Mek"], ["Mek"]]`: a Big Mek, or a Mek. Empty: no restriction | 40kdc-data |
-| `excludes` | list of keywords | keywords that forbid the bearer | 40kdc-data |
+| `maxTargets` | whole number | how many units an upgrade can equip in one list | this project |
+| `requires` | list of groups of keywords | the bearer must have **every** keyword of **one** group. `[["Big Mek"], ["Mek"]]`: a Big Mek, or a Mek. Empty: no restriction | this project |
+| `excludes` | list of keywords | keywords that forbid the bearer | this project |
 | `leaderTo`, `supportTo` | lists of unit names | units for which the enhancement opens Leader or Support | MFM |
 | `weapon` | a [weapon](#weapon) | the weapon it brings to its bearer while taken. Its cost stays the enhancement's | this project |
 | `modifiers`, `options`, `summary` | | the [body of a rule](#rule) | this project |
@@ -399,7 +398,7 @@ Each **wargear option**:
 | `target` | [keyword filter](#keyword-filter), optional | the units it can be used on. Absent: the dataset does not know how to restrict it |
 | `modifiers`, `options`, `summary` | | the [body of a rule](#rule) |
 
-Everything but the last line comes from 40kdc-data.
+All of it is written by this project, as a contribution.
 
 ### Rule
 
@@ -610,7 +609,7 @@ The permanent identifiers, by kind of entity (`armies`, `detachments`,
 {
   "detachments": {
     "orks": [
-      { "id": "blitz-brigade", "keys": ["40kdc:orks/blitz-brigade", "mfm:blitzbrigade"], "name": "Blitz Brigade" }
+      { "id": "blitz-brigade", "keys": ["mfm:blitzbrigade"], "name": "Blitz Brigade" }
     ]
   }
 }

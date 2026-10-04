@@ -35,6 +35,7 @@ export function homes(files: Map<string, unknown>): Homes {
   for (const a of armies) {
     for (const u of a.units) hold(`unit:${u.id}`, a.id, u.ally ? allied : index);
     for (const d of a.detachments) {
+      hold(`detachment:${d.id}`, a.id);
       for (const r of d.rules) hold(`rule:${d.id}|${r.id}`, a.id);
       for (const e of d.enhancements) hold(`enhancement:${d.id}|${e.id}`, a.id);
     }
@@ -54,7 +55,10 @@ export function homes(files: Map<string, unknown>): Homes {
       return det === undefined ? undefined : `stratagem:${det}|${name}`;
     }
     const key = `${entity}:${name}`;
-    return index.get(key)?.has(root) ? key : undefined;
+    if (index.get(key)?.has(root)) return key;
+    // Une Detachment Rule qu'une Contribution crée suit son Detachment.
+    const detachment = `detachment:${name.split('|')[0]}`;
+    return entity === 'rule' && index.get(detachment)?.has(root) ? detachment : undefined;
   };
 
   const holders = (target: string): string[] => {

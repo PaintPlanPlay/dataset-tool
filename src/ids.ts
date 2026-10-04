@@ -10,7 +10,7 @@
 
 export interface RegistryEntry {
   id: string;
-  /** Clés amont par lesquelles on reconnaît l'entité (« bsdata:Orks », « 40kdc:dread-mob »). */
+  /** Clés amont par lesquelles on reconnaît l'entité (« bsdata:Orks », « mfm:dreadmob »). */
   keys: string[];
   /** Nom au moment de l'attribution, pour un humain qui relit le registre. */
   name: string;
