@@ -76,7 +76,7 @@ export interface AuthoredEffect {
 }
 
 /** Ce qu'une Contribution donne d'un Stratagem : tout, sauf son identifiant et ce qu'il fait. */
-export type CreatedStratagem = Pick<Stratagem, 'name' | 'detachmentId' | 'cp' | 'phases' | 'playerTurn' | 'timing'> & Partial<Pick<Stratagem, 'category' | 'target'>>;
+export type CreatedStratagem = Pick<Stratagem, 'name' | 'detachmentId' | 'cp' | 'phases' | 'playerTurn' | 'timing'> & Partial<Pick<Stratagem, 'trigger' | 'category' | 'target'>>;
 
 /** Ce que devient une Contribution à la construction. */
 export interface ContributionVerdict {
@@ -504,7 +504,7 @@ export function applyAuthoredEffects(
         let s = list.find((x) => x.id === name && x.detachmentId === detachmentId);
         if (e.stratagem) {
           // Ses champs structurés viennent tous de la Contribution : ceux qu'elle omet tombent.
-          if (s) for (const k of ['category', 'target'] as const) delete s[k];
+          if (s) for (const k of ['trigger', 'category', 'target'] as const) delete s[k];
           else list.push((s = { id: name, ...e.stratagem }));
           Object.assign(s, e.stratagem);
           list.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));

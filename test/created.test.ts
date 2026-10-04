@@ -21,7 +21,7 @@ const created: AuthoredEffect[] = [
   { target: 'orks::rule:war-horde|ladz-together', rule: { name: 'Ladz Together' }, summary: '+1 OC while near another mob', reason: 'A rule the sources do not have.' },
   {
     target: 'orks-freebooterz::stratagem:big-push',
-    stratagem: { name: 'BIG PUSH', detachmentId: 'war-horde', cp: 1, phases: ['charge'], playerTurn: 'your-turn', timing: 'once-per-phase', category: 'strategic-ploy', target: { allOf: ['Orks', 'Infantry'], anyOf: [], noneOf: [] } },
+    stratagem: { name: 'BIG PUSH', detachmentId: 'war-horde', cp: 1, phases: ['charge'], playerTurn: 'your-turn', timing: 'once-per-phase', trigger: 'charge-declared', category: 'strategic-ploy', target: { allOf: ['Orks', 'Infantry'], anyOf: [], noneOf: [] } },
     summary: '+1 to charge rolls',
     reason: 'A stratagem the sources do not have.',
   },
@@ -50,7 +50,7 @@ section('Créer un Stratagem');
   const strats = both.map((a) => army(out.files, a).stratagems.find((s) => s.id === 'big-push'));
   check(
     'il est dans chaque Army qui publie le Detachment, avec tous ses champs',
-    strats.every((s) => s?.name === 'BIG PUSH' && s.detachmentId === 'war-horde' && s.cp === 1 && s.phases.join() === 'charge' && s.category === 'strategic-ploy' && s.target?.allOf.join() === 'Orks,Infantry' && s.summary === '+1 to charge rolls'),
+    strats.every((s) => s?.name === 'BIG PUSH' && s.detachmentId === 'war-horde' && s.cp === 1 && s.phases.join() === 'charge' && s.trigger === 'charge-declared' && s.category === 'strategic-ploy' && s.target?.allOf.join() === 'Orks,Infantry' && s.summary === '+1 to charge rolls'),
     JSON.stringify(strats),
   );
   const names = army(out.files, 'orks').stratagems.map((s) => s.name);
@@ -72,6 +72,15 @@ section('Ce qui se refuse');
 {
   const base = { reason: 'A test.' };
   check('`rule` hors d\'une Detachment Rule', authoredEffectProblems({ ...base, target: 'orks::stratagem:x', rule: { name: 'X' } }).length > 0);
+  check(
+    'un moment hors du vocabulaire',
+    authoredEffectProblems({ ...base, target: 'orks::stratagem:x', stratagem: { name: 'X', detachmentId: 'war-horde', cp: 1, phases: ['command'], playerTurn: 'either', timing: 'once-per-turn', trigger: 'whenever' as never } }).length > 0,
+  );
+  const badMoment = await build({
+    snapshot,
+    authored: authored([{ ...base, target: 'orks::stratagem:x', stratagem: { name: 'X', detachmentId: 'war-horde', cp: 1, phases: ['command'], playerTurn: 'either', timing: 'once-per-turn', trigger: 'whenever' as never } }]),
+  });
+  check('à la construction, un moment hors du vocabulaire ne crée rien', badMoment.contributions.find((c) => c.reason === 'A test.')?.state === 'rejected' && !(badMoment.files.get('wh40k-11e/armies/orks.json') as ArmyFile).stratagems.some((s) => s.id === 'x'));
   check('une Detachment Rule sans nom', authoredEffectProblems({ ...base, target: 'orks::rule:war-horde|x', rule: { name: ' ' } }).length > 0);
   check(
     'un Stratagem d\'Army sans Detachment',

@@ -45,7 +45,7 @@ const SECTION_SOURCES: Record<Inspection['kind'], Record<string, Origin>> = {
   },
   detachment: { name: 'mfm', dp: 'mfm', forceDispositions: 'mfm', uniqueTag: 'mfm', rules: 'project', enhancements: 'mfm' },
   stratagem: {
-    name: 'project', cp: 'project', phases: 'project', playerTurn: 'project', timing: 'project', category: 'project', target: 'project',
+    name: 'project', cp: 'project', phases: 'project', playerTurn: 'project', timing: 'project', trigger: 'project', category: 'project', target: 'project',
     modifiers: 'project', options: 'project', summary: 'project',
   },
   armyRule: { name: 'bsdata', modifiers: 'project', options: 'project', summary: 'project' },
@@ -60,7 +60,7 @@ const UNIT_FIELDS: Record<string, Source> = {
 const DETACHMENT_FIELDS: Record<string, Source> = { name: 'mfm', dp: 'mfm', forceDispositions: 'mfm', uniqueTag: 'mfm' };
 const ENHANCEMENT_FIELDS: Record<string, Source> = { name: 'mfm', points: 'mfm', appliesTo: 'mfm', aura: 'mfm', leaderTo: 'mfm', supportTo: 'mfm' };
 /** Les champs structurés d'un Stratagem : tous à nous, portés ensemble par sa Contribution. */
-const STRATAGEM_FIELDS = ['name', 'detachmentId', 'cp', 'phases', 'playerTurn', 'timing', 'category', 'target'] as const;
+const STRATAGEM_FIELDS = ['name', 'detachmentId', 'cp', 'phases', 'playerTurn', 'timing', 'trigger', 'category', 'target'] as const;
 /** Ce qu'une Contribution porte : ce qu'une règle fait, jamais ses chiffres. */
 const RULE_BODY = ['modifiers', 'options', 'eligibility', 'summary'] as const;
 /** Ce qu'une Contribution porte pour une Wargear Option : sa ligne du MFM, ce qu'elle apporte, et l'option elle-même quand on l'a créée. */

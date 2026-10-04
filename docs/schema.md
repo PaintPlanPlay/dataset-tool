@@ -8,7 +8,7 @@ It exists in two forms in this repository, which say the same thing:
 - `schema/src/index.ts` — TypeScript types, with a comment on every field;
 - `schema/dataset.schema.json` — a JSON Schema, which is what the checks run.
 
-The current version is **2.5.0**; every published file carries the version it
+The current version is **2.6.0**; every published file carries the version it
 conforms to in `schemaVersion`.
 
 If you only use the interface, you can skip the file layout and go straight to
@@ -50,7 +50,7 @@ What a build contains.
 
 ```json
 {
-  "schemaVersion": "2.5.0",
+  "schemaVersion": "2.6.0",
   "gameSystem": { "id": "wh40k-11e", "name": "Warhammer 40,000", "edition": "11th" },
   "sources": [
     { "id": "bsdata", "repository": "BSData/wh40k-11e", "commit": "cc1830f…" },
@@ -79,7 +79,7 @@ What a build contains.
 
 ```json
 {
-  "schemaVersion": "2.5.0",
+  "schemaVersion": "2.6.0",
   "gameSystem": "wh40k-11e",
   "id": "orks",
   "name": "Orks",
@@ -394,6 +394,7 @@ Each **wargear option**:
 | `phases` | list, at least one | `command`, `movement`, `shooting`, `charge`, `fight` |
 | `playerTurn` | | `your-turn`, `opponent-turn` or `either` |
 | `timing` | | `once-per-phase`, `once-per-turn`, `once-per-battle` or `unlimited` |
+| `trigger` | optional | the moment within the phase it is played: `start-of-phase`, `targeted`, `after-own-action`, `after-enemy-attacks`, `enemy-moved`, `enemy-falls-back`, `charge-declared`, `charge-ended`, `reinforcements`, `unit-destroyed`, `after-roll`, `end-of-phase`, `end-of-turn`. Absent: during the phase, as a unit is selected |
 | `category` | optional | `battle-tactic`, `strategic-ploy`, `epic-deed` or `wargear` |
 | `target` | [keyword filter](#keyword-filter), optional | the units it can be used on. Absent: the dataset does not know how to restrict it |
 | `modifiers`, `options`, `summary` | | the [body of a rule](#rule) |
@@ -468,7 +469,7 @@ What holds for every army of the game system.
 
 ```json
 {
-  "schemaVersion": "2.5.0",
+  "schemaVersion": "2.6.0",
   "gameSystem": "wh40k-11e",
   "stratagems": [ … ],
   "battleSizes": [ … ],
@@ -561,7 +562,7 @@ The first thing an app reads; at the root of the dataset repository.
 
 ```json
 {
-  "schemaVersion": "2.5.0",
+  "schemaVersion": "2.6.0",
   "gameSystem": "wh40k-11e",
   "releaseUrl": "https://cdn.jsdelivr.net/gh/PaintPlanPlay/dataset@{tag}/",
   "current": "mfm-1-5",
@@ -574,7 +575,7 @@ The first thing an app reads; at the root of the dataset repository.
       "frozen": false,
       "latest": "wh40k-11e-mfm-1-5-r3",
       "releases": [
-        { "tag": "wh40k-11e-mfm-1-5-r3", "number": 3, "publishedAt": "2026-10-02T11:53:12.082Z", "schemaVersion": "2.5.0" }
+        { "tag": "wh40k-11e-mfm-1-5-r3", "number": 3, "publishedAt": "2026-10-02T11:53:12.082Z", "schemaVersion": "2.6.0" }
       ]
     }
   ]
