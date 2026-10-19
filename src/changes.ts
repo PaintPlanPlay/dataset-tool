@@ -11,6 +11,10 @@ import { CORE_ROOT } from './corrections/apply.ts';
 import { describeEffect, describeGroup, describeModifiers, describeTiming, filterLabel, groupHeading } from './describe.ts';
 import { homes, type Homes } from './home.ts';
 
+/** Où en est un changement : fusionné (attend la prochaine Release), dans une PR ouverte, ou sur cette machine seulement. */
+export type Stage = 'merged' | 'proposed' | 'local';
+export const STAGES: Stage[] = ['merged', 'proposed', 'local'];
+
 export type EntityKind = 'unit' | 'detachment' | 'stratagem' | 'armyRule' | 'core';
 
 /** Un champ d'une entité, rendu en texte. */
@@ -44,6 +48,7 @@ export interface FieldChange {
   added?: string[];
   /** Rien n'a changé pour un joueur (une liste réordonnée) : montré seulement sur demande. */
   noise?: true;
+  stage?: Stage;
 }
 
 export interface EntityChange {
@@ -59,6 +64,18 @@ export interface ArmyChanges {
   id: string;
   name: string;
   entities: EntityChange[];
+  /** Ses changements par étape, quand on les connaît. */
+  stages?: Record<Stage, number>;
+}
+
+export interface CompareOptions {
+  noise?: boolean;
+  /**
+   * Les états intermédiaires, dans l'ordre (main, puis la proposition) : un
+   * changement est à la première étape qui a déjà sa nouvelle valeur, `local`
+   * sinon.
+   */
+  stages?: [Stage, Map<string, Fact>][];
 }
 
 
@@ -220,13 +237,19 @@ export function factsOf(files: Map<string, unknown>, gameSystem: string, home: H
  * Ce qui sépare deux Datasets, par Army puis par entité. L'Army d'origine d'un
  * élément partagé se lit dans le second, pour qu'il ne change pas de place.
  */
-export const diffFiles = (before: Map<string, unknown>, after: Map<string, unknown>, gameSystem: string, options: { noise?: boolean } = {}): ArmyChanges[] => {
+export const diffFiles = (
+  before: Map<string, unknown>,
+  after: Map<string, unknown>,
+  gameSystem: string,
+  options: { noise?: boolean; stages?: [Stage, Map<string, unknown>][] } = {},
+): ArmyChanges[] => {
   const home = homes(after);
-  return compareFacts(factsOf(before, gameSystem, home), factsOf(after, gameSystem, home), options);
+  const stages = options.stages?.map(([stage, files]): [Stage, Map<string, Fact>] => [stage, factsOf(files, gameSystem, home)]);
+  return compareFacts(factsOf(before, gameSystem, home), factsOf(after, gameSystem, home), { ...options, stages });
 };
 
 /** Ce qui sépare deux Datasets mis à plat, par Army puis par entité. */
-export function compareFacts(before: Map<string, Fact>, after: Map<string, Fact>, options: { noise?: boolean } = {}): ArmyChanges[] {
+export function compareFacts(before: Map<string, Fact>, after: Map<string, Fact>, options: CompareOptions = {}): ArmyChanges[] {
   const armies = new Map<string, ArmyChanges>();
   const entities = new Map<string, EntityChange>();
   const entityKeys = (facts: Map<string, Fact>) => new Set([...facts.values()].map((f) => `${f.army}|${f.kind}|${f.id}`));
@@ -254,6 +277,12 @@ export function compareFacts(before: Map<string, Fact>, after: Map<string, Fact>
       change.added = a.items.filter((x) => !b.items!.includes(x));
     }
     if (same) change.noise = true;
+    if (options.stages) {
+      const reached = options.stages.find(([, facts]) => facts.get(key)?.[same ? 'shown' : 'value'] === a?.[same ? 'shown' : 'value']);
+      change.stage = reached?.[0] ?? 'local';
+      army.stages ??= { merged: 0, proposed: 0, local: 0 };
+      army.stages[change.stage]++;
+    }
     entity.changes.push(change);
   }
   return [...armies.values()].sort((x, y) => x.name.localeCompare(y.name));

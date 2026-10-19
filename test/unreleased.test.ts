@@ -15,6 +15,7 @@ import { build } from '../src/build.ts';
 import { findRulesText } from '../src/notext.ts';
 import { readCorrections } from '../src/corrections/files.ts';
 import { readRegistry, toJson, writeDataset } from '../src/dataset.ts';
+import type { PullRequest } from '../src/gui/overview.ts';
 import type { Unreleased } from '../src/gui/unreleased.ts';
 import { startGui } from '../src/gui/server.ts';
 import { openWorkspace } from '../src/gui/workspace.ts';
@@ -73,11 +74,11 @@ async function datasetRepo() {
 
 const unitOf = (army: ArmyFile, id: string) => army.units.find((u) => u.id === id)!;
 
-async function serve(dir: string) {
+async function serve(dir: string, pullRequest: PullRequest | null = null) {
   const ws = await openWorkspace({ datasetDir: dir, snapshotDir: fixture('snapshot') });
   const gui = await startGui(ws, {
     port: 0,
-    probe: { upstreamHeads: async () => ({}), publishRight: () => null, pullRequest: () => null, remoteRefs: async () => null },
+    probe: { upstreamHeads: async () => ({}), publishRight: () => null, pullRequest: () => pullRequest, remoteRefs: async () => null },
   });
   const at = async <T>(path: string) => (await fetch(new URL(path, gui.url))).json() as Promise<T>;
   return { ws, gui, at };
@@ -253,6 +254,54 @@ section('Tableau de bord : comme Plan l\'affiche');
     check('une Detachment Rule dit ses Modifiers comme Plan', rule?.before === '+1 to Hit (enemy) — if after charging', JSON.stringify(rule));
     const findings = findRulesText(u.armies);
     check('rien de ce que le tableau de bord produit n\'est du texte de règles', findings.length === 0, JSON.stringify(findings.slice(0, 3)));
+  } finally {
+    await gui.close();
+    rmSync(repo.dir, { recursive: true, force: true });
+  }
+}
+
+section('Tableau de bord : les étapes');
+{
+  const repo = await datasetRepo();
+  const real = repo.built.get(ORKS) as ArmyFile;
+  const [a, b, c, d] = real.units.filter((u) => !u.ally).map((u) => u.id);
+  const setPoints = (points: Record<string, number>) =>
+    repo.edit<ArmyFile>(ORKS, (army) => {
+      for (const [id, p] of Object.entries(points)) unitOf(army, id).points = p;
+    });
+  // La Release : trois Units à des coûts que rien d'autre ne donne ; la quatrième à son vrai coût.
+  setPoints({ [a]: 1, [b]: 2, [c]: 3 });
+  const bsdataAt = (commit: string) => repo.edit<DatasetIndex>(`${GS}/index.json`, (i) => (i.sources.find((s) => s.id === 'bsdata')!.commit = commit));
+  bsdataAt('a'.repeat(40));
+  repo.write('manifest.json', repo.manifest('wh40k-11e-mfm-1-4-r1', ['wh40k-11e-mfm-1-4-r1']));
+  repo.commit('Release r1');
+  repo.git('tag', 'wh40k-11e-mfm-1-4-r1');
+  // main : la première revient à son coût ; la quatrième change, puis la copie locale la ramène.
+  setPoints({ [a]: unitOf(real, a).points, [d]: 4 });
+  bsdataAt('b'.repeat(40));
+  repo.commit('Merged');
+  // Une proposition, la branche du dossier : la deuxième revient à son coût.
+  repo.git('checkout', '--quiet', '-b', 'dataset/my-change');
+  setPoints({ [b]: unitOf(real, b).points });
+  repo.commit('Proposed');
+
+  const pr = { url: 'https://github.com/PaintPlanPlay/dataset/pull/9', state: 'OPEN' };
+  const { gui, at } = await serve(repo.dir, pr);
+  try {
+    const u = await at<Unreleased>('/api/unreleased');
+    const stage = (id: string) => u.armies.find((x) => x.id === 'orks')?.entities.find((e) => e.id === id)?.changes.find((ch) => ch.field === 'points')?.stage;
+    check('fusionné sur main depuis la Release : « sur main »', stage(a) === 'merged', String(stage(a)));
+    check('commité sur la branche d\'une proposition : « proposé »', stage(b) === 'proposed', String(stage(b)));
+    check('ni sur main ni proposé : « local »', stage(c) === 'local', String(stage(c)));
+    check('revenu à la valeur de la Release : plus rien', stage(d) === undefined, String(stage(d)));
+    const bsdata = u.sources.find((s) => s.id === 'bsdata');
+    check(
+      'un instantané plus récent que main : la version de main s\'intercale entre la Release et la copie locale',
+      bsdata?.before === 'a'.repeat(40) && bsdata.merged === 'b'.repeat(40) && bsdata.after !== bsdata.merged,
+      JSON.stringify(bsdata),
+    );
+    check('la proposition donne le lien de sa PR', u.pullRequest?.url === pr.url, JSON.stringify(u.pullRequest));
+    check('chaque Army compte ses changements par étape', JSON.stringify(u.armies.find((x) => x.id === 'orks')?.stages) === JSON.stringify({ merged: 1, proposed: 1, local: 1 }), JSON.stringify(u.armies.find((x) => x.id === 'orks')?.stages));
   } finally {
     await gui.close();
     rmSync(repo.dir, { recursive: true, force: true });

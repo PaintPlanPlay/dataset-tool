@@ -7,7 +7,8 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { indexPath, manifestPath, type DatasetIndex, type Manifest, type SourceRef } from '@paintplanplay/dataset-schema';
-import { diffFiles, type ArmyChanges } from '../changes.ts';
+import { diffFiles, type ArmyChanges, type Stage } from '../changes.ts';
+import { defaultProbe, type Probe, type PullRequest } from './overview.ts';
 import { isRepository } from './pending.ts';
 import type { Workspace } from './workspace.ts';
 
@@ -18,6 +19,9 @@ export interface SourceShift {
   beforeVersion?: string;
   after: string | null;
   afterVersion?: string;
+  /** Sur main, quand main diffère des deux : un instantané local plus récent que ce qui est fusionné. */
+  merged?: string | null;
+  mergedVersion?: string;
 }
 
 export interface Unreleased {
@@ -27,6 +31,8 @@ export interface Unreleased {
   note?: string;
   sources: SourceShift[];
   armies: ArmyChanges[];
+  /** La PR ouverte depuis la branche du dossier, d'où viennent les changements « proposés ». */
+  pullRequest: PullRequest | null;
 }
 
 /**
@@ -65,10 +71,42 @@ const tagExists = (dir: string, tag: string) => {
   }
 };
 
-const empty = (release: string | null, note: string): Unreleased => ({ release, note, sources: [], armies: [] });
+const empty = (release: string | null, note: string): Unreleased => ({ release, note, sources: [], armies: [], pullRequest: null });
 
-/** @param options.noise montrer aussi ce qui ne change rien pour un joueur. */
-export function unreleased(ws: Workspace, options: { noise?: boolean } = {}): Unreleased {
+const revParse = (dir: string, ref: string): string | null => {
+  try {
+    return execFileSync('git', ['-C', dir, 'rev-parse', '--quiet', '--verify', `${ref}^{commit}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Les états entre la Release et la copie locale : `main` tel que le dépôt
+ * publié l'a (sa copie de suivi, à défaut la branche locale), puis la branche
+ * du dossier quand elle porte une proposition que main n'a pas.
+ */
+function stagesOf(dir: string): { stages: [Stage, string][]; proposing: boolean } {
+  const main = revParse(dir, 'refs/remotes/origin/main') ?? revParse(dir, 'refs/heads/main');
+  const head = revParse(dir, 'HEAD');
+  const stages: [Stage, string][] = main ? [['merged', main]] : [];
+  let proposing = false;
+  if (head && head !== main) {
+    try {
+      execFileSync('git', ['-C', dir, 'merge-base', '--is-ancestor', head, main ?? head], { stdio: 'ignore' });
+    } catch {
+      proposing = true;
+      stages.push(['proposed', head]);
+    }
+  }
+  return { stages, proposing };
+}
+
+/**
+ * @param options.noise montrer aussi ce qui ne change rien pour un joueur.
+ * @param options.probe d'où vient le lien de la PR ; les tests le remplacent.
+ */
+export function unreleased(ws: Workspace, options: { noise?: boolean; probe?: Probe } = {}): Unreleased {
   if (!ws.current) return empty(null, 'no Dataset yet: click Update data');
   const manifest = readManifest(ws.datasetDir);
   const release = manifest?.dataslates.find((d) => d.id === manifest.current)?.latest || null;
@@ -78,13 +116,19 @@ export function unreleased(ws: Workspace, options: { noise?: boolean } = {}): Un
 
   const released = readDatasetAt(ws.datasetDir, release, ws.gameSystem);
   const current = ws.current.files;
-  const index = (files: Map<string, unknown>) => files.get(indexPath(ws.gameSystem)) as DatasetIndex | undefined;
+  const { stages, proposing } = stagesOf(ws.datasetDir);
+  const between = stages.map(([stage, ref]): [Stage, Map<string, unknown>] => [stage, readDatasetAt(ws.datasetDir, ref, ws.gameSystem)]);
+  const index = (files: Map<string, unknown> | undefined) => files?.get(indexPath(ws.gameSystem)) as DatasetIndex | undefined;
   const was = index(released)?.sources ?? [];
   const now = index(current)?.sources ?? [];
+  const onMain = index(between.find(([stage]) => stage === 'merged')?.[1])?.sources;
   const sources = [...new Set([...was, ...now].map((s) => s.id))].map((id): SourceShift => {
     const b = was.find((s) => s.id === id);
     const a = now.find((s) => s.id === id);
+    const m = onMain?.find((s) => s.id === id);
+    const apart = m && m.commit !== b?.commit && m.commit !== a?.commit;
     return {
+      ...(apart ? { merged: m.commit, ...(m.version ? { mergedVersion: m.version } : {}) } : {}),
       id,
       before: b?.commit ?? null,
       after: a?.commit ?? null,
@@ -92,5 +136,6 @@ export function unreleased(ws: Workspace, options: { noise?: boolean } = {}): Un
       ...(a?.version ? { afterVersion: a.version } : {}),
     };
   });
-  return { release, sources, armies: diffFiles(released, current, ws.gameSystem, options) };
+  const armies = diffFiles(released, current, ws.gameSystem, { noise: options.noise, stages: between });
+  return { release, sources, armies, pullRequest: proposing ? (options.probe ?? defaultProbe).pullRequest(ws.datasetDir) : null };
 }

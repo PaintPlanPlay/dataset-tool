@@ -487,7 +487,7 @@ h1 .home:hover { color: var(--accent); }
 .badge.removed { color: var(--late); }
 .diff { margin: 4px 0 0 80px; display: grid; gap: 4px; }
 .change { display: grid; grid-template-columns: 180px 1fr; gap: 12px; }
-.change .field { color: var(--muted); }
+.change-field { color: var(--muted); }
 .change .lines { display: grid; font-family: ui-monospace, monospace; font-size: 13px; white-space: pre-wrap; }
 .del { background: color-mix(in srgb, var(--late) 14%, transparent); color: var(--late); padding: 0 4px; border-radius: 3px; }
 .add { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); padding: 0 4px; border-radius: 3px; }
@@ -496,3 +496,14 @@ h1 .home:hover { color: var(--accent); }
 .shifts td:nth-child(3) { color: var(--muted); }
 .noise { color: var(--muted); font-style: italic; }
 .dashboard .toggle { color: var(--muted); font-size: 13px; display: flex; gap: 6px; align-items: center; }
+.shifts thead th { color: var(--muted); font-weight: normal; font-size: 12px; text-align: left; padding: 0 8px; }
+.filters { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.segmented { display: inline-flex; }
+.segmented button { border-radius: 0; margin-left: -1px; font-size: 13px; padding: 4px 10px; }
+.segmented button:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.segmented button:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.segmented button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.stage { font-size: 11px; border-radius: 3px; padding: 0 5px; margin-left: 4px; border: 1px solid currentColor; white-space: nowrap; }
+.stage.merged { color: var(--ok); }
+.stage.proposed { color: var(--accent); }
+.stage.local { color: var(--unknown); }

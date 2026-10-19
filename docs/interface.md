@@ -88,8 +88,14 @@ manifest points to, even after a rollback) and what your copy would publish
 now. Click **Dataset Tool**, the title on the left, to come back to it from a
 sheet.
 
-- At the top, each source before → after: the BSData commit, the MFM version
-  and commit.
+- At the top, each source in the release, on `main` when it differs from both,
+  and now: the BSData commit, the MFM version and commit. A snapshot newer
+  than `main` shows here.
+- Each change carries its **stage**: *on main* (merged, the next release
+  publishes it), *proposed* (in your open pull request, linked at the top) or
+  *local* (on your machine only — a pending change, or a snapshot newer than
+  `main`). The buttons above the list filter by stage: **local** is what you
+  still have to propose.
 - Then one block per army, and **Core** apart. Inside, one entry per unit,
   detachment (its rules and enhancements included), stratagem and army rule —
   everything a player can see — and for each changed field the old value in red
