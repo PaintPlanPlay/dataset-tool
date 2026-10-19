@@ -7,6 +7,8 @@
  * sources et l'état des Corrections, et le bruit en dernier.
  */
 import type { ArmyFile, DatasetIndex, Unit } from '@paintplanplay/dataset-schema';
+import { COMPLETE, HANDLE, findingsOf, type Finding } from './board.ts';
+import { diffFiles, type ArmyChanges, type EntityChange, type FieldChange } from './changes.ts';
 import type { BuildOutput, SourceConflict } from './build.ts';
 import type { ContributionVerdict } from './authored.ts';
 import { STATE_LABEL, type CorrectionVerdict } from './corrections/lifecycle.ts';
@@ -37,6 +39,10 @@ export interface DatasetDiff {
 
 export interface DriftReport {
   diff: DatasetDiff;
+  /** Ce qui change, Army par Army, tel qu'un joueur le verrait ; vide sans Dataset à comparer. */
+  armies: ArmyChanges[];
+  /** Les constats rangés par Army : ce que comptent les résumés des Armies. */
+  findings: Finding[];
   conflicts: SourceConflict[];
   corrections: CorrectionVerdict[];
   /** Les Contributions dont l'amont a changé depuis leur rédaction : à relire, jamais remplacées. */
@@ -161,11 +167,17 @@ export function diffDatasets(previous: Map<string, unknown> | undefined, next: M
   return d;
 }
 
-export function makeReport(out: BuildOutput, previous: Map<string, unknown> | undefined): DriftReport {
+/** @param datasetDir le dépôt du Dataset, quand on l'a : il range les constats sous l'Army de leur fichier. */
+export function makeReport(out: BuildOutput, previous: Map<string, unknown> | undefined, datasetDir?: string): DriftReport {
   const index = out.files.get(`${out.gameSystem}/index.json`) as DatasetIndex;
   const previousIndex = previous?.get(`${out.gameSystem}/index.json`) as DatasetIndex | undefined;
+  const diff = diffDatasets(previous, out.files);
+  const whole = new Set([...diff.armiesAdded, ...diff.armiesRemoved]);
   return {
-    diff: diffDatasets(previous, out.files),
+    diff,
+    // Une Army apparue ou disparue se dit en une ligne, pas par tout ce qu'elle porte.
+    armies: diff.initial || diff.schemaChange ? [] : diffFiles(previous!, out.files, out.gameSystem).filter((a) => !whole.has(a.id)),
+    findings: findingsOf({ current: out, gameSystem: out.gameSystem, ...(datasetDir ? { datasetDir } : {}) }),
     conflicts: out.conflicts,
     corrections: out.corrections,
     flaggedContributions: out.contributions.filter((c) => c.state === 'flagged'),
@@ -198,7 +210,69 @@ const WARGEAR_LABEL: Record<BuildOutput['wargear'][number]['kind'], string> = {
   'missing-line': 'linked by hand, but the line is gone: it bills nothing',
 };
 
-export function renderReport(r: DriftReport): string {
+/**
+ * La place des blocs diff dans le rapport. Il sert de description de PR, et
+ * GitHub en refuse une de plus de 65 536 caractères : au-delà, une Army ne
+ * garde que son résumé, et le détail se lit dans le tableau de bord.
+ */
+const DIFF_BUDGET = 45_000;
+
+const KIND_LABEL: Record<EntityChange['kind'], string> = { unit: 'Unit', detachment: 'Detachment', stratagem: 'Stratagem', armyRule: 'Army Rule', core: 'Core' };
+const FINDING_LABEL: Record<Finding['kind'], string> = {
+  conflict: 'in conflict',
+  caughtUp: 'caught up',
+  orphan: 'orphaned',
+  contribution: 'Contributions to review',
+  disagreement: 'disagreements',
+  unsimulated: 'unsimulated keys',
+  wargear: 'wargear costs not linked',
+  enhancementWeapon: 'Enhancement Weapons',
+};
+
+/** Un changement en lignes de diff : une liste par ses éléments, un bloc ligne à ligne. */
+function diffLines(c: FieldChange): string[] {
+  const lines = (mark: string, value: string) => value.split('\n').map((l) => `${mark} ${l}`);
+  if (c.removed && c.added && c.before !== null && c.after !== null) return [...c.removed.map((x) => `- ${x}`), ...c.added.map((x) => `+ ${x}`)];
+  return [...(c.before !== null ? lines('-', c.before) : []), ...(c.after !== null ? lines('+', c.after) : [])];
+}
+
+/** Une Army : son résumé (changements, constats), puis un bloc diff par entité, repliés. */
+function renderArmies(r: DriftReport, budget: number): string[] {
+  if (!r.armies.length) return [];
+  const L: string[] = [`## Changes by Army (${r.armies.length})`, ''];
+  let spent = 0;
+  for (const a of r.armies) {
+    const count = a.entities.reduce((n, e) => n + e.changes.length, 0);
+    const mine = r.findings.filter((f) => f.army === a.id);
+    const tally = [...HANDLE, ...COMPLETE]
+      .map((k) => [k, mine.filter((f) => f.kind === k).length] as const)
+      .filter(([, n]) => n)
+      .map(([k, n]) => ` · ${n} ${FINDING_LABEL[k]}`)
+      .join('');
+    const blocks = a.entities.flatMap((e) => [
+      `**${KIND_LABEL[e.kind]} · ${e.name}**${e.status === 'changed' ? '' : ` (${e.status === 'added' ? 'new' : 'removed'})`}`,
+      '',
+      '```diff',
+      ...e.changes.flatMap((c) => [`@@ ${c.field} @@`, ...diffLines(c)]),
+      '```',
+      '',
+    ]);
+    const size = blocks.join('\n').length;
+    const fits = spent + size <= budget;
+    if (fits) spent += size;
+    L.push(
+      `<details><summary><b>${a.name}</b> · ${count} change(s)${tally}</summary>`,
+      '',
+      ...(fits ? blocks : ['_The diff is left out: this report is too long for a pull request. Read it on the Dataset Tool dashboard._', '']),
+      '</details>',
+      '',
+    );
+  }
+  return L;
+}
+
+export function renderReport(r: DriftReport, options: { budget?: number } = {}): string {
+
   const L: string[] = [];
   const { diff: d } = r;
 
@@ -218,20 +292,15 @@ export function renderReport(r: DriftReport): string {
       ? '**First build**: nothing to compare.'
       : d.schemaChange
         ? `**Schema ${d.schemaChange.from} → ${d.schemaChange.to}**: the previous Dataset has another shape, nothing to compare.`
-        : `**${d.changes.length}** number(s) changed · **${d.unitsAdded.length}** Unit(s) added · **${d.unitsRemoved.length}** removed · ` +
+        : `**${r.armies.reduce((n, a) => n + a.entities.reduce((m, e) => m + e.changes.length, 0), 0)}** change(s) in **${r.armies.length}** Army(ies) · **${d.unitsAdded.length}** Unit(s) added · **${d.unitsRemoved.length}** removed · ` +
           `**${r.conflicts.length}** disagreement(s) between sources · Corrections: ${r.corrections.length - stale.length - conflicting.length} active, ` +
           `${stale.length} stale, ${conflicting.length} in conflict`,
     '',
   );
 
-  if (d.changes.length) {
-    L.push(`## Numbers changed (${d.changes.length})`, '');
-    L.push(...bounded(d.changes, 60, (c) => `- **${c.name}** · ${c.army} — ${c.field} : \`${c.before}\` → \`${c.after}\``), '');
-  }
-  if (d.unitsRemoved.length) L.push(`## Units removed (${d.unitsRemoved.length})`, '', ...bounded(d.unitsRemoved, 40, (u) => `- ${u.name} · ${u.army}`), '');
+  L.push(...renderArmies(r, options.budget ?? DIFF_BUDGET));
   if (d.armiesRemoved.length) L.push(`## Armies gone (${d.armiesRemoved.length})`, '', ...d.armiesRemoved.map((a) => `- ${a}`), '');
   if (d.armiesAdded.length) L.push(`## Armies added (${d.armiesAdded.length})`, '', ...d.armiesAdded.map((a) => `- ${a}`), '');
-  if (d.unitsAdded.length) L.push(`## Units added (${d.unitsAdded.length})`, '', ...bounded(d.unitsAdded, 40, (u) => `- ${u.name} · ${u.army}`), '');
 
   if (r.conflicts.length) {
     L.push(`## Disagreements between sources (${r.conflicts.length})`, '');

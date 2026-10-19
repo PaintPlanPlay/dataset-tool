@@ -12,7 +12,7 @@ import { diffFiles, type ArmyChanges, type FieldChange, type Stage } from '../ch
 import { parseTarget } from '../corrections/apply.ts';
 import { readCorrections } from '../corrections/files.ts';
 import type { CorrectionVerdict } from '../corrections/lifecycle.ts';
-import { boardOf, findingsOf, targets, type BoardRow, type Counters, type Finding } from './board.ts';
+import { boardOf, findingsOf, targets, type BoardRow, type Counters, type Finding } from '../board.ts';
 import { deleteCorrection } from './sheets.ts';
 import { sheetOfTarget } from './targets.ts';
 import { defaultProbe, type Probe, type PullRequest } from './overview.ts';

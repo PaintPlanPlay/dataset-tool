@@ -16,8 +16,8 @@ export type { ButtonName, ButtonState, Overview } from '../../src/gui/overview.t
 export type { Inspection, SearchHit } from '../../src/gui/provenance.ts';
 export type { PendingChange } from '../../src/gui/pending.ts';
 export type { CaughtUp, SourceShift, Unreleased } from '../../src/gui/unreleased.ts';
-export type { BoardRow, CompleteKind, Counters, Finding, HandleKind } from '../../src/gui/board.ts';
-export type FindingKind = import('../../src/gui/board.ts').HandleKind | import('../../src/gui/board.ts').CompleteKind;
+export type { BoardRow, CompleteKind, Counters, Finding, HandleKind } from '../../src/board.ts';
+export type FindingKind = import('../../src/board.ts').HandleKind | import('../../src/board.ts').CompleteKind;
 export type { ArmyChanges, EntityChange, FieldChange, Origin, Stage } from '../../src/changes.ts';
 export type { CorrectionItem, DraftCheck, Mark, SavedFile, Sheet, Suggestions } from '../../src/gui/sheets.ts';
 export type { SourceConflict } from '../../src/findings.ts';

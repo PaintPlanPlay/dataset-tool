@@ -67,7 +67,7 @@ async function main(): Promise<void> {
       throw new Error(`${out.textCheck.length} rules-text finding(s): nothing is written`);
     }
     writeDataset(datasetDir, gameSystem, out.files, out.ids);
-    const report = makeReport(out, previous);
+    const report = makeReport(out, previous, datasetDir);
     const reportFile = optional('report');
     if (reportFile) writeFileSync(reportFile, `${renderReport(report)}\n`);
     console.log(`${out.files.size} files written to ${datasetDir}`);

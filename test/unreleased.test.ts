@@ -13,6 +13,7 @@ import type { ArmyFile, DatasetIndex, Manifest } from '@paintplanplay/dataset-sc
 import { readAuthored } from '../src/authored.ts';
 import { build } from '../src/build.ts';
 import { findRulesText } from '../src/notext.ts';
+import { makeReport, renderReport } from '../src/report.ts';
 import { readCorrections } from '../src/corrections/files.ts';
 import { readRegistry, toJson, writeDataset } from '../src/dataset.ts';
 import type { PullRequest } from '../src/gui/overview.ts';
@@ -437,4 +438,26 @@ section('Tableau de bord : les compteurs');
     await gui.close();
     rmSync(repo.dir, { recursive: true, force: true });
   }
+}
+
+section('Le drift report des PR : par Army, en diff');
+{
+  const out = await build({ snapshot: openSnapshot(fixture('snapshot')), gameSystem: GS, authored: readAuthored(fixture('dataset'), GS), corrections: readCorrections(fixture('dataset'), GS) });
+  const previous = new Map(out.files);
+  const orks = structuredClone(out.files.get(ORKS)) as ArmyFile & { units: { id: string; points: number; optionGroups?: { id: string; maxPicks: number }[] }[] };
+  orks.units.find((u) => u.id === 'u-boyz')!.points = 1;
+  orks.units.find((u) => u.id === 'u-boyz')!.optionGroups!.find((g) => g.id === 'g-special')!.maxPicks = 1;
+  previous.set(ORKS, orks);
+  const realBoyz = unitOf(out.files.get(ORKS) as ArmyFile, 'u-boyz').points;
+  const markdown = renderReport(makeReport(out, previous));
+  check('une section repliable par Army, avec son nombre de changements', /<details><summary><b>Orks<\/b> · 2 change\(s\)[^<]*<\/summary>/.test(markdown), markdown.slice(0, 1500));
+  check('chaque entité en bloc diff, champ par champ', markdown.includes('**Unit · Boyz**') && markdown.includes(`\`\`\`diff\n@@ points @@\n- 1\n+ ${realBoyz}\n`), markdown);
+  check('un groupe d\'options comme Plan le montre', markdown.includes('- Special Weapons — 1 model\n') && markdown.includes('+ Special Weapons — 2 models\n'));
+  check('les sections de constats restent', /## Corrections \(\d+\)/.test(markdown) && /\*\*stale\*\*/.test(markdown));
+  const short = renderReport(makeReport(out, previous), { budget: 10 });
+  check(
+    'un rapport trop long garde le résumé de chaque Army et renvoie au tableau de bord pour le détail',
+    short.includes('<b>Orks</b>') && !short.includes('```diff') && short.includes('dashboard') && short.length < markdown.length,
+    short.slice(0, 800),
+  );
 }

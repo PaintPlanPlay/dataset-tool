@@ -5,14 +5,26 @@
  */
 import type { ArmyFile, DatasetIndex } from '@paintplanplay/dataset-schema';
 import { indexPath } from '@paintplanplay/dataset-schema';
-import { readContributionFiles } from '../authored.ts';
-import type { BuildOutput } from '../build.ts';
-import { STAGES, type ArmyChanges, type Origin, type Stage } from '../changes.ts';
-import { CORE_ROOT, parseTarget } from '../corrections/apply.ts';
-import { readCorrections } from '../corrections/files.ts';
-import { findUnsimulated } from '../rules.ts';
-import { sheetOfTarget } from './targets.ts';
-import type { Workspace } from './workspace.ts';
+import { readContributionFiles } from './authored.ts';
+import type { BuildOutput } from './build.ts';
+import { STAGES, type ArmyChanges, type Origin, type Stage } from './changes.ts';
+import { CORE_ROOT, parseTarget } from './corrections/apply.ts';
+import { readCorrections } from './corrections/files.ts';
+import { sheetOfTarget } from './gui/targets.ts';
+import type { DatasetView } from './gui/provenance.ts';
+import { findUnsimulated } from './rules.ts';
+
+/**
+ * Ce que les compteurs lisent : une construction (l'espace de travail de
+ * l'interface, ou celle du rapport de dérive) et, quand on l'a, le dépôt du
+ * Dataset, qui range une Correction ou une Contribution sous l'Army de son
+ * fichier.
+ */
+export interface BoardSource {
+  current: DatasetView | null;
+  gameSystem: string;
+  datasetDir?: string;
+}
 
 /** Ce qui attend une décision. */
 export type HandleKind = 'conflict' | 'caughtUp' | 'orphan' | 'contribution' | 'disagreement';
@@ -55,7 +67,7 @@ const counters = (): Counters => ({ changes: 0, stages: zero(STAGES), origins: z
  * Nommer et ranger une adresse de Correction ou de Contribution : son Army (la
  * racine, ou l'Army qui possède l'Unit) et « Unit › élément ».
  */
-export function targets(ws: Workspace) {
+export function targets(ws: BoardSource) {
   const names = new Map<string, string>([[CORE_ROOT, 'Core']]);
   const owners = new Map<string, string>();
   const entities = new Map<string, string>();
@@ -86,13 +98,14 @@ export function targets(ws: Workspace) {
 }
 
 /** Tous les constats de la construction courante, chacun sous son Army. */
-export function findingsOf(ws: Workspace): Finding[] {
-  const out = ws.current as (Partial<BuildOutput> & NonNullable<Workspace['current']>) | null;
+export function findingsOf(ws: BoardSource): Finding[] {
+  // Une construction porte aussi ses orphelines et ses Weapons d'Enhancement ; un Dataset seulement lu, non.
+  const out = ws.current as (DatasetView & Partial<Pick<BuildOutput, 'orphans' | 'unsimulated' | 'enhancementWeapons'>>) | null;
   if (!out) return [];
   const t = targets(ws);
   // corrections/<gameSystem>/<army>/<fichier>.json : l'Army d'une Correction est son dossier.
   const folder = (path: string) => path.split('/')[2] ?? '';
-  const files = readCorrections(ws.datasetDir, ws.gameSystem);
+  const files = ws.datasetDir ? readCorrections(ws.datasetDir, ws.gameSystem) : [];
   const found: Finding[] = [];
 
   for (const v of out.corrections) {
@@ -105,7 +118,7 @@ export function findingsOf(ws: Workspace): Finding[] {
   }
   // Une Contribution dont la cible a disparu se range encore sous l'Army de son fichier.
   const home = new Map<string, string>();
-  for (const [path, entries] of readContributionFiles(ws.datasetDir, ws.gameSystem)) {
+  for (const [path, entries] of ws.datasetDir ? readContributionFiles(ws.datasetDir, ws.gameSystem) : []) {
     const army = /\/armies\/([^/]+)\.json$/.exec(path)?.[1];
     if (army) for (const e of entries) home.set(e.target, army);
   }
@@ -128,7 +141,7 @@ export function findingsOf(ws: Workspace): Finding[] {
 }
 
 /** Les lignes du tableau de bord : une par Army qui change ou a quelque chose à traiter, la plus chargée en tête. */
-export function boardOf(ws: Workspace, armies: ArmyChanges[], findings: Finding[]): { board: BoardRow[]; totals: Counters } {
+export function boardOf(ws: BoardSource, armies: ArmyChanges[], findings: Finding[]): { board: BoardRow[]; totals: Counters } {
   const t = targets(ws);
   const index = ws.current?.files.get(indexPath(ws.gameSystem)) as DatasetIndex | undefined;
   const rows = new Map<string, BoardRow>();
