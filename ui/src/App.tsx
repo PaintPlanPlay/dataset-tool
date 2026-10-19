@@ -15,6 +15,10 @@ import { unitWidget } from './sheets/UnitSheet.tsx';
 import { detachmentWidget } from './sheets/DetachmentSheet.tsx';
 import { toast, Toasts } from './Toast.tsx';
 import { StatusColumn } from './StatusColumn.tsx';
+import { Dashboard } from './Dashboard.tsx';
+
+/** Ce que vise une sortie de fiche quand on revient au tableau de bord. */
+const HOME = '';
 
 /** Le schéma d'une fiche, d'après son genre. */
 function sheetSchema(schemas: SchemaSet, kind: Inspection['kind']): Located {
@@ -194,13 +198,24 @@ export function App() {
     return () => clearTimeout(timer);
   }, [draft, sheet, dirty]);
 
+  /** Ouvrir une fiche, ou revenir au tableau de bord (`HOME`). */
+  const go = useCallback(
+    (t: string) => {
+      target.current = t || null;
+      if (t) return loadSheet(t);
+      setSheet(null);
+      setDraft(null);
+      setSheetError(null);
+    },
+    [loadSheet],
+  );
+
   const open = (t: string) => {
     if (dirty && t !== sheet?.target) {
       setLeaving(t);
       return;
     }
-    target.current = t;
-    loadSheet(t);
+    go(t);
   };
 
   const save = async (reason: string) => {
@@ -213,11 +228,10 @@ export function App() {
       setDialog(null);
       const files = out.files.map((f) => `${f.path}${f.action === 'deleted' ? ' (removed)' : ''}`).join(', ');
       await afterWrite(`${sheet.name} saved`, `${out.files.length} file(s): ${files}`, t);
-      if (leaving) {
+      if (leaving !== null) {
         const next = leaving;
         setLeaving(null);
-        target.current = next;
-        loadSheet(next);
+        go(next);
       }
     } catch (err) {
       const found = err instanceof ApiError && err.findings.length ? err.findings : [(err as Error).message];
@@ -270,6 +284,7 @@ export function App() {
         onCorrections={() => setDialog('all')}
         onDisagreements={() => setDialog('disagreements')}
         onUnsimulated={() => setDialog('unsimulated')}
+        onHome={() => open(HOME)}
       />
       <main className="sheet">
         <SheetBar
@@ -293,13 +308,12 @@ export function App() {
             </Ctx.Provider>
           </div>
         ) : (
-          !sheetError && (
-            <p className="empty hint">
-              {overview && !overview.workspace.dataset
-                ? 'Nothing here yet: click Update data to fetch the Dataset and a snapshot of its sources. It takes a few minutes, once.'
-                : 'Search for a sheet to open it.'}
-            </p>
-          )
+          !sheetError &&
+          (overview && !overview.workspace.dataset ? (
+            <p className="empty hint">Nothing here yet: click Update data to fetch the Dataset and a snapshot of its sources. It takes a few minutes, once.</p>
+          ) : (
+            <Dashboard overview={overview} onOpen={open} />
+          ))
         )}
       </main>
 
@@ -334,14 +348,13 @@ export function App() {
           onClose={() => setDialog(null)}
         />
       )}
-      {leaving && dialog === null && (
+      {leaving !== null && dialog === null && (
         <LeaveDialog
           onCancel={() => setLeaving(null)}
           onDiscard={() => {
             const next = leaving;
             setLeaving(null);
-            target.current = next;
-            loadSheet(next);
+            go(next);
           }}
           onSave={() => {
             setFindings([]);

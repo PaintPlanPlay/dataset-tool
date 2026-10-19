@@ -31,11 +31,13 @@ interface Props {
   onCorrections: () => void;
   onDisagreements: () => void;
   onUnsimulated: () => void;
+  /** Revenir au tableau de bord. */
+  onHome: () => void;
 }
 
 const ACTION: Record<PendingChange['action'], string> = { added: 'new', modified: 'changed', deleted: 'removed' };
 
-export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOpen, onCorrections, onDisagreements, onUnsimulated }: Props) {
+export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOpen, onCorrections, onDisagreements, onUnsimulated, onHome }: Props) {
   const [report, setReport] = useState<JobReport | null>(null);
   const [lines, setLines] = useState<string[]>([]);
   const [asking, setAsking] = useState<ButtonState | null>(null);
@@ -110,7 +112,11 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
 
   return (
     <aside className="status">
-      <h1>Dataset Tool</h1>
+      <h1>
+        <button type="button" className="home" onClick={onHome} title="Back to the dashboard">
+          Dataset Tool
+        </button>
+      </h1>
       {error && <p className="error">{error}</p>}
 
       <dl className="versions">

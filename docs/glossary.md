@@ -46,6 +46,7 @@ keep the meaning the game gives them.
 | **Target** (of a Modifier) | who the change applies to: `self`, `attached`, `aura`, `enemy` |
 | **Target** (of a stratagem) | the units it can be used on, as a keyword filter |
 | **Unsimulated key** | a Modifier key the simulation does not play |
+| **Unreleased change** | a difference between the release the apps read today (the one the manifest points to) and what your copy of the tool would publish now. The dashboard lists them |
 | **Upstream source** | one of the two projects the dataset is built from: BSData and the MFM |
 | **Wargear cost** | the link from a wargear option to the MFM line that bills it |
 | **Wargear option** | one choice of a group of wargear options on a datasheet |

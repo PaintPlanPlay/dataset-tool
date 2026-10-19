@@ -78,7 +78,22 @@ Everything you saved and have not proposed yet. Each line shows *new*,
   propose it: the sources moved under it. See
   [How it works](how-it-works.md#corrections-fixing-a-source).
 
-## Right column: the sheet
+## Right column: the dashboard, then the sheet
+
+### The dashboard
+
+The right column opens on the **dashboard**: every *unreleased change*, that is
+everything that differs between the release the apps read today (the one the
+manifest points to, even after a rollback) and what your copy would publish
+now. Click **Dataset Tool**, the title on the left, to come back to it from a
+sheet.
+
+- At the top, each source before → after: the BSData commit, the MFM version
+  and commit.
+- Then one block per army, one entry per unit, and for each changed field the
+  old value in red (`-`) and the new one in green (`+`), like a git diff.
+- Click an entry's name to open its sheet.
+
 
 ### Finding a sheet
 

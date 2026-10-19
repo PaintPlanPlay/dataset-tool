@@ -16,6 +16,7 @@ import type { AddressInfo } from 'node:net';
 import { ApiError, datasetOf, recordUpstreamPr, refreshing, startJob, upstreamDraft } from './api.ts';
 import { JobRunner } from './jobs.ts';
 import { defaultProbe, overview, type Probe } from './overview.ts';
+import { unreleased } from './unreleased.ts';
 import { pendingChanges, pendingFingerprint, undoPending } from './pending.ts';
 import { checkDraft, deleteCorrection, listCorrections, saveSheet, sheetOf, suggestions } from './sheets.ts';
 import { inspect, search } from './provenance.ts';
@@ -146,6 +147,8 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
         const body = await readBody(req);
         return send(res, 201, await saveSheet(ws, { target: String(body.target ?? ''), draft: body.draft, reason: String(body.reason ?? '') }));
       }
+      case 'GET /api/unreleased':
+        return send(res, 200, unreleased(ws));
       case 'GET /api/pending':
         return send(res, 200, pendingChanges(ws));
       case 'POST /api/pending/undo':
