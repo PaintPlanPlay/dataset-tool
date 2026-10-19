@@ -95,8 +95,13 @@ sheet.
   everything a player can see — and for each changed field the old value in red
   (`-`) and the new one in green (`+`), like a git diff. A detachment or army
   rule several armies publish appears once, under its home army.
-- Rules read the way the apps show them: their Modifiers in words (`+1 to Hit
-  (enemy) — if charged`), and their description.
+- Rules and wargear options read the way the apps show them, so you judge what
+  a player will see: a rule's Modifiers in words (`+1 to Hit (enemy) — if after
+  charging`) and its description; a group of wargear options as its card in the
+  apps — its title, what it allows at the unit's largest size (`2 models`, `one
+  option`, `up to 2`), then each option with its weapons (`Boy w/ Burna — ➶
+  Burna`). If it reads badly here, it reads badly in the apps: fix it before you
+  publish. This is an imitation of the apps' display, kept by hand.
 - A list (keywords, army rules, abilities…) shows only what leaves it and what
   joins it; hover a line for the whole list.
 - What a player would not notice is hidden: a list in another order, internal

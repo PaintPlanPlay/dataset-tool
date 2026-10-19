@@ -15,8 +15,12 @@ import {
   type Condition,
   type KeywordFilter,
   type Modifier,
+  type OptionGroup,
   type RuleBody,
   type Stratagem,
+  type Unit,
+  type Weapon,
+  type WeaponOption,
 } from '@paintplanplay/dataset-schema';
 
 const humanize = (s: string) => s.replace(/[-_]+/g, ' ').trim();
@@ -108,4 +112,54 @@ export function describeTiming(s: Stratagem): string {
   ]
     .filter(Boolean)
     .join(' · ');
+}
+
+/** « 9-18 Boyz » se lit « Boyz » : l'effectif est déjà dit ailleurs. */
+const groupTitle = (name: string) => name.replace(/^\d+\s*[-–—]\s*\d+\s+/, '').trim();
+
+/** Noms de groupe qui ne nomment rien : BSData range parfois sous « Wargear » ou « Unit Composition ». */
+const VOID_TITLE = /^(unit composition|wargear|wargear options|options|weapons)$/i;
+
+const maxPicksAt = (g: OptionGroup, models: number) => g.pickBrackets.reduce((n, b) => (models >= b.atModels ? b.maxPicks : n), g.maxPicks);
+const optionCap = (o: WeaponOption, models: number) => (o.perModels && o.perModels > 0 ? Math.floor(models / o.perModels) : Math.min(models, o.maxCarriers || models));
+const models = (n: number) => `${n} model${n === 1 ? '' : 's'}`;
+
+/** Le titre d'un groupe d'options tel que Plan l'affiche : son emplacement, sinon son nom sans effectif. */
+export function groupHeading(g: OptionGroup): string {
+  const title = g.slot || groupTitle(g.name);
+  return VOID_TITLE.test(title) || !title ? 'Wargear' : title;
+}
+
+/**
+ * Un groupe d'options comme Plan le montre, à l'effectif maximal de l'Unit :
+ * son titre et sa contrainte, puis une ligne par option — son nom, par défaut,
+ * son plafond, son coût, et les Weapons qu'elle équipe.
+ */
+export function describeGroup(unit: Unit, g: OptionGroup): string[] {
+  const n = unit.maxModels;
+  const kind = g.pool ? 'pool' : maxPicksAt(g, n) <= 1 ? 'choice' : 'extras';
+  const budget = g.pool ? Math.min(n, maxPicksAt(g, n)) : Math.max(0, ...g.options.map((o) => optionCap(o, n)));
+  const rule = kind === 'pool' ? models(budget) : kind === 'choice' ? (budget > 1 ? `one option · ${models(budget)}` : 'one option') : `up to ${maxPicksAt(g, n)}`;
+  const weapons = new Map(unit.weapons.map((w) => [`${w.kind}|${w.name}`, w]));
+  const lot = (refs: string[]) =>
+    [...new Set(refs)]
+      .map((r) => weapons.get(r))
+      .filter((w): w is Weapon => w !== undefined)
+      .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'ranged' ? -1 : 1))
+      .map((w) => `${w.kind === 'melee' ? '⚔' : '➶'} ${w.name}`)
+      .join(' · ') || 'no weapon';
+  return [
+    `${groupHeading(g)} — ${rule}`,
+    ...g.options.map((o) => {
+      const cap = optionCap(o, n);
+      const line = o.wargearCost && unit.wargear?.find((w) => w.item === o.wargearCost!.item);
+      const cost = line ? line.points * (o.wargearCost!.quantity ?? 1) : 0;
+      const notes = [
+        o.isDefault ? 'default' : '',
+        kind !== 'choice' && cap < budget ? `max ${cap}` : '',
+        cost > 0 ? `+${cost} pts${kind === 'choice' && budget === 1 ? '' : ' / model'}` : '',
+      ].filter(Boolean);
+      return `${[o.name, ...notes].join(' · ')} — ${lot(o.weapons)}`;
+    }),
+  ];
 }

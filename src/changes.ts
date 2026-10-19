@@ -6,9 +6,9 @@
  * Datasets se comparent fait à fait ; les changements se regroupent par Army
  * puis par entité. Le tableau de bord et le drift report lisent la même chose.
  */
-import type { AllyRule, ArmyFile, CoreFile, Detachment, Enhancement, OptionGroup, PriceBand, RuleBody, Stratagem, Unit, Weapon } from '@paintplanplay/dataset-schema';
+import type { AllyRule, ArmyFile, CoreFile, Detachment, Enhancement, PriceBand, RuleBody, Stratagem, Unit, Weapon } from '@paintplanplay/dataset-schema';
 import { CORE_ROOT } from './corrections/apply.ts';
-import { describeEffect, describeModifiers, describeTiming, filterLabel } from './describe.ts';
+import { describeEffect, describeGroup, describeModifiers, describeTiming, filterLabel, groupHeading } from './describe.ts';
 import { homes, type Homes } from './home.ts';
 
 export type EntityKind = 'unit' | 'detachment' | 'stratagem' | 'armyRule' | 'core';
@@ -82,8 +82,16 @@ const ruleFields = (prefix: string, body: RuleBody): Field[] => [
   [`${prefix}description`, body.summary ?? '—'],
 ];
 
-const groupLine = (g: OptionGroup) =>
-  `${g.pool ? `${g.minPicks}-${g.maxPicks} models` : `up to ${g.maxPicks}`}: ${g.options.map((o) => `${o.name}${o.weapons.length ? ` (${o.weapons.map((w) => w.split('|')[1]).join(', ')})` : ''}`).join(' / ')}`;
+/** Ses groupes d'options, chacun sous son titre ; deux groupes du même titre se numérotent. */
+function groupFields(u: Unit): Field[] {
+  const seen = new Map<string, number>();
+  return (u.optionGroups ?? []).map((g) => {
+    const heading = groupHeading(g);
+    const n = (seen.get(heading) ?? 0) + 1;
+    seen.set(heading, n);
+    return [`wargear options "${heading}"${n > 1 ? ` (${n})` : ''}`, describeGroup(u, g).join('\n')];
+  });
+}
 
 /** Les champs d'une Unit, chacun en texte. */
 function unitFields(u: Unit): Field[] {
@@ -108,7 +116,7 @@ function unitFields(u: Unit): Field[] {
     ...u.abilities.flatMap((a) => ruleFields(`ability "${a.name}" · `, a)),
     ...u.weapons.map((w): Field => [`weapon "${w.name}"`, weaponSignature(w)]),
     ['default loadout', (u.defaultLoadout ?? []).map((l) => `${l.count}× ${l.weapon}`)],
-    ...(u.optionGroups ?? []).map((g): Field => [`wargear options "${g.name}"`, groupLine(g)]),
+    ...groupFields(u),
   ];
 }
 

@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import type { ArmyFile, DatasetIndex, Manifest } from '@paintplanplay/dataset-schema';
 import { readAuthored } from '../src/authored.ts';
 import { build } from '../src/build.ts';
+import { findRulesText } from '../src/notext.ts';
 import { readCorrections } from '../src/corrections/files.ts';
 import { readRegistry, toJson, writeDataset } from '../src/dataset.ts';
 import type { Unreleased } from '../src/gui/unreleased.ts';
@@ -212,6 +213,46 @@ section('Tableau de bord : le bruit');
     const loud = boyzOf(await at<Unreleased>('/api/unreleased?all=1'));
     const keywords = loud?.changes.find((c) => c.field === 'keywords');
     check('« tout montrer » : la liste réordonnée apparaît, marquée comme bruit', keywords?.noise === true, JSON.stringify(keywords));
+  } finally {
+    await gui.close();
+    rmSync(repo.dir, { recursive: true, force: true });
+  }
+}
+
+section('Tableau de bord : comme Plan l\'affiche');
+{
+  const repo = await datasetRepo();
+  type Groups = { optionGroups: { id: string; maxPicks: number; options: { maxCarriers: number }[] }[] };
+  repo.edit<ArmyFile>(ORKS, (a) => {
+    const groups = (unitOf(a, 'u-boyz') as unknown as Groups).optionGroups;
+    groups.find((g) => g.id === 'g-special')!.maxPicks = 1;
+    groups.find((g) => g.id === 'g-boyz')!.options[0].maxCarriers = 5;
+    a.detachments.find((d) => d.id === 'war-horde')!.rules.find((r) => r.id === 'get-stuck-in')!.modifiers = [
+      { key: 'hit', value: 1, target: 'enemy', conditions: [{ key: 'charged' }] },
+    ];
+  });
+  repo.write('manifest.json', repo.manifest('wh40k-11e-mfm-1-4-r1', ['wh40k-11e-mfm-1-4-r1']));
+  repo.commit('Release r1');
+  repo.git('tag', 'wh40k-11e-mfm-1-4-r1');
+
+  const { gui, at } = await serve(repo.dir);
+  try {
+    const u = await at<Unreleased>('/api/unreleased');
+    const orks = u.armies.find((a) => a.id === 'orks');
+    const boyz = orks?.entities.find((e) => e.id === 'u-boyz');
+    const special = boyz?.changes.find((c) => c.field === 'wargear options "Special Weapons"');
+    check(
+      'un groupe d\'options se lit comme dans Plan : titre, contrainte, puis chaque option et ses Weapons',
+      special?.before === 'Special Weapons — 1 model\nBoy w/ Big shoota — ➶ Big shoota\nBoy w/ Burna — ➶ Burna' &&
+        special.after === 'Special Weapons — 2 models\nBoy w/ Big shoota — ➶ Big shoota\nBoy w/ Burna — ➶ Burna',
+      JSON.stringify(special),
+    );
+    const root = boyz?.changes.find((c) => c.field.startsWith('wargear options') && c.field !== special?.field);
+    check('le titre du groupe perd l\'effectif que BSData y met (« 9-19 Boyz » → « Boyz »)', root?.field === 'wargear options "Boyz"' && Boolean(root.before?.includes('· max 5')), JSON.stringify(root));
+    const rule = orks?.entities.find((e) => e.id === 'war-horde')?.changes.find((c) => /Get Stuck In/i.test(c.field) && c.field.endsWith('effect'));
+    check('une Detachment Rule dit ses Modifiers comme Plan', rule?.before === '+1 to Hit (enemy) — if after charging', JSON.stringify(rule));
+    const findings = findRulesText(u.armies);
+    check('rien de ce que le tableau de bord produit n\'est du texte de règles', findings.length === 0, JSON.stringify(findings.slice(0, 3)));
   } finally {
     await gui.close();
     rmSync(repo.dir, { recursive: true, force: true });
