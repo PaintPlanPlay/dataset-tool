@@ -137,15 +137,23 @@ const tagExists = (dir: string, tag: string) => {
   }
 };
 
-/** Ce qui ne dépend pas de la Release : les compteurs de ce qui est à traiter, les Corrections rattrapées. */
-function around(ws: Workspace, armies: ArmyChanges[]) {
+/** Les compteurs de ce qui change et de ce qui est à traiter, et les Corrections rattrapées. */
+function counted(ws: Workspace, armies: ArmyChanges[]) {
   const findings = findingsOf(ws);
-  const { board, totals } = boardOf(ws, armies, findings);
-  const publish = { changes: totals.stages.merged, armies: board.filter((r) => r.stages.merged > 0).length, leftOut: totals.stages.proposed + totals.stages.local };
-  return { board, totals, findings, publish, caughtUp: caughtUpOf(ws) };
+  return { ...boardOf(ws, armies, findings), findings, caughtUp: caughtUpOf(ws) };
 }
 
-const empty = (ws: Workspace, release: string | null, note: string): Unreleased => ({ release, note, sources: [], armies: [], pullRequest: null, ...around(ws, []) });
+const changeCount = (armies: ArmyChanges[]) => armies.reduce((n, a) => n + a.entities.reduce((m, e) => m + e.changes.length, 0), 0);
+
+const empty = (ws: Workspace, release: string | null, note: string): Unreleased => ({
+  release,
+  note,
+  sources: [],
+  armies: [],
+  pullRequest: null,
+  publish: { changes: 0, armies: 0, leftOut: 0 },
+  ...counted(ws, []),
+});
 
 const revParse = (dir: string, ref: string): string | null => {
   try {
@@ -212,7 +220,11 @@ export function unreleased(ws: Workspace, options: { noise?: boolean; probe?: Pr
   });
   const armies = diffFiles(released, current, ws.gameSystem, { noise: options.noise, stages: between, ...(ws.bare ? { bare: ws.bare.files } : {}) });
   attribute(ws, armies);
-  return { release, sources, armies, pullRequest: proposing ? (options.probe ?? defaultProbe).pullRequest(ws.datasetDir) : null, ...around(ws, armies) };
+  // Publier emporte main tel quel : la Release face à main ; ce qui reste de côté, c'est main face à la copie locale.
+  const main = between.find(([stage]) => stage === 'merged')?.[1];
+  const leaves = main ? diffFiles(released, main, ws.gameSystem) : [];
+  const publish = { changes: changeCount(leaves), armies: leaves.length, leftOut: changeCount(main ? diffFiles(main, current, ws.gameSystem) : armies) };
+  return { release, sources, armies, pullRequest: proposing ? (options.probe ?? defaultProbe).pullRequest(ws.datasetDir) : null, publish, ...counted(ws, armies) };
 }
 
 /**

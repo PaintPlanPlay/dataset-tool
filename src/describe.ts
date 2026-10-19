@@ -1,10 +1,10 @@
 /**
- * Ce qu'une Rule fait, dit comme l'application Plan le dit aux joueurs : une
+ * Ce qu'une Rule fait, dit comme les apps le disent aux joueurs : une
  * ligne générée à partir de ses Modifiers, jamais d'un texte de règles.
  *
- * C'est une imitation de l'affichage de Plan, tenue à la main : le tableau de
+ * C'est une imitation de l'affichage des apps, tenue à la main : le tableau de
  * bord montre ce que les joueurs liront, pour corriger avant publication ce qui
- * serait incompréhensible. Quand Plan change sa façon de dire, ceci suit.
+ * serait incompréhensible. Quand les apps changent leur façon de dire, ceci suit.
  */
 import {
   DISPLAYED_MODIFIERS,
@@ -93,7 +93,7 @@ export const describeModifiers = (ms: Modifier[]) => ms.map(describeModifier).jo
 
 /**
  * Ce que fait une Rule, Modifiers ou Options, sans la borne de longueur de
- * Plan : un changement au-delà doit rester visible. `—` sans rien.
+ * l'affichage : un changement au-delà doit rester visible. `—` sans rien.
  */
 export function describeEffect(body: RuleBody): string {
   if (body.options?.length) return `one of: ${body.options.map((o) => `${o.name}: ${describeModifiers(o.modifiers)}`).join(' / ')}`;
@@ -124,14 +124,14 @@ const maxPicksAt = (g: OptionGroup, models: number) => g.pickBrackets.reduce((n,
 const optionCap = (o: WeaponOption, models: number) => (o.perModels && o.perModels > 0 ? Math.floor(models / o.perModels) : Math.min(models, o.maxCarriers || models));
 const models = (n: number) => `${n} model${n === 1 ? '' : 's'}`;
 
-/** Le titre d'un groupe d'options tel que Plan l'affiche : son emplacement, sinon son nom sans effectif. */
+/** Le titre d'un groupe d'options tel que les apps l'affichent : son emplacement, sinon son nom sans effectif. */
 export function groupHeading(g: OptionGroup): string {
   const title = g.slot || groupTitle(g.name);
   return VOID_TITLE.test(title) || !title ? 'Wargear' : title;
 }
 
 /**
- * Un groupe d'options comme Plan le montre, à l'effectif maximal de l'Unit :
+ * Un groupe d'options comme les apps le montrent, à l'effectif maximal de l'Unit :
  * son titre et sa contrainte, puis une ligne par option — son nom, par défaut,
  * son plafond, son coût, et les Weapons qu'elle équipe.
  */
