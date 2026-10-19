@@ -5,7 +5,7 @@
  * arrive, Army par Army.
  */
 import { useEffect, useState } from 'react';
-import { api, type EntityChange, type Overview, type SourceShift, type Unreleased } from './api.ts';
+import { api, type EntityChange, type FieldChange, type Overview, type SourceShift, type Unreleased } from './api.ts';
 
 const SOURCE: Record<string, string> = { bsdata: 'BSData', mfm: 'MFM' };
 const KIND: Record<EntityChange['kind'], string> = { unit: 'Unit', detachment: 'Detachment', stratagem: 'Stratagem', armyRule: 'Army Rule', core: 'Core' };
@@ -34,6 +34,28 @@ function Sources({ sources }: { sources: SourceShift[] }) {
   );
 }
 
+/** Une liste ne montre que ce qui en sort et ce qui y entre ; le reste, en entier. */
+function Lines({ change: c }: { change: FieldChange }) {
+  if (c.noise) return <span className="noise" title={`${c.before} → ${c.after}`}>order only: {c.after}</span>;
+  const listed = c.removed && c.added && c.before !== null && c.after !== null;
+  const out = listed ? c.removed! : c.before !== null ? [c.before] : [];
+  const into = listed ? c.added! : c.after !== null ? [c.after] : [];
+  return (
+    <>
+      {out.map((x) => (
+        <span className="del" key={`-${x}`} title={listed ? `was: ${c.before}` : undefined}>
+          - {x}
+        </span>
+      ))}
+      {into.map((x) => (
+        <span className="add" key={`+${x}`} title={listed ? `now: ${c.after}` : undefined}>
+          + {x}
+        </span>
+      ))}
+    </>
+  );
+}
+
 function Entity({ entity, onOpen }: { entity: EntityChange; onOpen: (target: string) => void }) {
   return (
     <details className="entity" open={entity.status === 'changed'}>
@@ -50,8 +72,7 @@ function Entity({ entity, onOpen }: { entity: EntityChange; onOpen: (target: str
           <div className="change" key={c.field}>
             <span className="field">{c.field}</span>
             <span className="lines">
-              {c.before !== null && <span className="del">- {c.before}</span>}
-              {c.after !== null && <span className="add">+ {c.after}</span>}
+              <Lines change={c} />
             </span>
           </div>
         ))}
@@ -63,18 +84,19 @@ function Entity({ entity, onOpen }: { entity: EntityChange; onOpen: (target: str
 export function Dashboard({ overview, onOpen }: { overview: Overview | null; onOpen: (target: string) => void }) {
   const [data, setData] = useState<Unreleased | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [all, setAll] = useState(false);
 
   // L'état global se relit après chaque tâche ou écriture : le tableau de bord suit.
   useEffect(() => {
     let stale = false;
-    api.unreleased().then(
+    api.unreleased(all).then(
       (u) => !stale && (setData(u), setError(null)),
       (e: Error) => !stale && setError(e.message),
     );
     return () => {
       stale = true;
     };
-  }, [overview]);
+  }, [overview, all]);
 
   if (error) return <p className="error dashboard">{error}</p>;
   if (!data) return <p className="empty hint dashboard">Comparing with the Release in production…</p>;
@@ -95,6 +117,9 @@ export function Dashboard({ overview, onOpen }: { overview: Overview | null; onO
         </p>
         {data.release && data.note && <p className="hint">{data.note}</p>}
         {data.sources.length > 0 && <Sources sources={data.sources} />}
+        <label className="toggle">
+          <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Show everything, reordered lists included
+        </label>
       </header>
       {data.release && !data.note && total === 0 && <p className="empty">Nothing differs from the Release in production.</p>}
       {data.armies.map((a) => (

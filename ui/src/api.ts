@@ -55,7 +55,7 @@ export const api = {
   sheet: (target: string) => call<Sheet>(`/api/sheet?target=${encodeURIComponent(target)}`),
   validate: (target: string, draft: unknown) => post<DraftCheck>('/api/sheet/validate', { target, draft }),
   save: (target: string, draft: unknown, reason: string) => post<{ files: SavedFile[] }>('/api/sheet/save', { target, draft, reason }),
-  unreleased: () => call<Unreleased>('/api/unreleased'),
+  unreleased: (all = false) => call<Unreleased>(`/api/unreleased${all ? '?all=1' : ''}`),
   pending: () => call<PendingChange[]>('/api/pending'),
   undo: (id: string) => post('/api/pending/undo', { id }),
   corrections: (sheet: string, q = '') => call<CorrectionItem[]>(`/api/corrections?sheet=${encodeURIComponent(sheet)}&q=${encodeURIComponent(q)}`),

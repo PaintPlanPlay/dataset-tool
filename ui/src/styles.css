@@ -492,5 +492,7 @@ h1 .home:hover { color: var(--accent); }
 .del { background: color-mix(in srgb, var(--late) 14%, transparent); color: var(--late); padding: 0 4px; border-radius: 3px; }
 .add { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); padding: 0 4px; border-radius: 3px; }
 .dashboard .hint { padding: 0; margin: 0; color: var(--muted); }
-.shifts { width: auto; }
+.dashboard table.shifts { justify-self: start; }
 .shifts td:nth-child(3) { color: var(--muted); }
+.noise { color: var(--muted); font-style: italic; }
+.dashboard .toggle { color: var(--muted); font-size: 13px; display: flex; gap: 6px; align-items: center; }

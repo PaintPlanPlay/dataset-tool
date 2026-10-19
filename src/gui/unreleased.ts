@@ -67,7 +67,8 @@ const tagExists = (dir: string, tag: string) => {
 
 const empty = (release: string | null, note: string): Unreleased => ({ release, note, sources: [], armies: [] });
 
-export function unreleased(ws: Workspace): Unreleased {
+/** @param options.noise montrer aussi ce qui ne change rien pour un joueur. */
+export function unreleased(ws: Workspace, options: { noise?: boolean } = {}): Unreleased {
   if (!ws.current) return empty(null, 'no Dataset yet: click Update data');
   const manifest = readManifest(ws.datasetDir);
   const release = manifest?.dataslates.find((d) => d.id === manifest.current)?.latest || null;
@@ -91,5 +92,5 @@ export function unreleased(ws: Workspace): Unreleased {
       ...(a?.version ? { afterVersion: a.version } : {}),
     };
   });
-  return { release, sources, armies: diffFiles(released, current, ws.gameSystem) };
+  return { release, sources, armies: diffFiles(released, current, ws.gameSystem, options) };
 }

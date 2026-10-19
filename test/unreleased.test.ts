@@ -185,3 +185,35 @@ section('Tableau de bord : toutes les entités');
     rmSync(repo.dir, { recursive: true, force: true });
   }
 }
+
+section('Tableau de bord : le bruit');
+{
+  const repo = await datasetRepo();
+  repo.edit<ArmyFile>(ORKS, (a) => {
+    const boyz = unitOf(a, 'u-boyz');
+    boyz.keywords = [...boyz.keywords].reverse();
+    boyz.armyRules = [...boyz.armyRules, 'Old Rule'];
+  });
+  repo.write('manifest.json', repo.manifest('wh40k-11e-mfm-1-4-r1', ['wh40k-11e-mfm-1-4-r1']));
+  repo.commit('Release r1');
+  repo.git('tag', 'wh40k-11e-mfm-1-4-r1');
+
+  const { gui, at } = await serve(repo.dir);
+  try {
+    const boyzOf = (u: Unreleased) => u.armies.find((a) => a.id === 'orks')?.entities.find((e) => e.id === 'u-boyz');
+    const quiet = boyzOf(await at<Unreleased>('/api/unreleased'));
+    check('une liste réordonnée ne change rien par défaut', !quiet?.changes.some((c) => c.field === 'keywords'), JSON.stringify(quiet?.changes));
+    const rules = quiet?.changes.find((c) => c.field === 'army rules');
+    check(
+      'une liste qui change dit les éléments retirés et ajoutés, pas toute la liste',
+      rules?.removed?.join() === 'Old Rule' && rules.added?.length === 0 && !rules.noise,
+      JSON.stringify(rules),
+    );
+    const loud = boyzOf(await at<Unreleased>('/api/unreleased?all=1'));
+    const keywords = loud?.changes.find((c) => c.field === 'keywords');
+    check('« tout montrer » : la liste réordonnée apparaît, marquée comme bruit', keywords?.noise === true, JSON.stringify(keywords));
+  } finally {
+    await gui.close();
+    rmSync(repo.dir, { recursive: true, force: true });
+  }
+}

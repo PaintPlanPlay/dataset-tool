@@ -97,6 +97,11 @@ sheet.
   rule several armies publish appears once, under its home army.
 - Rules read the way the apps show them: their Modifiers in words (`+1 to Hit
   (enemy) — if charged`), and their description.
+- A list (keywords, army rules, abilities…) shows only what leaves it and what
+  joins it; hover a line for the whole list.
+- What a player would not notice is hidden: a list in another order, internal
+  identifiers, the registry. **Show everything** brings reordered lists back,
+  in grey.
 - Click an entry's name to open its sheet.
 
 

@@ -148,7 +148,7 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
         return send(res, 201, await saveSheet(ws, { target: String(body.target ?? ''), draft: body.draft, reason: String(body.reason ?? '') }));
       }
       case 'GET /api/unreleased':
-        return send(res, 200, unreleased(ws));
+        return send(res, 200, unreleased(ws, { noise: param('all') === '1' }));
       case 'GET /api/pending':
         return send(res, 200, pendingChanges(ws));
       case 'POST /api/pending/undo':

@@ -23,14 +23,27 @@ export interface Fact {
   /** La fiche qui l'affiche. */
   target: string;
   field: string;
+  /** Ce qu'on compare : une liste triée, pour qu'un ordre différent ne compte pas. */
   value: string;
+  /** Ce qu'on montre, dans l'ordre du Dataset. */
+  shown: string;
+  /** Les éléments d'une liste. */
+  items?: string[];
 }
+
+/** Un champ : du texte, ou une liste dont l'ordre n'est que du bruit. */
+type Field = [string, string | string[]];
 
 export interface FieldChange {
   field: string;
   /** `null` : le champ n'existait pas. */
   before: string | null;
   after: string | null;
+  /** Pour une liste : ce qui en sort et ce qui y entre. */
+  removed?: string[];
+  added?: string[];
+  /** Rien n'a changé pour un joueur (une liste réordonnée) : montré seulement sur demande. */
+  noise?: true;
 }
 
 export interface EntityChange {
@@ -48,7 +61,6 @@ export interface ArmyChanges {
   entities: EntityChange[];
 }
 
-const list = (xs: string[]) => xs.join(', ') || '—';
 
 /** Une Weapon en une ligne : chacun de ses profils, nommé quand elle en a plusieurs. */
 export const weaponSignature = (w: Weapon) =>
@@ -65,7 +77,7 @@ const bands = (pricing: PriceBand[] | undefined) =>
     .join(' | ') || '—';
 
 /** Ce qu'une Rule fait et sa Description, sous un préfixe (« rule "Get Stuck In" · »). */
-const ruleFields = (prefix: string, body: RuleBody): [string, string][] => [
+const ruleFields = (prefix: string, body: RuleBody): Field[] => [
   [`${prefix}effect`, describeEffect(body)],
   [`${prefix}description`, body.summary ?? '—'],
 ];
@@ -74,33 +86,33 @@ const groupLine = (g: OptionGroup) =>
   `${g.pool ? `${g.minPicks}-${g.maxPicks} models` : `up to ${g.maxPicks}`}: ${g.options.map((o) => `${o.name}${o.weapons.length ? ` (${o.weapons.map((w) => w.split('|')[1]).join(', ')})` : ''}`).join(' / ')}`;
 
 /** Les champs d'une Unit, chacun en texte. */
-function unitFields(u: Unit): [string, string][] {
+function unitFields(u: Unit): Field[] {
   return [
     ['points', String(u.points)],
     ['MFM pricing', bands(u.pricing)],
     ['Assigned Agent pricing', bands(u.assignedPricing)],
     ['cost brackets', u.costBrackets.map((b) => `over ${b.overModels} models: ${b.points} pts`).join(', ') || '—'],
-    ['paid wargear', (u.wargear ?? []).map((w) => `${w.item} ${w.points} pts`).join(', ') || '—'],
+    ['paid wargear', (u.wargear ?? []).map((w) => `${w.item} ${w.points} pts`)],
     ['model count', `${u.minModels}-${u.maxModels}`],
-    ['composition', (u.composition ?? []).map((c) => `${c.min}-${c.max} ${c.name}`).join(', ') || '—'],
+    ['composition', (u.composition ?? []).map((c) => `${c.min}-${c.max} ${c.name}`)],
     ['Legends', u.isLegends ? 'yes' : 'no'],
     ['Supreme Commander', u.supremeCommander ? 'yes' : 'no'],
-    ...u.models.map((m): [string, string] => [`profile "${m.name}"`, `M${m.M} T${m.T} Sv${m.Sv}+ Inv${m.Inv < 7 ? `${m.Inv}+` : '—'} W${m.W} LD${m.LD} OC${m.OC}`]),
-    ['keywords', list(u.keywords)],
-    ['faction keywords', list(u.factionKeywords)],
-    ['army rules', list(u.armyRules)],
+    ...u.models.map((m): Field => [`profile "${m.name}"`, `M${m.M} T${m.T} Sv${m.Sv}+ Inv${m.Inv < 7 ? `${m.Inv}+` : '—'} W${m.W} LD${m.LD} OC${m.OC}`]),
+    ['keywords', u.keywords],
+    ['faction keywords', u.factionKeywords],
+    ['army rules', u.armyRules],
     ['statuses', u.statuses?.length ? describeModifiers(u.statuses) : '—'],
-    ['units led', list(u.leaderTargets)],
-    ['units supported', list(u.supportTargets)],
-    ['abilities', list(u.abilities.map((a) => a.name))],
+    ['units led', u.leaderTargets],
+    ['units supported', u.supportTargets],
+    ['abilities', u.abilities.map((a) => a.name)],
     ...u.abilities.flatMap((a) => ruleFields(`ability "${a.name}" · `, a)),
-    ...u.weapons.map((w): [string, string] => [`weapon "${w.name}"`, weaponSignature(w)]),
-    ['default loadout', (u.defaultLoadout ?? []).map((l) => `${l.count}× ${l.weapon}`).join(', ') || '—'],
-    ...(u.optionGroups ?? []).map((g): [string, string] => [`wargear options "${g.name}"`, groupLine(g)]),
+    ...u.weapons.map((w): Field => [`weapon "${w.name}"`, weaponSignature(w)]),
+    ['default loadout', (u.defaultLoadout ?? []).map((l) => `${l.count}× ${l.weapon}`)],
+    ...(u.optionGroups ?? []).map((g): Field => [`wargear options "${g.name}"`, groupLine(g)]),
   ];
 }
 
-function enhancementFields(e: Enhancement): [string, string][] {
+function enhancementFields(e: Enhancement): Field[] {
   const who = [
     e.requires.length ? `requires ${e.requires.map((g) => g.join(' ')).join(' or ')}` : '',
     e.excludes.length ? `excludes ${e.excludes.join(', ')}` : '',
@@ -115,17 +127,17 @@ function enhancementFields(e: Enhancement): [string, string][] {
   ];
 }
 
-function detachmentFields(d: Detachment): [string, string][] {
+function detachmentFields(d: Detachment): Field[] {
   return [
     ['DP', String(d.dp ?? '—')],
-    ['Force Dispositions', list(d.forceDispositions)],
+    ['Force Dispositions', d.forceDispositions],
     ['exclusive with', d.uniqueTag ?? '—'],
-    ...d.rules.flatMap((r) => [[`rule "${r.name}" · eligible`, filterLabel(r.eligibility) || 'all units'] as [string, string], ...ruleFields(`rule "${r.name}" · `, r)]),
+    ...d.rules.flatMap((r) => [[`rule "${r.name}" · eligible`, filterLabel(r.eligibility) || 'all units'] as Field, ...ruleFields(`rule "${r.name}" · `, r)]),
     ...d.enhancements.flatMap(enhancementFields),
   ];
 }
 
-const stratagemFields = (s: Stratagem, detachments: Map<string, string>): [string, string][] => [
+const stratagemFields = (s: Stratagem, detachments: Map<string, string>): Field[] => [
   ['CP', String(s.cp)],
   ['when', describeTiming(s)],
   ['category', s.category ?? '—'],
@@ -134,7 +146,7 @@ const stratagemFields = (s: Stratagem, detachments: Map<string, string>): [strin
   ...ruleFields('', s),
 ];
 
-const allyFields = (r: AllyRule): [string, string] => [
+const allyFields = (r: AllyRule): Field => [
   `ally rule "${r.name}"`,
   [
     r.armies ? `for ${r.armies.join(', ')}` : r.exceptArmies ? `except ${r.exceptArmies.join(', ')}` : 'for every army',
@@ -149,8 +161,14 @@ const armiesIn = (files: Map<string, unknown>, gameSystem: string) =>
 /** Un Dataset à plat : un fait par champ, sous une clé stable. */
 export function factsOf(files: Map<string, unknown>, gameSystem: string, home: Homes = homes(files)): Map<string, Fact> {
   const facts = new Map<string, Fact>();
-  const add = (base: Omit<Fact, 'field' | 'value'>, fields: [string, string][]) => {
-    for (const [field, value] of fields) facts.set(`${base.army}|${base.kind}|${base.id}|${field}`, { ...base, field, value });
+  const add = (base: Omit<Fact, 'field' | 'value' | 'shown' | 'items'>, fields: Field[]) => {
+    for (const [field, v] of fields) {
+      const fact: Fact = Array.isArray(v)
+        ? { ...base, field, value: [...v].sort().join(', ') || '—', shown: v.join(', ') || '—', items: v }
+        : { ...base, field, value: v, shown: v };
+      // Un champ vide n'est pas listé : son apparition se lit comme un ajout, sa disparition comme un retrait.
+      if (fact.shown !== '—') facts.set(`${base.army}|${base.kind}|${base.id}|${field}`, fact);
+    }
   };
   // Un élément que plusieurs Armies publient ne se lit qu'une fois, sous son Army d'origine.
   const mine = (army: string, target: string) => (home.homeOf(target) ?? army) === army;
@@ -178,12 +196,12 @@ export function factsOf(files: Map<string, unknown>, gameSystem: string, home: H
     const of = { army: CORE_ROOT, armyName: 'Core' };
     for (const s of core.stratagems) add({ ...of, kind: 'stratagem', id: s.id, name: s.name, target: `${CORE_ROOT}::stratagem:${s.id}` }, stratagemFields(s, new Map()));
     add({ ...of, kind: 'core', id: CORE_ROOT, name: 'Core', target: CORE_ROOT }, [
-      ...core.battleSizes.map((b): [string, string] => [
+      ...core.battleSizes.map((b): Field => [
         `battle size "${b.name}"`,
         `${b.points} pts · ${b.detachmentPoints} DP · ${b.enhancementLimit} Enhancements · ${b.unitLimit} copies of a Unit`,
       ]),
       ...(core.allyRules ?? []).map(allyFields),
-      ['default targets', core.referenceTargets.map((t) => `${t.name} ×${t.models}`).join(', ') || '—'],
+      ['default targets', core.referenceTargets.map((t) => `${t.name} ×${t.models}`)],
       ['sample list', core.sampleList ? `${core.sampleList.name} · ${core.sampleList.points} pts · ${core.sampleList.units.map((x) => x.name).join(', ')}` : '—'],
     ]);
   }
@@ -194,13 +212,13 @@ export function factsOf(files: Map<string, unknown>, gameSystem: string, home: H
  * Ce qui sépare deux Datasets, par Army puis par entité. L'Army d'origine d'un
  * élément partagé se lit dans le second, pour qu'il ne change pas de place.
  */
-export const diffFiles = (before: Map<string, unknown>, after: Map<string, unknown>, gameSystem: string): ArmyChanges[] => {
+export const diffFiles = (before: Map<string, unknown>, after: Map<string, unknown>, gameSystem: string, options: { noise?: boolean } = {}): ArmyChanges[] => {
   const home = homes(after);
-  return compareFacts(factsOf(before, gameSystem, home), factsOf(after, gameSystem, home));
+  return compareFacts(factsOf(before, gameSystem, home), factsOf(after, gameSystem, home), options);
 };
 
 /** Ce qui sépare deux Datasets mis à plat, par Army puis par entité. */
-export function compareFacts(before: Map<string, Fact>, after: Map<string, Fact>): ArmyChanges[] {
+export function compareFacts(before: Map<string, Fact>, after: Map<string, Fact>, options: { noise?: boolean } = {}): ArmyChanges[] {
   const armies = new Map<string, ArmyChanges>();
   const entities = new Map<string, EntityChange>();
   const entityKeys = (facts: Map<string, Fact>) => new Set([...facts.values()].map((f) => `${f.army}|${f.kind}|${f.id}`));
@@ -210,7 +228,8 @@ export function compareFacts(before: Map<string, Fact>, after: Map<string, Fact>
   for (const key of new Set([...before.keys(), ...after.keys()])) {
     const b = before.get(key);
     const a = after.get(key);
-    if (b?.value === a?.value) continue;
+    const same = b?.value === a?.value;
+    if (same && (b?.shown === a?.shown || !options.noise)) continue;
     const f = (a ?? b)!;
     const entityKey = `${f.army}|${f.kind}|${f.id}`;
     let army = armies.get(f.army);
@@ -221,7 +240,13 @@ export function compareFacts(before: Map<string, Fact>, after: Map<string, Fact>
       entities.set(entityKey, (entity = { kind: f.kind, id: f.id, name: f.name, target: f.target, status, changes: [] }));
       army.entities.push(entity);
     }
-    entity.changes.push({ field: f.field, before: b?.value ?? null, after: a?.value ?? null });
+    const change: FieldChange = { field: f.field, before: b?.shown ?? null, after: a?.shown ?? null };
+    if (b?.items && a?.items) {
+      change.removed = b.items.filter((x) => !a.items!.includes(x));
+      change.added = a.items.filter((x) => !b.items!.includes(x));
+    }
+    if (same) change.noise = true;
+    entity.changes.push(change);
   }
   return [...armies.values()].sort((x, y) => x.name.localeCompare(y.name));
 }
