@@ -348,3 +348,43 @@ section('Tableau de bord : sources et auteurs');
     rmSync(repo.dir, { recursive: true, force: true });
   }
 }
+
+section('Tableau de bord : les Corrections que BSData a rattrapées');
+{
+  const repo = await datasetRepo();
+  repo.write('manifest.json', repo.manifest('wh40k-11e-mfm-1-4-r1', ['wh40k-11e-mfm-1-4-r1']));
+  repo.commit('Release r1');
+  repo.git('tag', 'wh40k-11e-mfm-1-4-r1');
+  // Le Choppa des Boyz : BSData donne déjà la Force que sa Correction force.
+  const choppa = 'corrections/wh40k-11e/orks/boyz-choppa-strength.json';
+
+  const { ws, gui, at } = await serve(repo.dir);
+  const post = async <T>(path: string, body: unknown = {}) =>
+    (await fetch(new URL(path, gui.url), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json() as Promise<T>;
+  try {
+    const u = await at<Unreleased>('/api/unreleased');
+    const caught = u.caughtUp.find((c) => c.path === choppa);
+    check(
+      'une Correction rattrapée est listée, sous son Army, avec sa fiche et sa raison',
+      u.caughtUp.length === 1 && caught?.army === 'orks' && caught.armyName === 'Orks' && caught.sheet === 'u-boyz' && caught.label === 'Boyz › Choppa' && caught.fields.join() === 'profiles' && caught.reason.length > 0,
+      JSON.stringify(u.caughtUp),
+    );
+    const removed = await post<{ removed: string[] }>('/api/corrections/remove-caught-up');
+    await ws.refresh();
+    const pending = await at<{ id: string; path: string; action: string }[]>('/api/pending');
+    check(
+      'les retirer les supprime toutes, et seulement elles : des Pending Changes',
+      removed.removed.join() === choppa && pending.length === 1 && pending[0].path === choppa && pending[0].action === 'deleted',
+      JSON.stringify({ removed, pending }),
+    );
+    const after = await at<Unreleased>('/api/unreleased');
+    check('la valeur publiée ne bouge pas : aucun Unreleased Change', after.armies.length === 0 && after.caughtUp.length === 0, JSON.stringify(after.armies));
+    await post('/api/pending/undo', { id: pending[0].id });
+    await ws.refresh();
+    const back = await at<Unreleased>('/api/unreleased');
+    check('une suppression s\'annule comme toute Pending Change', back.caughtUp.length === 1, JSON.stringify(back.caughtUp));
+  } finally {
+    await gui.close();
+    rmSync(repo.dir, { recursive: true, force: true });
+  }
+}

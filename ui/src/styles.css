@@ -509,3 +509,5 @@ h1 .home:hover { color: var(--accent); }
 .stage.local { color: var(--unknown); }
 .origin { font-size: 11px; color: var(--muted); margin-left: 2px; white-space: nowrap; }
 .origin.correction, .origin.contribution { color: var(--accent); }
+.caught-up .hint { margin: 6px 0; }
+.caught-up .change-field { text-align: left; }

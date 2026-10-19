@@ -119,6 +119,11 @@ sheet.
   identifiers, the registry. **Show everything** brings reordered lists back,
   in grey.
 - Click an entry's name to open its sheet.
+- **Caught up by their source** lists the corrections BSData or the MFM has
+  caught up with (*stale*): the dataset is the same without them. **Remove the
+  caught-up corrections** deletes them all at once; each deletion is a pending
+  change, proposed and reviewed like any other, and can be undone. Nothing is
+  removed on its own.
 
 
 ### Finding a sheet

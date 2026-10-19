@@ -6,11 +6,13 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { indexPath, manifestPath, type DatasetIndex, type Manifest, type SourceRef } from '@paintplanplay/dataset-schema';
+import { indexPath, manifestPath, type ArmyFile, type DatasetIndex, type Manifest, type SourceRef } from '@paintplanplay/dataset-schema';
 import { contributionsPath } from '../authored.ts';
 import { diffFiles, type ArmyChanges, type FieldChange, type Stage } from '../changes.ts';
 import { parseTarget } from '../corrections/apply.ts';
+import { readCorrections } from '../corrections/files.ts';
 import type { CorrectionVerdict } from '../corrections/lifecycle.ts';
+import { deleteCorrection } from './sheets.ts';
 import { sheetOfTarget } from './targets.ts';
 import { defaultProbe, type Probe, type PullRequest } from './overview.ts';
 import { isRepository } from './pending.ts';
@@ -37,6 +39,72 @@ export interface Unreleased {
   armies: ArmyChanges[];
   /** La PR ouverte depuis la branche du dossier, d'où viennent les changements « proposés ». */
   pullRequest: PullRequest | null;
+  /** Les Corrections que leur Upstream Source a rattrapées : elles ne changent plus rien, à retirer. */
+  caughtUp: CaughtUp[];
+}
+
+export interface CaughtUp {
+  army: string;
+  armyName: string;
+  path: string;
+  target: string;
+  /** La fiche qui affiche l'élément corrigé. */
+  sheet: string;
+  /** L'élément corrigé, nommé : « Boyz › Choppa ». */
+  label: string;
+  /** Les champs qu'elle force. */
+  fields: string[];
+  reason: string;
+  note: string;
+}
+
+/** Les Corrections *stale* de la construction courante, par Army. */
+function caughtUpOf(ws: Workspace): CaughtUp[] {
+  const stale = (ws.current?.corrections ?? []).filter((v) => v.state === 'stale');
+  if (!stale.length) return [];
+  const index = ws.current?.files.get(indexPath(ws.gameSystem)) as DatasetIndex | undefined;
+  const names = new Map((index?.armies ?? []).map((a) => [a.id, a.name]));
+  // Le nom de ce que vise une adresse : l'Unit ou l'entité de l'Army, puis l'élément.
+  const entities = new Map<string, string>();
+  for (const [path, file] of ws.current?.files ?? []) {
+    if (!path.startsWith(`${ws.gameSystem}/armies/`)) continue;
+    const a = file as ArmyFile;
+    for (const u of a.units) entities.set(u.id, u.name);
+    for (const d of a.detachments) entities.set(`${a.id}::detachment:${d.id}`, d.name);
+    for (const x of a.stratagems) entities.set(`${a.id}::stratagem:${x.id}`, x.name);
+    for (const r of a.armyRules ?? []) entities.set(`${a.id}::armyrule:${r.id}`, r.name);
+  }
+  const patches = new Map(readCorrections(ws.datasetDir, ws.gameSystem).map((c) => [c.path, Object.keys(c.patch)]));
+  return stale
+    .map((v) => {
+      // corrections/<gameSystem>/<army>/<fichier>.json
+      const army = v.path.split('/')[2] ?? '';
+      const sheet = sheetOfTarget(v.target);
+      const { name } = parseTarget(v.target);
+      const element = sheet === v.target ? '' : (name.split('|').pop() ?? '');
+      return {
+        army,
+        armyName: army === 'core' ? 'Core' : (names.get(army) ?? army),
+        path: v.path,
+        target: v.target,
+        sheet,
+        label: [entities.get(sheet) ?? sheet, element].filter(Boolean).join(' › '),
+        fields: (patches.get(v.path) ?? []).filter((f) => !f.startsWith('__')),
+        reason: v.reason,
+        note: v.note,
+      };
+    })
+    .sort((a, b) => a.armyName.localeCompare(b.armyName) || a.path.localeCompare(b.path));
+}
+
+/**
+ * Retirer d'un coup les Corrections rattrapées : chacune devient une Pending
+ * Change, proposée et relue comme les autres. Rien ne change pour un joueur.
+ */
+export function removeCaughtUp(ws: Workspace): { removed: string[] } {
+  const removed = caughtUpOf(ws).map((c) => c.path);
+  for (const path of removed) deleteCorrection(ws, { path });
+  return { removed };
 }
 
 /**
@@ -75,7 +143,7 @@ const tagExists = (dir: string, tag: string) => {
   }
 };
 
-const empty = (release: string | null, note: string): Unreleased => ({ release, note, sources: [], armies: [], pullRequest: null });
+const empty = (ws: Workspace, release: string | null, note: string): Unreleased => ({ release, note, sources: [], armies: [], pullRequest: null, caughtUp: caughtUpOf(ws) });
 
 const revParse = (dir: string, ref: string): string | null => {
   try {
@@ -111,12 +179,12 @@ function stagesOf(dir: string): { stages: [Stage, string][]; proposing: boolean 
  * @param options.probe d'où vient le lien de la PR ; les tests le remplacent.
  */
 export function unreleased(ws: Workspace, options: { noise?: boolean; probe?: Probe } = {}): Unreleased {
-  if (!ws.current) return empty(null, 'no Dataset yet: click Update data');
+  if (!ws.current) return empty(ws, null, 'no Dataset yet: click Update data');
   const manifest = readManifest(ws.datasetDir);
   const release = manifest?.dataslates.find((d) => d.id === manifest.current)?.latest || null;
-  if (!release) return empty(null, 'no Dataset Release yet: everything is unreleased');
+  if (!release) return empty(ws, null, 'no Dataset Release yet: everything is unreleased');
   if (!isRepository(ws.datasetDir) || !tagExists(ws.datasetDir, release))
-    return empty(release, `Release ${release} is not in the Dataset folder: click Update data`);
+    return empty(ws, release, `Release ${release} is not in the Dataset folder: click Update data`);
 
   const released = readDatasetAt(ws.datasetDir, release, ws.gameSystem);
   const current = ws.current.files;
@@ -142,7 +210,7 @@ export function unreleased(ws: Workspace, options: { noise?: boolean; probe?: Pr
   });
   const armies = diffFiles(released, current, ws.gameSystem, { noise: options.noise, stages: between, ...(ws.bare ? { bare: ws.bare.files } : {}) });
   attribute(ws, armies);
-  return { release, sources, armies, pullRequest: proposing ? (options.probe ?? defaultProbe).pullRequest(ws.datasetDir) : null };
+  return { release, sources, armies, pullRequest: proposing ? (options.probe ?? defaultProbe).pullRequest(ws.datasetDir) : null, caughtUp: caughtUpOf(ws) };
 }
 
 /**

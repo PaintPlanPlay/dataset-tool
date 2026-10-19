@@ -16,7 +16,7 @@ import type { AddressInfo } from 'node:net';
 import { ApiError, datasetOf, recordUpstreamPr, refreshing, startJob, upstreamDraft } from './api.ts';
 import { JobRunner } from './jobs.ts';
 import { defaultProbe, overview, type Probe } from './overview.ts';
-import { unreleased } from './unreleased.ts';
+import { removeCaughtUp, unreleased } from './unreleased.ts';
 import { pendingChanges, pendingFingerprint, undoPending } from './pending.ts';
 import { checkDraft, deleteCorrection, listCorrections, saveSheet, sheetOf, suggestions } from './sheets.ts';
 import { inspect, search } from './provenance.ts';
@@ -157,6 +157,8 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
         return send(res, 200, { ok: true });
       case 'GET /api/corrections':
         return send(res, 200, listCorrections(ws, param('sheet'), param('q')));
+      case 'POST /api/corrections/remove-caught-up':
+        return send(res, 200, removeCaughtUp(ws));
       case 'POST /api/corrections/delete': {
         const body = await readBody(req);
         deleteCorrection(ws, { path: typeof body.path === 'string' ? body.path : undefined, target: typeof body.target === 'string' ? body.target : undefined });

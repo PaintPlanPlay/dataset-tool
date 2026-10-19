@@ -312,7 +312,7 @@ export function App() {
           (overview && !overview.workspace.dataset ? (
             <p className="empty hint">Nothing here yet: click Update data to fetch the Dataset and a snapshot of its sources. It takes a few minutes, once.</p>
           ) : (
-            <Dashboard overview={overview} onOpen={open} />
+            <Dashboard overview={overview} onOpen={open} onWrite={(done) => void afterWrite(done)} />
           ))
         )}
       </main>

@@ -5,7 +5,7 @@
  * arrive, Army par Army, chaque changement à son étape.
  */
 import { useEffect, useState } from 'react';
-import { api, type ArmyChanges, type EntityChange, type FieldChange, type Origin, type Overview, type SourceShift, type Stage, type Unreleased } from './api.ts';
+import { api, type ArmyChanges, type CaughtUp, type EntityChange, type FieldChange, type Origin, type Overview, type SourceShift, type Stage, type Unreleased } from './api.ts';
 
 const SOURCE: Record<string, string> = { bsdata: 'BSData', mfm: 'MFM' };
 const KIND: Record<EntityChange['kind'], string> = { unit: 'Unit', detachment: 'Detachment', stratagem: 'Stratagem', armyRule: 'Army Rule', core: 'Core' };
@@ -120,6 +120,55 @@ function Entity({ entity, onOpen }: { entity: EntityChange; onOpen: (target: str
   );
 }
 
+/** Les Corrections que BSData a rattrapées : elles ne changent plus rien, on les retire d'un geste. */
+function CaughtUpList({ items, onOpen, onRemoved }: { items: CaughtUp[]; onOpen: (target: string) => void; onRemoved: (removed: string[]) => void }) {
+  const [busy, setBusy] = useState(false);
+  const armies = [...new Set(items.map((c) => c.armyName))];
+  return (
+    <details className="army caught-up">
+      <summary>
+        <b>Caught up by their source</b> <span className="count">{items.length} Correction(s) that change nothing any more</span>
+      </summary>
+      <p className="hint">
+        ✓ BSData or the MFM fixed these too: the Dataset is the same without them. Removing them makes Pending Changes, proposed like any other; nothing
+        changes for players.
+      </p>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            onRemoved((await api.removeCaughtUp()).removed);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        Remove the {items.length} caught-up Correction(s)
+      </button>
+      {armies.map((name) => (
+        <div className="entity" key={name}>
+          <b>{name}</b>
+          {items
+            .filter((c) => c.armyName === name)
+            .map((c) => (
+              <div className="change" key={c.path}>
+                <button type="button" className="link change-field" onClick={() => onOpen(c.sheet)} title={c.path}>
+                  {c.label}
+                </button>
+                <span className="lines">
+                  <span>✓ {c.fields.join(', ') || 'the element'}: the source now says the same</span>
+                  <span className="hint">{c.reason}</span>
+                </span>
+              </div>
+            ))}
+        </div>
+      ))}
+    </details>
+  );
+}
+
 /** Ne garder que les changements qu'un filtre retient, et ce qui en porte encore. */
 function keep(armies: ArmyChanges[], ok: (c: FieldChange) => boolean): ArmyChanges[] {
   return armies
@@ -127,7 +176,14 @@ function keep(armies: ArmyChanges[], ok: (c: FieldChange) => boolean): ArmyChang
     .filter((a) => a.entities.length);
 }
 
-export function Dashboard({ overview, onOpen }: { overview: Overview | null; onOpen: (target: string) => void }) {
+interface Props {
+  overview: Overview | null;
+  onOpen: (target: string) => void;
+  /** Après une écriture : relire les Pending Changes, reconstruire. */
+  onWrite: (done: string) => void;
+}
+
+export function Dashboard({ overview, onOpen, onWrite }: Props) {
   const [data, setData] = useState<Unreleased | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [all, setAll] = useState(false);
@@ -209,6 +265,7 @@ export function Dashboard({ overview, onOpen }: { overview: Overview | null; onO
         )}
       </header>
       {data.release && !data.note && changes.length === 0 && <p className="empty">Nothing differs from the Release in production.</p>}
+      {data.caughtUp.length > 0 && <CaughtUpList items={data.caughtUp} onOpen={onOpen} onRemoved={(r) => onWrite(`${r.length} caught-up Correction(s) removed`)} />}
       {armies.map((a) => (
         <details className="army" key={a.id} open={armies.length === 1}>
           <summary>
