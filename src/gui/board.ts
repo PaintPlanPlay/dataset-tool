@@ -5,6 +5,7 @@
  */
 import type { ArmyFile, DatasetIndex } from '@paintplanplay/dataset-schema';
 import { indexPath } from '@paintplanplay/dataset-schema';
+import { readContributionFiles } from '../authored.ts';
 import type { BuildOutput } from '../build.ts';
 import { STAGES, type ArmyChanges, type Origin, type Stage } from '../changes.ts';
 import { CORE_ROOT, parseTarget } from '../corrections/apply.ts';
@@ -102,8 +103,14 @@ export function findingsOf(ws: Workspace): Finding[] {
     const file = files.find((c) => c.target === o.target);
     found.push({ army: file ? folder(file.path) : t.armyOf(o.target), kind: 'orphan', label: o.target, detail: `${o.why}${file ? ` — ${file.path}` : ''}` });
   }
+  // Une Contribution dont la cible a disparu se range encore sous l'Army de son fichier.
+  const home = new Map<string, string>();
+  for (const [path, entries] of readContributionFiles(ws.datasetDir, ws.gameSystem)) {
+    const army = /\/armies\/([^/]+)\.json$/.exec(path)?.[1];
+    if (army) for (const e of entries) home.set(e.target, army);
+  }
   for (const c of out.contributions ?? [])
-    if (c.state !== 'active') found.push({ army: t.armyOf(c.target), kind: 'contribution', label: t.label(c.target), detail: `${c.state}: ${c.note}`, sheet: sheetOfTarget(c.target) });
+    if (c.state !== 'active') found.push({ army: t.armyOf(c.target) || (home.get(c.target) ?? ''), kind: 'contribution', label: t.label(c.target), detail: `${c.state}: ${c.note}`, sheet: sheetOfTarget(c.target) });
   for (const c of out.conflicts ?? [])
     found.push({
       army: c.army,

@@ -47,6 +47,8 @@ export interface Unreleased {
   totals: Counters;
   /** Ce que comptent les chiffres « à traiter » et « à compléter ». */
   findings: Finding[];
+  /** Pour Publish Release : ce qui partira (fusionné), et ce qui restera de côté (proposé ou local). */
+  publish: { changes: number; armies: number; leftOut: number };
 }
 
 export interface CaughtUp {
@@ -138,7 +140,9 @@ const tagExists = (dir: string, tag: string) => {
 /** Ce qui ne dépend pas de la Release : les compteurs de ce qui est à traiter, les Corrections rattrapées. */
 function around(ws: Workspace, armies: ArmyChanges[]) {
   const findings = findingsOf(ws);
-  return { ...boardOf(ws, armies, findings), findings, caughtUp: caughtUpOf(ws) };
+  const { board, totals } = boardOf(ws, armies, findings);
+  const publish = { changes: totals.stages.merged, armies: board.filter((r) => r.stages.merged > 0).length, leftOut: totals.stages.proposed + totals.stages.local };
+  return { board, totals, findings, publish, caughtUp: caughtUpOf(ws) };
 }
 
 const empty = (ws: Workspace, release: string | null, note: string): Unreleased => ({ release, note, sources: [], armies: [], pullRequest: null, ...around(ws, []) });

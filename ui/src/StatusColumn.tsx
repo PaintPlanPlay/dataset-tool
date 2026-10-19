@@ -5,7 +5,7 @@
  * pourquoi) vient de l'API.
  */
 import { useEffect, useRef, useState } from 'react';
-import { api, type ButtonName, type ButtonState, type JobReport, type Overview, type PendingChange } from './api.ts';
+import { api, type ButtonName, type ButtonState, type JobReport, type Overview, type PendingChange, type Unreleased } from './api.ts';
 import { toast } from './Toast.tsx';
 
 const LABEL: Record<ButtonName, string> = {
@@ -227,7 +227,7 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
         )}
       </section>
 
-      {asking && <AskForm button={asking} onCancel={() => setAsking(null)} onSubmit={(body) => void start(asking, body)} />}
+      {asking && <AskForm button={asking} onCancel={() => setAsking(null)} onSubmit={(body) => void start(asking, body)} onHome={onHome} />}
 
       {report?.job && (
         <section className="job">
@@ -241,8 +241,51 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
   );
 }
 
+/**
+ * Le dernier coup d'œil avant de publier : ce que la Release emporte (ce qui
+ * est fusionné), et ce qu'elle laisse de côté (proposé, ou seulement local).
+ */
+function ReleaseSummary({ onHome }: { onHome: () => void }) {
+  const [summary, setSummary] = useState<Unreleased['publish'] | null>(null);
+  useEffect(() => {
+    api.unreleased().then((u) => setSummary(u.publish), () => setSummary(null));
+  }, []);
+  if (!summary) return null;
+  return (
+    <div className="release-summary">
+      <p>
+        {summary.changes ? (
+          <>
+            This Release publishes <b>{summary.changes} change(s)</b> in {summary.armies} Army(ies).
+          </>
+        ) : (
+          'Nothing merged differs from the Release in production.'
+        )}{' '}
+        <button type="button" className="link" onClick={onHome}>
+          See them on the dashboard
+        </button>
+      </p>
+      {summary.leftOut > 0 && (
+        <p className="warning-line">
+          {summary.leftOut} proposed or local change(s) are not merged: they will not be part of this Release.
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** Ce qu'une tâche demande avant de partir : un titre de PR, une Dataslate. */
-function AskForm({ button, onCancel, onSubmit }: { button: ButtonState; onCancel: () => void; onSubmit: (body: Record<string, string>) => void }) {
+function AskForm({
+  button,
+  onCancel,
+  onSubmit,
+  onHome,
+}: {
+  button: ButtonState;
+  onCancel: () => void;
+  onSubmit: (body: Record<string, string>) => void;
+  onHome: () => void;
+}) {
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(button.asks.map((f) => [f.name, f.value ?? ''])));
   return (
     <form
@@ -252,6 +295,7 @@ function AskForm({ button, onCancel, onSubmit }: { button: ButtonState; onCancel
         onSubmit(values);
       }}
     >
+      {button.name === 'release' && <ReleaseSummary onHome={onHome} />}
       {button.asks.map((f) =>
         f.kind === 'checkbox' ? (
           <label key={f.name} className="ask-check">

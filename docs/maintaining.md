@@ -92,6 +92,11 @@ In the interface, **Publish Release** is shown only to accounts with write
 access to the dataset repository, and opens once something was merged since the
 last release. The tool must have been started with `--allow-push`.
 
+Its form opens with a last look at what you are about to publish: how many
+changes are merged, in how many armies, with a link to the dashboard to read
+them; and a warning when proposed or local changes exist — they are not merged,
+so they will not be part of the release.
+
 It asks four things, and proposes an answer to each:
 
 | Question | What it is | Usual answer |

@@ -301,6 +301,11 @@ section('Tableau de bord : les étapes');
       JSON.stringify(bsdata),
     );
     check('la proposition donne le lien de sa PR', u.pullRequest?.url === pr.url, JSON.stringify(u.pullRequest));
+    check(
+      'Publish Release : ce qui part (sur main), et ce qui reste de côté (proposé, local)',
+      JSON.stringify(u.publish) === JSON.stringify({ changes: 1, armies: 1, leftOut: 2 }),
+      JSON.stringify(u.publish),
+    );
     check('chaque Army compte ses changements par étape', JSON.stringify(u.armies.find((x) => x.id === 'orks')?.stages) === JSON.stringify({ merged: 1, proposed: 1, local: 1 }), JSON.stringify(u.armies.find((x) => x.id === 'orks')?.stages));
   } finally {
     await gui.close();
@@ -398,6 +403,8 @@ section('Tableau de bord : les compteurs');
   repo.git('tag', 'wh40k-11e-mfm-1-4-r1');
   // Une Correction dont la cible n'existe pas : orpheline, à traiter chez les Orks.
   repo.write('corrections/wh40k-11e/orks/ghost.json', { target: 'u-ghost', source: 'mfm', patch: { points: 1 }, upstream: { points: 2 }, reason: 'Test.' });
+  // Une Contribution dont l'Unit n'existe plus : elle se range sous l'Army de son fichier.
+  repo.edit<unknown[]>('authored/wh40k-11e/armies/orks.json', (entries) => entries.push({ target: 'u-ghost::ability:Spooky', reason: 'Test.', summary: 'Spooky.' }));
 
   const { gui, at } = await serve(repo.dir);
   try {
@@ -423,6 +430,8 @@ section('Tableau de bord : les compteurs');
       u.board.map((r) => `${r.id}:${r.todo}`).join(' '),
     );
     const ghost = u.findings.filter((f) => f.army === 'orks' && f.kind === 'orphan');
+    const spooky = u.findings.find((f) => f.label.includes('Spooky'));
+    check('une Contribution dont la cible a disparu reste sous l\'Army de son fichier', spooky?.kind === 'contribution' && spooky.army === 'orks', JSON.stringify(spooky));
     check('un chiffre mène à sa liste : les constats, par Army et par sorte', ghost.length === 1 && ghost[0].label.includes('u-ghost'), JSON.stringify(ghost));
   } finally {
     await gui.close();

@@ -520,3 +520,6 @@ h1 .home:hover { color: var(--accent); }
 .findings header { display: flex; gap: 8px; align-items: baseline; }
 .findings header .link { margin-left: auto; }
 .findings .change-field { text-align: left; }
+.release-summary { display: grid; gap: 4px; font-size: 13px; }
+.release-summary p { margin: 0; }
+.release-summary .warning-line { color: var(--late); }
