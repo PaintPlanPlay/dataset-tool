@@ -135,3 +135,53 @@ section('Tableau de bord : sans Release');
     rmSync(repo.dir, { recursive: true, force: true });
   }
 }
+
+section('Tableau de bord : toutes les entités');
+{
+  const repo = await datasetRepo();
+  type Mutable = ArmyFile & { units: (ArmyFile['units'][number] & { optionGroups?: { id: string; maxPicks: number }[] })[] };
+  repo.edit<Mutable>(ORKS, (a) => {
+    const horde = a.detachments.find((d) => d.id === 'war-horde')!;
+    horde.dp = 99;
+    horde.rules.find((r) => r.id === 'get-stuck-in')!.modifiers = [{ key: 'hit', value: 1, target: 'self' }];
+    horde.enhancements.find((e) => e.id === 'follow-me-ladz')!.points = 1;
+    a.stratagems.find((s) => s.id === 'ere-we-go')!.cp = 3;
+    a.stratagems.push({ ...a.stratagems[0], id: 'gone-strat', name: 'Gone Stratagem' });
+    a.armyRules!.find((r) => r.id === 'waaagh')!.summary = 'An old summary.';
+    a.units.find((u) => u.id === 'u-boyz')!.optionGroups!.find((g) => g.id === 'g-special')!.maxPicks = 1;
+  });
+  repo.edit<{ stratagems: { id: string; cp: number }[]; battleSizes: unknown[] }>(`${GS}/core.json`, (c) => {
+    c.stratagems.find((s) => s.id === 'command-re-roll')!.cp = 9;
+    c.battleSizes.push({ points: 500, name: 'Combat Patrol', detachmentPoints: 1, enhancementLimit: 1, unitLimit: 1 });
+  });
+  repo.write('manifest.json', repo.manifest('wh40k-11e-mfm-1-4-r1', ['wh40k-11e-mfm-1-4-r1']));
+  repo.commit('Release r1');
+  repo.git('tag', 'wh40k-11e-mfm-1-4-r1');
+
+  const { gui, at } = await serve(repo.dir);
+  try {
+    const u = await at<Unreleased>('/api/unreleased');
+    const entity = (army: string, kind: string, id: string) => u.armies.find((a) => a.id === army)?.entities.find((e) => e.kind === kind && e.id === id);
+    const change = (army: string, kind: string, id: string, field: RegExp) => entity(army, kind, id)?.changes.find((c) => field.test(c.field));
+    const horde = entity('orks', 'detachment', 'war-horde');
+    check('Detachment : ses DP, sous son Army, ouvrant sa fiche', change('orks', 'detachment', 'war-horde', /^DP$/)?.before === '99' && horde?.target === 'orks::detachment:war-horde', JSON.stringify(horde));
+    check('Detachment Rule : ce que font ses Modifiers', Boolean(change('orks', 'detachment', 'war-horde', /Get Stuck In/i)?.before?.includes('to Hit')), JSON.stringify(horde?.changes));
+    check('Enhancement : ses points', change('orks', 'detachment', 'war-horde', /Follow Me Ladz/i)?.before?.includes('1 pts') === true, JSON.stringify(horde?.changes));
+    check(
+      'un Detachment que deux Armies publient ne se lit qu\'une fois, sous son Army d\'origine',
+      !entity('orks-freebooterz', 'detachment', 'war-horde'),
+      u.armies.map((a) => `${a.id}: ${a.entities.map((e) => e.id).join(',')}`).join(' / '),
+    );
+    const strat = entity('orks', 'stratagem', 'ere-we-go');
+    check('Stratagem : son coût, ouvrant sa fiche', strat?.target === 'orks::stratagem:ere-we-go' && change('orks', 'stratagem', 'ere-we-go', /^CP$/)?.before === '3', JSON.stringify(strat));
+    check('un Stratagem retiré est marqué retiré', entity('orks', 'stratagem', 'gone-strat')?.status === 'removed');
+    const rule = entity('orks', 'armyRule', 'waaagh');
+    check('Army Rule : sa Description', rule?.target === 'orks::armyrule:waaagh' && change('orks', 'armyRule', 'waaagh', /description/i)?.before === 'An old summary.', JSON.stringify(rule));
+    check('groupe d\'options d\'équipement', Boolean(change('orks', 'unit', 'u-boyz', /Special Weapons/)), JSON.stringify(entity('orks', 'unit', 'u-boyz')));
+    const core = u.armies.find((a) => a.id === 'core');
+    check('Core : un groupe à part, ses Stratagems et ses Battle Sizes', core?.name === 'Core' && change('core', 'stratagem', 'command-re-roll', /^CP$/)?.before === '9' && change('core', 'core', 'core', /Combat Patrol/)?.after === null, JSON.stringify(core));
+  } finally {
+    await gui.close();
+    rmSync(repo.dir, { recursive: true, force: true });
+  }
+}

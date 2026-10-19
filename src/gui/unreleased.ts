@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { indexPath, manifestPath, type DatasetIndex, type Manifest, type SourceRef } from '@paintplanplay/dataset-schema';
-import { compareFacts, factsOf, type ArmyChanges } from '../changes.ts';
+import { diffFiles, type ArmyChanges } from '../changes.ts';
 import { isRepository } from './pending.ts';
 import type { Workspace } from './workspace.ts';
 
@@ -91,5 +91,5 @@ export function unreleased(ws: Workspace): Unreleased {
       ...(a?.version ? { afterVersion: a.version } : {}),
     };
   });
-  return { release, sources, armies: compareFacts(factsOf(released, ws.gameSystem), factsOf(current, ws.gameSystem)) };
+  return { release, sources, armies: diffFiles(released, current, ws.gameSystem) };
 }

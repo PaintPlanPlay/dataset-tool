@@ -6,7 +6,10 @@
  * Datasets se comparent fait à fait ; les changements se regroupent par Army
  * puis par entité. Le tableau de bord et le drift report lisent la même chose.
  */
-import type { ArmyFile, Unit } from '@paintplanplay/dataset-schema';
+import type { AllyRule, ArmyFile, CoreFile, Detachment, Enhancement, OptionGroup, PriceBand, RuleBody, Stratagem, Unit, Weapon } from '@paintplanplay/dataset-schema';
+import { CORE_ROOT } from './corrections/apply.ts';
+import { describeEffect, describeModifiers, describeTiming, filterLabel } from './describe.ts';
+import { homes, type Homes } from './home.ts';
 
 export type EntityKind = 'unit' | 'detachment' | 'stratagem' | 'armyRule' | 'core';
 
@@ -48,7 +51,7 @@ export interface ArmyChanges {
 const list = (xs: string[]) => xs.join(', ') || '—';
 
 /** Une Weapon en une ligne : chacun de ses profils, nommé quand elle en a plusieurs. */
-export const weaponSignature = (w: Unit['weapons'][number]) =>
+export const weaponSignature = (w: Weapon) =>
   w.profiles
     .map(
       (p) =>
@@ -56,41 +59,145 @@ export const weaponSignature = (w: Unit['weapons'][number]) =>
     )
     .join(' | ');
 
+const bands = (pricing: PriceBand[] | undefined) =>
+  (pricing ?? [])
+    .map((b) => `${b.from}${b.to === null ? '+' : b.to === b.from ? '' : `-${b.to}`}: ${b.costs.map((c) => `${c.addon ? '+' : ''}${c.models} models ${c.points} pts${c.desc ? ` (${c.desc})` : ''}`).join(', ')}`)
+    .join(' | ') || '—';
+
+/** Ce qu'une Rule fait et sa Description, sous un préfixe (« rule "Get Stuck In" · »). */
+const ruleFields = (prefix: string, body: RuleBody): [string, string][] => [
+  [`${prefix}effect`, describeEffect(body)],
+  [`${prefix}description`, body.summary ?? '—'],
+];
+
+const groupLine = (g: OptionGroup) =>
+  `${g.pool ? `${g.minPicks}-${g.maxPicks} models` : `up to ${g.maxPicks}`}: ${g.options.map((o) => `${o.name}${o.weapons.length ? ` (${o.weapons.map((w) => w.split('|')[1]).join(', ')})` : ''}`).join(' / ')}`;
+
 /** Les champs d'une Unit, chacun en texte. */
 function unitFields(u: Unit): [string, string][] {
-  const fields: [string, string][] = [
+  return [
     ['points', String(u.points)],
-    ['MFM pricing', JSON.stringify(u.pricing ?? [])],
-    ['paid wargear', (u.wargear ?? []).map((w) => `${w.item} ${w.points}`).join(', ') || '—'],
+    ['MFM pricing', bands(u.pricing)],
+    ['Assigned Agent pricing', bands(u.assignedPricing)],
+    ['cost brackets', u.costBrackets.map((b) => `over ${b.overModels} models: ${b.points} pts`).join(', ') || '—'],
+    ['paid wargear', (u.wargear ?? []).map((w) => `${w.item} ${w.points} pts`).join(', ') || '—'],
     ['model count', `${u.minModels}-${u.maxModels}`],
+    ['composition', (u.composition ?? []).map((c) => `${c.min}-${c.max} ${c.name}`).join(', ') || '—'],
+    ['Legends', u.isLegends ? 'yes' : 'no'],
+    ['Supreme Commander', u.supremeCommander ? 'yes' : 'no'],
     ...u.models.map((m): [string, string] => [`profile "${m.name}"`, `M${m.M} T${m.T} Sv${m.Sv}+ Inv${m.Inv < 7 ? `${m.Inv}+` : '—'} W${m.W} LD${m.LD} OC${m.OC}`]),
     ['keywords', list(u.keywords)],
     ['faction keywords', list(u.factionKeywords)],
     ['army rules', list(u.armyRules)],
+    ['statuses', u.statuses?.length ? describeModifiers(u.statuses) : '—'],
     ['units led', list(u.leaderTargets)],
     ['units supported', list(u.supportTargets)],
     ['abilities', list(u.abilities.map((a) => a.name))],
+    ...u.abilities.flatMap((a) => ruleFields(`ability "${a.name}" · `, a)),
     ...u.weapons.map((w): [string, string] => [`weapon "${w.name}"`, weaponSignature(w)]),
+    ['default loadout', (u.defaultLoadout ?? []).map((l) => `${l.count}× ${l.weapon}`).join(', ') || '—'],
+    ...(u.optionGroups ?? []).map((g): [string, string] => [`wargear options "${g.name}"`, groupLine(g)]),
   ];
-  return fields;
 }
+
+function enhancementFields(e: Enhancement): [string, string][] {
+  const who = [
+    e.requires.length ? `requires ${e.requires.map((g) => g.join(' ')).join(' or ')}` : '',
+    e.excludes.length ? `excludes ${e.excludes.join(', ')}` : '',
+    e.leaderTo?.length ? `leads ${e.leaderTo.join(', ')}` : '',
+    e.supportTo?.length ? `supports ${e.supportTo.join(', ')}` : '',
+  ].filter(Boolean);
+  const prefix = `enhancement "${e.name}"`;
+  return [
+    [prefix, [`${e.points} pts`, e.appliesTo, e.aura ? 'aura' : '', e.maxTargets > 1 ? `up to ${e.maxTargets} units` : '', ...who].filter(Boolean).join(' · ')],
+    [`${prefix} · weapon`, e.weapon ? `${e.weapon.name}: ${weaponSignature(e.weapon)}` : '—'],
+    ...ruleFields(`${prefix} · `, e),
+  ];
+}
+
+function detachmentFields(d: Detachment): [string, string][] {
+  return [
+    ['DP', String(d.dp ?? '—')],
+    ['Force Dispositions', list(d.forceDispositions)],
+    ['exclusive with', d.uniqueTag ?? '—'],
+    ...d.rules.flatMap((r) => [[`rule "${r.name}" · eligible`, filterLabel(r.eligibility) || 'all units'] as [string, string], ...ruleFields(`rule "${r.name}" · `, r)]),
+    ...d.enhancements.flatMap(enhancementFields),
+  ];
+}
+
+const stratagemFields = (s: Stratagem, detachments: Map<string, string>): [string, string][] => [
+  ['CP', String(s.cp)],
+  ['when', describeTiming(s)],
+  ['category', s.category ?? '—'],
+  ['target', s.target ? filterLabel(s.target) || 'any unit' : '—'],
+  ['detachment', s.detachmentId ? (detachments.get(s.detachmentId) ?? s.detachmentId) : '—'],
+  ...ruleFields('', s),
+];
+
+const allyFields = (r: AllyRule): [string, string] => [
+  `ally rule "${r.name}"`,
+  [
+    r.armies ? `for ${r.armies.join(', ')}` : r.exceptArmies ? `except ${r.exceptArmies.join(', ')}` : 'for every army',
+    `admits ${[...(r.admits.factionKeywords ?? []), ...(r.admits.keywords ?? []), ...(r.admits.units ?? [])].join(', ')}`,
+    ...(r.limits ?? []).map((l) => `at ${l.battleSize}: ${[...(l.units ?? []).map((u) => `${u.max} ${u.keyword}`), l.points ? `${l.points} pts` : ''].filter(Boolean).join(', ')}`),
+  ].join(' · '),
+];
 
 const armiesIn = (files: Map<string, unknown>, gameSystem: string) =>
   [...files].filter(([p]) => p.startsWith(`${gameSystem}/armies/`)).map(([, f]) => f as ArmyFile);
 
 /** Un Dataset à plat : un fait par champ, sous une clé stable. */
-export function factsOf(files: Map<string, unknown>, gameSystem: string): Map<string, Fact> {
+export function factsOf(files: Map<string, unknown>, gameSystem: string, home: Homes = homes(files)): Map<string, Fact> {
   const facts = new Map<string, Fact>();
   const add = (base: Omit<Fact, 'field' | 'value'>, fields: [string, string][]) => {
     for (const [field, value] of fields) facts.set(`${base.army}|${base.kind}|${base.id}|${field}`, { ...base, field, value });
   };
+  // Un élément que plusieurs Armies publient ne se lit qu'une fois, sous son Army d'origine.
+  const mine = (army: string, target: string) => (home.homeOf(target) ?? army) === army;
+
   for (const army of armiesIn(files, gameSystem)) {
     const of = { army: army.id, armyName: army.name };
-    // Une Unit alliée figure dans plusieurs Armies : elle ne se lit que dans la sienne.
     for (const u of army.units) if (!u.ally) add({ ...of, kind: 'unit', id: u.id, name: u.name, target: u.id }, unitFields(u));
+    for (const d of army.detachments) {
+      const target = `${army.id}::detachment:${d.id}`;
+      if (mine(army.id, target)) add({ ...of, kind: 'detachment', id: d.id, name: d.name, target }, detachmentFields(d));
+    }
+    const detachments = new Map(army.detachments.map((d) => [d.id, d.name]));
+    for (const s of army.stratagems) {
+      const target = `${army.id}::stratagem:${s.id}`;
+      if (mine(army.id, target)) add({ ...of, kind: 'stratagem', id: s.id, name: s.name, target }, stratagemFields(s, detachments));
+    }
+    for (const r of army.armyRules ?? []) {
+      const target = `${army.id}::armyrule:${r.id}`;
+      if (mine(army.id, target)) add({ ...of, kind: 'armyRule', id: r.id, name: r.name, target }, [['eligible', filterLabel(r.eligibility) || 'all units'], ...ruleFields('', r)]);
+    }
+  }
+
+  const core = files.get(`${gameSystem}/core.json`) as CoreFile | undefined;
+  if (core) {
+    const of = { army: CORE_ROOT, armyName: 'Core' };
+    for (const s of core.stratagems) add({ ...of, kind: 'stratagem', id: s.id, name: s.name, target: `${CORE_ROOT}::stratagem:${s.id}` }, stratagemFields(s, new Map()));
+    add({ ...of, kind: 'core', id: CORE_ROOT, name: 'Core', target: CORE_ROOT }, [
+      ...core.battleSizes.map((b): [string, string] => [
+        `battle size "${b.name}"`,
+        `${b.points} pts · ${b.detachmentPoints} DP · ${b.enhancementLimit} Enhancements · ${b.unitLimit} copies of a Unit`,
+      ]),
+      ...(core.allyRules ?? []).map(allyFields),
+      ['default targets', core.referenceTargets.map((t) => `${t.name} ×${t.models}`).join(', ') || '—'],
+      ['sample list', core.sampleList ? `${core.sampleList.name} · ${core.sampleList.points} pts · ${core.sampleList.units.map((x) => x.name).join(', ')}` : '—'],
+    ]);
   }
   return facts;
 }
+
+/**
+ * Ce qui sépare deux Datasets, par Army puis par entité. L'Army d'origine d'un
+ * élément partagé se lit dans le second, pour qu'il ne change pas de place.
+ */
+export const diffFiles = (before: Map<string, unknown>, after: Map<string, unknown>, gameSystem: string): ArmyChanges[] => {
+  const home = homes(after);
+  return compareFacts(factsOf(before, gameSystem, home), factsOf(after, gameSystem, home));
+};
 
 /** Ce qui sépare deux Datasets mis à plat, par Army puis par entité. */
 export function compareFacts(before: Map<string, Fact>, after: Map<string, Fact>): ArmyChanges[] {

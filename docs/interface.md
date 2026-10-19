@@ -90,8 +90,13 @@ sheet.
 
 - At the top, each source before → after: the BSData commit, the MFM version
   and commit.
-- Then one block per army, one entry per unit, and for each changed field the
-  old value in red (`-`) and the new one in green (`+`), like a git diff.
+- Then one block per army, and **Core** apart. Inside, one entry per unit,
+  detachment (its rules and enhancements included), stratagem and army rule —
+  everything a player can see — and for each changed field the old value in red
+  (`-`) and the new one in green (`+`), like a git diff. A detachment or army
+  rule several armies publish appears once, under its home army.
+- Rules read the way the apps show them: their Modifiers in words (`+1 to Hit
+  (enemy) — if charged`), and their description.
 - Click an entry's name to open its sheet.
 
 
