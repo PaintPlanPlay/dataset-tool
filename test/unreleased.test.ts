@@ -388,3 +388,44 @@ section('Tableau de bord : les Corrections que BSData a rattrapées');
     rmSync(repo.dir, { recursive: true, force: true });
   }
 }
+
+section('Tableau de bord : les compteurs');
+{
+  const repo = await datasetRepo();
+  repo.edit<ArmyFile>(ORKS, (a) => (unitOf(a, 'u-boyz').points = 1));
+  repo.write('manifest.json', repo.manifest('wh40k-11e-mfm-1-4-r1', ['wh40k-11e-mfm-1-4-r1']));
+  repo.commit('Release r1');
+  repo.git('tag', 'wh40k-11e-mfm-1-4-r1');
+  // Une Correction dont la cible n'existe pas : orpheline, à traiter chez les Orks.
+  repo.write('corrections/wh40k-11e/orks/ghost.json', { target: 'u-ghost', source: 'mfm', patch: { points: 1 }, upstream: { points: 2 }, reason: 'Test.' });
+
+  const { gui, at } = await serve(repo.dir);
+  try {
+    const u = await at<Unreleased>('/api/unreleased');
+    const orks = u.board.find((r) => r.id === 'orks');
+    check(
+      'chaque Army : ses changements par étape et par source',
+      orks?.changes === 1 && orks.stages.local === 1 && orks.origins.mfm === 1,
+      JSON.stringify(orks),
+    );
+    check('à traiter : la Correction orpheline et celle que BSData a rattrapée', orks?.handle.orphan === 1 && orks.handle.caughtUp === 1, JSON.stringify(orks?.handle));
+    const sum = (pick: (r: (typeof u.board)[number]) => number) => u.board.reduce((n, r) => n + pick(r), 0);
+    check(
+      'les compteurs globaux sont la somme de ceux des Armies',
+      u.totals.changes === sum((r) => r.changes) &&
+        u.totals.todo === sum((r) => r.todo) &&
+        (Object.keys(u.totals.complete) as (keyof typeof u.totals.complete)[]).every((k) => u.totals.complete[k] === sum((r) => r.complete[k])),
+      JSON.stringify(u.totals),
+    );
+    check(
+      'les Armies se trient par nombre de points à traiter, décroissant',
+      u.board.every((r, i) => i === 0 || u.board[i - 1].todo >= r.todo) && u.board[0].todo > 0,
+      u.board.map((r) => `${r.id}:${r.todo}`).join(' '),
+    );
+    const ghost = u.findings.filter((f) => f.army === 'orks' && f.kind === 'orphan');
+    check('un chiffre mène à sa liste : les constats, par Army et par sorte', ghost.length === 1 && ghost[0].label.includes('u-ghost'), JSON.stringify(ghost));
+  } finally {
+    await gui.close();
+    rmSync(repo.dir, { recursive: true, force: true });
+  }
+}

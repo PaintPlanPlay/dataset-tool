@@ -6,12 +6,13 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { indexPath, manifestPath, type ArmyFile, type DatasetIndex, type Manifest, type SourceRef } from '@paintplanplay/dataset-schema';
+import { indexPath, manifestPath, type DatasetIndex, type Manifest, type SourceRef } from '@paintplanplay/dataset-schema';
 import { contributionsPath } from '../authored.ts';
 import { diffFiles, type ArmyChanges, type FieldChange, type Stage } from '../changes.ts';
 import { parseTarget } from '../corrections/apply.ts';
 import { readCorrections } from '../corrections/files.ts';
 import type { CorrectionVerdict } from '../corrections/lifecycle.ts';
+import { boardOf, findingsOf, targets, type BoardRow, type Counters, type Finding } from './board.ts';
 import { deleteCorrection } from './sheets.ts';
 import { sheetOfTarget } from './targets.ts';
 import { defaultProbe, type Probe, type PullRequest } from './overview.ts';
@@ -41,6 +42,11 @@ export interface Unreleased {
   pullRequest: PullRequest | null;
   /** Les Corrections que leur Upstream Source a rattrapées : elles ne changent plus rien, à retirer. */
   caughtUp: CaughtUp[];
+  /** Une ligne par Army qui change ou a quelque chose à traiter, la plus chargée en tête. */
+  board: BoardRow[];
+  totals: Counters;
+  /** Ce que comptent les chiffres « à traiter » et « à compléter ». */
+  findings: Finding[];
 }
 
 export interface CaughtUp {
@@ -62,33 +68,19 @@ export interface CaughtUp {
 function caughtUpOf(ws: Workspace): CaughtUp[] {
   const stale = (ws.current?.corrections ?? []).filter((v) => v.state === 'stale');
   if (!stale.length) return [];
-  const index = ws.current?.files.get(indexPath(ws.gameSystem)) as DatasetIndex | undefined;
-  const names = new Map((index?.armies ?? []).map((a) => [a.id, a.name]));
-  // Le nom de ce que vise une adresse : l'Unit ou l'entité de l'Army, puis l'élément.
-  const entities = new Map<string, string>();
-  for (const [path, file] of ws.current?.files ?? []) {
-    if (!path.startsWith(`${ws.gameSystem}/armies/`)) continue;
-    const a = file as ArmyFile;
-    for (const u of a.units) entities.set(u.id, u.name);
-    for (const d of a.detachments) entities.set(`${a.id}::detachment:${d.id}`, d.name);
-    for (const x of a.stratagems) entities.set(`${a.id}::stratagem:${x.id}`, x.name);
-    for (const r of a.armyRules ?? []) entities.set(`${a.id}::armyrule:${r.id}`, r.name);
-  }
+  const t = targets(ws);
   const patches = new Map(readCorrections(ws.datasetDir, ws.gameSystem).map((c) => [c.path, Object.keys(c.patch)]));
   return stale
     .map((v) => {
       // corrections/<gameSystem>/<army>/<fichier>.json
       const army = v.path.split('/')[2] ?? '';
-      const sheet = sheetOfTarget(v.target);
-      const { name } = parseTarget(v.target);
-      const element = sheet === v.target ? '' : (name.split('|').pop() ?? '');
       return {
         army,
-        armyName: army === 'core' ? 'Core' : (names.get(army) ?? army),
+        armyName: t.armyName(army),
         path: v.path,
         target: v.target,
-        sheet,
-        label: [entities.get(sheet) ?? sheet, element].filter(Boolean).join(' › '),
+        sheet: sheetOfTarget(v.target),
+        label: t.label(v.target),
         fields: (patches.get(v.path) ?? []).filter((f) => !f.startsWith('__')),
         reason: v.reason,
         note: v.note,
@@ -143,7 +135,13 @@ const tagExists = (dir: string, tag: string) => {
   }
 };
 
-const empty = (ws: Workspace, release: string | null, note: string): Unreleased => ({ release, note, sources: [], armies: [], pullRequest: null, caughtUp: caughtUpOf(ws) });
+/** Ce qui ne dépend pas de la Release : les compteurs de ce qui est à traiter, les Corrections rattrapées. */
+function around(ws: Workspace, armies: ArmyChanges[]) {
+  const findings = findingsOf(ws);
+  return { ...boardOf(ws, armies, findings), findings, caughtUp: caughtUpOf(ws) };
+}
+
+const empty = (ws: Workspace, release: string | null, note: string): Unreleased => ({ release, note, sources: [], armies: [], pullRequest: null, ...around(ws, []) });
 
 const revParse = (dir: string, ref: string): string | null => {
   try {
@@ -210,7 +208,7 @@ export function unreleased(ws: Workspace, options: { noise?: boolean; probe?: Pr
   });
   const armies = diffFiles(released, current, ws.gameSystem, { noise: options.noise, stages: between, ...(ws.bare ? { bare: ws.bare.files } : {}) });
   attribute(ws, armies);
-  return { release, sources, armies, pullRequest: proposing ? (options.probe ?? defaultProbe).pullRequest(ws.datasetDir) : null, caughtUp: caughtUpOf(ws) };
+  return { release, sources, armies, pullRequest: proposing ? (options.probe ?? defaultProbe).pullRequest(ws.datasetDir) : null, ...around(ws, armies) };
 }
 
 /**

@@ -511,3 +511,12 @@ h1 .home:hover { color: var(--accent); }
 .origin.correction, .origin.contribution { color: var(--accent); }
 .caught-up .hint { margin: 6px 0; }
 .caught-up .change-field { text-align: left; }
+.tallies { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-left: 12px; vertical-align: middle; }
+.tallies.wide { margin-left: 0; display: flex; gap: 16px; }
+.tallies.wide > span { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.tally { font-size: 12px; padding: 1px 8px; border-radius: 10px; color: var(--muted); }
+.tally.todo { color: var(--late); border-color: color-mix(in srgb, var(--late) 40%, var(--border)); }
+.findings { background: var(--panel); border: 1px solid var(--accent); border-radius: var(--radius); padding: 8px 12px; display: grid; gap: 4px; }
+.findings header { display: flex; gap: 8px; align-items: baseline; }
+.findings header .link { margin-left: auto; }
+.findings .change-field { text-align: left; }

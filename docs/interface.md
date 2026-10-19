@@ -88,6 +88,14 @@ manifest points to, even after a rollback) and what your copy would publish
 now. Click **Dataset Tool**, the title on the left, to come back to it from a
 sheet.
 
+- Under the title, two rows of counters. **To handle** (red): corrections in
+  conflict, caught up or orphaned, contributions set aside or whose target is
+  gone, disagreements between sources. **To complete**: unsimulated keys,
+  wargear costs not linked, enhancement weapons to check. Each opens its list;
+  each list entry opens its sheet.
+- Armies come with the most to handle first, each with the same counters, so
+  you know where to start. An army with nothing unreleased but something to
+  handle is listed too.
 - At the top, each source in the release, on `main` when it differs from both,
   and now: the BSData commit, the MFM version and commit. A snapshot newer
   than `main` shows here.

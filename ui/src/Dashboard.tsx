@@ -5,7 +5,7 @@
  * arrive, Army par Army, chaque changement à son étape.
  */
 import { useEffect, useState } from 'react';
-import { api, type ArmyChanges, type CaughtUp, type EntityChange, type FieldChange, type Origin, type Overview, type SourceShift, type Stage, type Unreleased } from './api.ts';
+import { api, type ArmyChanges, type CaughtUp, type Counters, type FindingKind, type EntityChange, type FieldChange, type Origin, type Overview, type SourceShift, type Stage, type Unreleased } from './api.ts';
 
 const SOURCE: Record<string, string> = { bsdata: 'BSData', mfm: 'MFM' };
 const KIND: Record<EntityChange['kind'], string> = { unit: 'Unit', detachment: 'Detachment', stratagem: 'Stratagem', armyRule: 'Army Rule', core: 'Core' };
@@ -169,6 +169,56 @@ function CaughtUpList({ items, onOpen, onRemoved }: { items: CaughtUp[]; onOpen:
   );
 }
 
+const FINDING: Record<FindingKind, { label: string; hint: string; todo: boolean }> = {
+  conflict: { label: 'in conflict', hint: 'Corrections whose source moved to another value: decide which is right', todo: true },
+  caughtUp: { label: 'caught up', hint: 'Corrections the source has caught up with: remove them', todo: true },
+  orphan: { label: 'orphaned', hint: 'Corrections whose target is gone: fix the target or delete them', todo: true },
+  contribution: { label: 'Contributions to review', hint: 'Contributions set aside, or whose target is gone', todo: true },
+  disagreement: { label: 'disagreements', hint: 'Where two sources disagree and the authoritative one won: sometimes the loser is right', todo: true },
+  unsimulated: { label: 'unsimulated keys', hint: 'Modifier keys the simulation does not play: a typo, or a key to teach it', todo: false },
+  wargear: { label: 'wargear costs not linked', hint: 'MFM wargear lines no option bills: link them on the unit sheet', todo: false },
+  enhancementWeapon: { label: 'Enhancement weapons', hint: 'Weapons BSData gives an Enhancement the Dataset lacks, or a datasheet carries', todo: false },
+};
+
+/** Les chiffres « à traiter » et « à compléter » ; chacun ouvre sa liste. */
+function Tallies({ counters, compact = false, onPick }: { counters: Counters; compact?: boolean; onPick: (kind: FindingKind) => void }) {
+  const all = { ...counters.handle, ...counters.complete } as Record<FindingKind, number>;
+  const kinds = (Object.keys(FINDING) as FindingKind[]).filter((k) => all[k] > 0);
+  if (!kinds.length) return compact ? null : <p className="hint">Nothing to handle or complete.</p>;
+  const group = (todo: boolean) => kinds.filter((k) => FINDING[k].todo === todo);
+  const chips = (list: FindingKind[]) =>
+    list.map((k) => (
+      <button
+        type="button"
+        key={k}
+        className={`tally${FINDING[k].todo ? ' todo' : ''}`}
+        title={FINDING[k].hint}
+        onClick={(e) => {
+          // Dans un résumé d'Army, le clic ouvre la liste sans replier l'Army.
+          e.preventDefault();
+          onPick(k);
+        }}
+      >
+        {all[k]} {FINDING[k].label}
+      </button>
+    ));
+  if (compact) return <span className="tallies">{chips(kinds)}</span>;
+  return (
+    <div className="tallies wide">
+      {group(true).length > 0 && (
+        <span>
+          <b>To handle</b> {chips(group(true))}
+        </span>
+      )}
+      {group(false).length > 0 && (
+        <span>
+          <b>To complete</b> {chips(group(false))}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** Ne garder que les changements qu'un filtre retient, et ce qui en porte encore. */
 function keep(armies: ArmyChanges[], ok: (c: FieldChange) => boolean): ArmyChanges[] {
   return armies
@@ -189,6 +239,7 @@ export function Dashboard({ overview, onOpen, onWrite }: Props) {
   const [all, setAll] = useState(false);
   const [stage, setStage] = useState<Stage | ''>('');
   const [origin, setOrigin] = useState<Origin | ''>('');
+  const [findings, setFindings] = useState<{ kind: FindingKind; army?: string } | null>(null);
 
   // L'état global se relit après chaque tâche ou écriture : le tableau de bord suit.
   useEffect(() => {
@@ -208,7 +259,11 @@ export function Dashboard({ overview, onOpen, onWrite }: Props) {
   const changes = data.armies.flatMap((a) => a.entities.flatMap((e) => e.changes));
   const byStage = (s: Stage) => changes.filter((c) => c.stage === s).length;
   const byOrigin = (o: Origin) => changes.filter((c) => c.origin === o).length;
-  const armies = keep(data.armies, (c) => (!stage || c.stage === stage) && (!origin || c.origin === origin));
+  const armies = new Map(keep(data.armies, (c) => (!stage || c.stage === stage) && (!origin || c.origin === origin)).map((a) => [a.id, a]));
+  const filtering = Boolean(stage || origin);
+  // Les lignes du tableau : les Armies chargées en tête ; un filtre de changements ne garde que celles qui en ont.
+  const rows = data.board.filter((r) => !filtering || armies.has(r.id));
+  const shown = findings && data.findings.filter((f) => f.kind === findings.kind && (findings.army === undefined || f.army === findings.army));
 
   return (
     <div className="dashboard">
@@ -234,6 +289,7 @@ export function Dashboard({ overview, onOpen, onWrite }: Props) {
           </p>
         )}
         {data.sources.length > 0 && <Sources sources={data.sources} />}
+        <Tallies counters={data.totals} onPick={(kind) => setFindings({ kind })} />
         {changes.length > 0 && (
           <div className="filters">
             <span className="segmented" role="group" aria-label="Stage">
@@ -264,26 +320,55 @@ export function Dashboard({ overview, onOpen, onWrite }: Props) {
           </div>
         )}
       </header>
+      {shown && findings && (
+        <section className="findings">
+          <header>
+            <b>
+              {FINDING[findings.kind].label}
+              {findings.army !== undefined && ` · ${data.board.find((r) => r.id === findings.army)?.name ?? findings.army}`}
+            </b>{' '}
+            <span className="count">{shown.length}</span>
+            <button type="button" className="link" onClick={() => setFindings(null)}>
+              close
+            </button>
+          </header>
+          <p className="hint">{FINDING[findings.kind].hint}</p>
+          {shown.map((f, i) => (
+            <div className="change" key={i}>
+              {f.sheet ? (
+                <button type="button" className="link change-field" onClick={() => onOpen(f.sheet!)}>
+                  {f.label}
+                </button>
+              ) : (
+                <span className="change-field">{f.label}</span>
+              )}
+              <span className="lines">{f.detail}</span>
+            </div>
+          ))}
+        </section>
+      )}
       {data.release && !data.note && changes.length === 0 && <p className="empty">Nothing differs from the Release in production.</p>}
       {data.caughtUp.length > 0 && <CaughtUpList items={data.caughtUp} onOpen={onOpen} onRemoved={(r) => onWrite(`${r.length} caught-up Correction(s) removed`)} />}
-      {armies.map((a) => (
-        <details className="army" key={a.id} open={armies.length === 1}>
-          <summary>
-            <b>{a.name}</b>{' '}
-            <span className="count">
-              {a.entities.reduce((n, e) => n + e.changes.length, 0)} change(s)
-              {a.stages &&
-                (Object.keys(STAGE) as Stage[])
-                  .filter((s) => a.stages![s])
-                  .map((s) => ` · ${a.stages![s]} ${STAGE[s].label}`)
+      {rows.map((r) => {
+        const a = armies.get(r.id);
+        return (
+          <details className="army" key={r.id} open={rows.length === 1}>
+            <summary>
+              <b>{r.name}</b>{' '}
+              <span className="count">
+                {a ? a.entities.reduce((n, e) => n + e.changes.length, 0) : 0} change(s)
+                {(Object.keys(STAGE) as Stage[])
+                  .filter((s) => r.stages[s])
+                  .map((s) => ` · ${r.stages[s]} ${STAGE[s].label}`)
                   .join('')}
-            </span>
-          </summary>
-          {a.entities.map((e) => (
-            <Entity key={`${e.kind}|${e.id}`} entity={e} onOpen={onOpen} />
-          ))}
-        </details>
-      ))}
+              </span>
+              <Tallies counters={r} compact onPick={(kind) => setFindings({ kind, army: r.id })} />
+            </summary>
+            {a?.entities.map((e) => <Entity key={`${e.kind}|${e.id}`} entity={e} onOpen={onOpen} />)}
+            {!a && <p className="hint">No unreleased change: only things to handle or complete.</p>}
+          </details>
+        );
+      })}
     </div>
   );
 }
