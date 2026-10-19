@@ -49,8 +49,8 @@ first. It is the description of the daily update's pull request, and
 | Section | What it tells you | What to do |
 |---|---|---|
 | the table at the top | each source, before and after: commit and MFM version | a new MFM version means a new dataslate at the next release |
-| **Numbers changed** | every unit value that moved: points, price grid, paid wargear, size, characteristics, keywords, attachments, abilities, weapons; detachment points, dispositions, enhancement points | read it — this is what decides games. Anything surprising: compare with the official document |
-| **Units removed / added**, **Armies gone / added** | | check a removal is real and not a rename upstream |
+| **Changes by Army** | one collapsed section per army, its summary giving its number of changes and what it has to handle; inside, every unit, detachment, stratagem, army rule and Core entry that changed, as a red/green diff — wargear options and rules worded as the apps show them, *(new)* or *(removed)* when the whole entry is. Over GitHub's size limit, the last armies keep only their summary: read them on the dashboard | read it — this is what decides games. Anything surprising: compare with the official document. Check a removal is real and not a rename upstream |
+| **Armies gone / added** | | check it is real and not a rename upstream |
 | **Disagreements between sources** | the trusted source's value was kept, the other is shown | when the loser is right, write a correction |
 | **Corrections** | each one, *in conflict* first, then *stale*, then *active*; and the *orphaned* ones | delete the stale; decide the conflicts; fix or delete the orphans |
 | **Contributions to review** | what a contribution names is gone (an ability a wargear option brought) | re-target or delete |
@@ -91,6 +91,11 @@ applied, with their blue dots.
 In the interface, **Publish Release** is shown only to accounts with write
 access to the dataset repository, and opens once something was merged since the
 last release. The tool must have been started with `--allow-push`.
+
+Its form opens with a last look at what you are about to publish: how many
+changes are merged, in how many armies, with a link to the dashboard to read
+them; and a warning when proposed or local changes exist — they are not merged,
+so they will not be part of the release.
 
 It asks four things, and proposes an answer to each:
 

@@ -67,12 +67,12 @@ async function main(): Promise<void> {
       throw new Error(`${out.textCheck.length} rules-text finding(s): nothing is written`);
     }
     writeDataset(datasetDir, gameSystem, out.files, out.ids);
-    const report = makeReport(out, previous);
+    const report = makeReport(out, previous, datasetDir);
     const reportFile = optional('report');
     if (reportFile) writeFileSync(reportFile, `${renderReport(report)}\n`);
     console.log(`${out.files.size} files written to ${datasetDir}`);
     console.log(
-      `${report.diff.changes.length} number(s) changed, ${out.conflicts.length} disagreement(s) between sources, ` +
+      `${report.armies.reduce((n, a) => n + a.entities.reduce((m, e) => m + e.changes.length, 0), 0)} change(s), ${out.conflicts.length} disagreement(s) between sources, ` +
         `${out.unmatched.length} Unit(s) missing from the MFM, ${out.corrections.length} Correction(s), ${out.orphans.length} orphaned`,
     );
     if (out.unresolvedAuthored.length) console.log(`Units not found for authored/: ${out.unresolvedAuthored.join(', ')}`);

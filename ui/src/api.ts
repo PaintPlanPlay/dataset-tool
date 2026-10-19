@@ -6,6 +6,7 @@ import type { ButtonName, Overview } from '../../src/gui/overview.ts';
 import type { SearchHit } from '../../src/gui/provenance.ts';
 import type { Job } from '../../src/gui/jobs.ts';
 import type { PendingChange } from '../../src/gui/pending.ts';
+import type { Unreleased } from '../../src/gui/unreleased.ts';
 import type { CorrectionItem, DraftCheck, SavedFile, Sheet, Suggestions } from '../../src/gui/sheets.ts';
 import type { SourceConflict } from '../../src/findings.ts';
 import type { UnsimulatedKey } from '../../src/rules.ts';
@@ -14,6 +15,10 @@ import type { JsonSchema } from './schema.ts';
 export type { ButtonName, ButtonState, Overview } from '../../src/gui/overview.ts';
 export type { Inspection, SearchHit } from '../../src/gui/provenance.ts';
 export type { PendingChange } from '../../src/gui/pending.ts';
+export type { CaughtUp, SourceShift, Unreleased } from '../../src/gui/unreleased.ts';
+export type { BoardRow, CompleteKind, Counters, Finding, HandleKind } from '../../src/board.ts';
+export type FindingKind = import('../../src/board.ts').HandleKind | import('../../src/board.ts').CompleteKind;
+export type { ArmyChanges, EntityChange, FieldChange, Origin, Stage } from '../../src/changes.ts';
 export type { CorrectionItem, DraftCheck, Mark, SavedFile, Sheet, Suggestions } from '../../src/gui/sheets.ts';
 export type { SourceConflict } from '../../src/findings.ts';
 
@@ -52,6 +57,8 @@ export const api = {
   sheet: (target: string) => call<Sheet>(`/api/sheet?target=${encodeURIComponent(target)}`),
   validate: (target: string, draft: unknown) => post<DraftCheck>('/api/sheet/validate', { target, draft }),
   save: (target: string, draft: unknown, reason: string) => post<{ files: SavedFile[] }>('/api/sheet/save', { target, draft, reason }),
+  unreleased: (all = false) => call<Unreleased>(`/api/unreleased${all ? '?all=1' : ''}`),
+  removeCaughtUp: () => post<{ removed: string[] }>('/api/corrections/remove-caught-up'),
   pending: () => call<PendingChange[]>('/api/pending'),
   undo: (id: string) => post('/api/pending/undo', { id }),
   corrections: (sheet: string, q = '') => call<CorrectionItem[]>(`/api/corrections?sheet=${encodeURIComponent(sheet)}&q=${encodeURIComponent(q)}`),

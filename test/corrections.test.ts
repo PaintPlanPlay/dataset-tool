@@ -189,7 +189,7 @@ check(
 );
 
 const markdown = renderReport(makeReport(corrected, plain.files));
-check('le rapport liste les chiffres modifiés', /## Numbers changed/.test(markdown) && /Warboss/.test(markdown));
+check('le rapport liste les changements par Army', /## Changes by Army/.test(markdown) && /\*\*Unit · Warboss\*\*/.test(markdown));
 check('le rapport liste les désaccords entre sources', /## Disagreements between sources/.test(markdown) && /mfm `75` kept, bsdata `90` set aside/.test(markdown));
 check('le rapport donne l\'état de chaque Correction', /\*\*stale\*\*/.test(markdown) && /\*\*in conflict\*\*/.test(markdown) && /\*\*active\*\*/.test(markdown));
 check('le rapport rappelle la PR amont d\'une Correction', markdown.includes('upstream PR: https://github.com/BSData/wh40k-11e-mfm/pull/1'));

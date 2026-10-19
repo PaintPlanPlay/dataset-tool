@@ -78,7 +78,61 @@ Everything you saved and have not proposed yet. Each line shows *new*,
   propose it: the sources moved under it. See
   [How it works](how-it-works.md#corrections-fixing-a-source).
 
-## Right column: the sheet
+## Right column: the dashboard, then the sheet
+
+### The dashboard
+
+The right column opens on the **dashboard**: every *unreleased change*, that is
+everything that differs between the release the apps read today (the one the
+manifest points to, even after a rollback) and what your copy would publish
+now. Click **Dataset Tool**, the title on the left, to come back to it from a
+sheet.
+
+- Under the title, two rows of counters. **To handle** (red): corrections in
+  conflict, caught up or orphaned, contributions set aside or whose target is
+  gone, disagreements between sources. **To complete**: unsimulated keys,
+  wargear costs not linked, enhancement weapons to check. Each opens its list;
+  each list entry opens its sheet.
+- Armies come with the most to handle first, each with the same counters, so
+  you know where to start. An army with nothing unreleased but something to
+  handle is listed too.
+- At the top, each source in the release, on `main` when it differs from both,
+  and now: the BSData commit, the MFM version and commit. A snapshot newer
+  than `main` shows here.
+- Each change carries its **stage**: *on main* (merged, the next release
+  publishes it), *proposed* (in your open pull request, linked at the top) or
+  *local* (on your machine only — a pending change, or a snapshot newer than
+  `main`). The buttons above the list filter by stage: **local** is what you
+  still have to propose.
+- Then one block per army, and **Core** apart. Inside, one entry per unit,
+  detachment (its rules and enhancements included), stratagem and army rule —
+  everything a player can see — and for each changed field the old value in red
+  (`-`) and the new one in green (`+`), like a git diff. A detachment or army
+  rule several armies publish appears once, under its home army.
+- Rules and wargear options read the way the apps show them, so you judge what
+  a player will see: a rule's Modifiers in words (`+1 to Hit (enemy) — if after
+  charging`) and its description; a group of wargear options as its card in the
+  apps — its title, what it allows at the unit's largest size (`2 models`, `one
+  option`, `up to 2`), then each option with its weapons (`Boy w/ Burna — ➶
+  Burna`). If it reads badly here, it reads badly in the apps: fix it before you
+  publish. This is an imitation of the apps' display, kept by hand.
+- Each change also says where its new value comes from: **BSData**, the
+  **MFM**, a **Correction** or a **Contribution** — for these two, who wrote it
+  last (*you, not proposed* for what you have not proposed yet); hover for the
+  file. The second row of buttons filters by source: only what BSData brought,
+  or only what the project forces.
+- A list (keywords, army rules, abilities…) shows only what leaves it and what
+  joins it; hover a line for the whole list.
+- What a player would not notice is hidden: a list in another order, internal
+  identifiers, the registry. **Show everything** brings reordered lists back,
+  in grey.
+- Click an entry's name to open its sheet.
+- **Caught up by their source** lists the corrections BSData or the MFM has
+  caught up with (*stale*): the dataset is the same without them. **Remove the
+  caught-up corrections** deletes them all at once; each deletion is a pending
+  change, proposed and reviewed like any other, and can be undone. Nothing is
+  removed on its own.
+
 
 ### Finding a sheet
 
