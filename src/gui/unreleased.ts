@@ -7,7 +7,11 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { indexPath, manifestPath, type DatasetIndex, type Manifest, type SourceRef } from '@paintplanplay/dataset-schema';
-import { diffFiles, type ArmyChanges, type Stage } from '../changes.ts';
+import { contributionsPath } from '../authored.ts';
+import { diffFiles, type ArmyChanges, type FieldChange, type Stage } from '../changes.ts';
+import { parseTarget } from '../corrections/apply.ts';
+import type { CorrectionVerdict } from '../corrections/lifecycle.ts';
+import { sheetOfTarget } from './targets.ts';
 import { defaultProbe, type Probe, type PullRequest } from './overview.ts';
 import { isRepository } from './pending.ts';
 import type { Workspace } from './workspace.ts';
@@ -136,6 +140,49 @@ export function unreleased(ws: Workspace, options: { noise?: boolean; probe?: Pr
       ...(a?.version ? { afterVersion: a.version } : {}),
     };
   });
-  const armies = diffFiles(released, current, ws.gameSystem, { noise: options.noise, stages: between });
+  const armies = diffFiles(released, current, ws.gameSystem, { noise: options.noise, stages: between, ...(ws.bare ? { bare: ws.bare.files } : {}) });
+  attribute(ws, armies);
   return { release, sources, armies, pullRequest: proposing ? (options.probe ?? defaultProbe).pullRequest(ws.datasetDir) : null };
+}
+
+/**
+ * Le fichier et l'auteur de ce que le projet écrit : la Correction qui force
+ * une valeur, le fichier de Contributions de l'Army. L'auteur est le dernier à
+ * l'avoir commité ; « you » pour ce qui attend d'être proposé.
+ */
+function attribute(ws: Workspace, armies: ArmyChanges[]): void {
+  const git = (...args: string[]) => execFileSync('git', ['-C', ws.datasetDir, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  let pending: Set<string> | null = null;
+  const authors = new Map<string, string>();
+  const authorOf = (path: string): string => {
+    pending ??= new Set(
+      git('status', '--porcelain', '--untracked-files=all', '--', 'corrections', 'authored')
+        .split('\n')
+        .filter(Boolean)
+        .map((l) => l.slice(3)),
+    );
+    if (pending.has(path)) return 'you';
+    if (!authors.has(path)) authors.set(path, git('log', '-1', '--format=%an', '--', path).trim() || 'you');
+    return authors.get(path)!;
+  };
+  const verdicts = new Map<string, CorrectionVerdict[]>();
+  for (const v of ws.current?.corrections ?? []) {
+    const sheet = sheetOfTarget(v.target);
+    verdicts.set(sheet, [...(verdicts.get(sheet) ?? []), v]);
+  }
+  /** La Correction d'un champ : celle qui nomme l'élément du champ, sinon celle de l'entité entière, sinon la seule. */
+  const correctionOf = (target: string, c: FieldChange) => {
+    const mine = verdicts.get(target) ?? [];
+    const element = (v: CorrectionVerdict) => parseTarget(v.target).name.split('|').pop() ?? '';
+    return mine.find((v) => element(v) && c.field.includes(`"${element(v)}"`)) ?? mine.find((v) => v.target === target) ?? (mine.length === 1 ? mine[0] : undefined);
+  };
+  if (!isRepository(ws.datasetDir)) return;
+  for (const army of armies)
+    for (const entity of army.entities)
+      for (const c of entity.changes) {
+        const file = c.origin === 'correction' ? correctionOf(entity.target, c)?.path : c.origin === 'contribution' ? contributionsPath(ws.gameSystem, army.id) : undefined;
+        if (!file) continue;
+        c.file = file;
+        c.by = authorOf(file);
+      }
 }

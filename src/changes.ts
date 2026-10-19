@@ -33,10 +33,17 @@ export interface Fact {
   shown: string;
   /** Les éléments d'une liste. */
   items?: string[];
+  authority: Authority;
 }
 
-/** Un champ : du texte, ou une liste dont l'ordre n'est que du bruit. */
-type Field = [string, string | string[]];
+/**
+ * D'où vient un champ quand aucune Correction ne le force : l'Upstream Source
+ * qui fait autorité dessus, ou le projet (une Contribution).
+ */
+export type Authority = 'bsdata' | 'mfm' | 'contribution';
+
+/** Un champ : du texte, ou une liste dont l'ordre n'est que du bruit ; et qui fait autorité, quand ce n'est pas le défaut de l'entité. */
+type Field = [string, string | string[], Authority?];
 
 export interface FieldChange {
   field: string;
@@ -49,7 +56,15 @@ export interface FieldChange {
   /** Rien n'a changé pour un joueur (une liste réordonnée) : montré seulement sur demande. */
   noise?: true;
   stage?: Stage;
+  /** D'où vient la nouvelle valeur, quand on le sait. */
+  origin?: Origin;
+  /** Le fichier du dépôt du Dataset qui l'écrit : la Correction, ou les Contributions. */
+  file?: string;
+  /** Qui l'a écrit en dernier, d'après git ; « you » pour ce qui n'est pas commité. */
+  by?: string;
 }
+
+export type Origin = Authority | 'correction';
 
 export interface EntityChange {
   kind: EntityKind;
@@ -76,6 +91,11 @@ export interface CompareOptions {
    * sinon.
    */
   stages?: [Stage, Map<string, Fact>][];
+  /**
+   * Le même Dataset sans les Corrections : une valeur qui en diffère vient
+   * d'une Correction, sinon de la source qui fait autorité sur le champ.
+   */
+  bare?: Map<string, Fact>;
 }
 
 
@@ -95,8 +115,8 @@ const bands = (pricing: PriceBand[] | undefined) =>
 
 /** Ce qu'une Rule fait et sa Description, sous un préfixe (« rule "Get Stuck In" · »). */
 const ruleFields = (prefix: string, body: RuleBody): Field[] => [
-  [`${prefix}effect`, describeEffect(body)],
-  [`${prefix}description`, body.summary ?? '—'],
+  [`${prefix}effect`, describeEffect(body), 'contribution'],
+  [`${prefix}description`, body.summary ?? '—', 'contribution'],
 ];
 
 /** Ses groupes d'options, chacun sous son titre ; deux groupes du même titre se numérotent. */
@@ -113,11 +133,11 @@ function groupFields(u: Unit): Field[] {
 /** Les champs d'une Unit, chacun en texte. */
 function unitFields(u: Unit): Field[] {
   return [
-    ['points', String(u.points)],
-    ['MFM pricing', bands(u.pricing)],
-    ['Assigned Agent pricing', bands(u.assignedPricing)],
-    ['cost brackets', u.costBrackets.map((b) => `over ${b.overModels} models: ${b.points} pts`).join(', ') || '—'],
-    ['paid wargear', (u.wargear ?? []).map((w) => `${w.item} ${w.points} pts`)],
+    ['points', String(u.points), 'mfm'],
+    ['MFM pricing', bands(u.pricing), 'mfm'],
+    ['Assigned Agent pricing', bands(u.assignedPricing), 'mfm'],
+    ['cost brackets', u.costBrackets.map((b) => `over ${b.overModels} models: ${b.points} pts`).join(', ') || '—', 'mfm'],
+    ['paid wargear', (u.wargear ?? []).map((w) => `${w.item} ${w.points} pts`), 'mfm'],
     ['model count', `${u.minModels}-${u.maxModels}`],
     ['composition', (u.composition ?? []).map((c) => `${c.min}-${c.max} ${c.name}`)],
     ['Legends', u.isLegends ? 'yes' : 'no'],
@@ -127,8 +147,8 @@ function unitFields(u: Unit): Field[] {
     ['faction keywords', u.factionKeywords],
     ['army rules', u.armyRules],
     ['statuses', u.statuses?.length ? describeModifiers(u.statuses) : '—'],
-    ['units led', u.leaderTargets],
-    ['units supported', u.supportTargets],
+    ['units led', u.leaderTargets, 'mfm'],
+    ['units supported', u.supportTargets, 'mfm'],
     ['abilities', u.abilities.map((a) => a.name)],
     ...u.abilities.flatMap((a) => ruleFields(`ability "${a.name}" · `, a)),
     ...u.weapons.map((w): Field => [`weapon "${w.name}"`, weaponSignature(w)]),
@@ -146,8 +166,9 @@ function enhancementFields(e: Enhancement): Field[] {
   ].filter(Boolean);
   const prefix = `enhancement "${e.name}"`;
   return [
-    [prefix, [`${e.points} pts`, e.appliesTo, e.aura ? 'aura' : '', e.maxTargets > 1 ? `up to ${e.maxTargets} units` : '', ...who].filter(Boolean).join(' · ')],
-    [`${prefix} · weapon`, e.weapon ? `${e.weapon.name}: ${weaponSignature(e.weapon)}` : '—'],
+    [prefix, `${e.points} pts`],
+    [`${prefix} · taken by`, [e.appliesTo, e.aura ? 'aura' : '', e.maxTargets > 1 ? `up to ${e.maxTargets} units` : '', ...who].filter(Boolean).join(' · '), 'contribution'],
+    [`${prefix} · weapon`, e.weapon ? `${e.weapon.name}: ${weaponSignature(e.weapon)}` : '—', 'bsdata'],
     ...ruleFields(`${prefix} · `, e),
   ];
 }
@@ -157,7 +178,7 @@ function detachmentFields(d: Detachment): Field[] {
     ['DP', String(d.dp ?? '—')],
     ['Force Dispositions', d.forceDispositions],
     ['exclusive with', d.uniqueTag ?? '—'],
-    ...d.rules.flatMap((r) => [[`rule "${r.name}" · eligible`, filterLabel(r.eligibility) || 'all units'] as Field, ...ruleFields(`rule "${r.name}" · `, r)]),
+    ...d.rules.flatMap((r) => [[`rule "${r.name}" · eligible`, filterLabel(r.eligibility) || 'all units', 'contribution'] as Field, ...ruleFields(`rule "${r.name}" · `, r)]),
     ...d.enhancements.flatMap(enhancementFields),
   ];
 }
@@ -186,11 +207,12 @@ const armiesIn = (files: Map<string, unknown>, gameSystem: string) =>
 /** Un Dataset à plat : un fait par champ, sous une clé stable. */
 export function factsOf(files: Map<string, unknown>, gameSystem: string, home: Homes = homes(files)): Map<string, Fact> {
   const facts = new Map<string, Fact>();
-  const add = (base: Omit<Fact, 'field' | 'value' | 'shown' | 'items'>, fields: Field[]) => {
-    for (const [field, v] of fields) {
+  const DEFAULT: Record<EntityKind, Authority> = { unit: 'bsdata', detachment: 'mfm', stratagem: 'contribution', armyRule: 'contribution', core: 'contribution' };
+  const add = (base: Omit<Fact, 'field' | 'value' | 'shown' | 'items' | 'authority'>, fields: Field[]) => {
+    for (const [field, v, authority = DEFAULT[base.kind]] of fields) {
       const fact: Fact = Array.isArray(v)
-        ? { ...base, field, value: [...v].sort().join(', ') || '—', shown: v.join(', ') || '—', items: v }
-        : { ...base, field, value: v, shown: v };
+        ? { ...base, field, value: [...v].sort().join(', ') || '—', shown: v.join(', ') || '—', items: v, authority }
+        : { ...base, field, value: v, shown: v, authority };
       // Un champ vide n'est pas listé : son apparition se lit comme un ajout, sa disparition comme un retrait.
       if (fact.shown !== '—') facts.set(`${base.army}|${base.kind}|${base.id}|${field}`, fact);
     }
@@ -241,11 +263,12 @@ export const diffFiles = (
   before: Map<string, unknown>,
   after: Map<string, unknown>,
   gameSystem: string,
-  options: { noise?: boolean; stages?: [Stage, Map<string, unknown>][] } = {},
+  options: { noise?: boolean; stages?: [Stage, Map<string, unknown>][]; bare?: Map<string, unknown> } = {},
 ): ArmyChanges[] => {
   const home = homes(after);
   const stages = options.stages?.map(([stage, files]): [Stage, Map<string, Fact>] => [stage, factsOf(files, gameSystem, home)]);
-  return compareFacts(factsOf(before, gameSystem, home), factsOf(after, gameSystem, home), { ...options, stages });
+  const bare = options.bare && factsOf(options.bare, gameSystem, home);
+  return compareFacts(factsOf(before, gameSystem, home), factsOf(after, gameSystem, home), { noise: options.noise, stages, bare });
 };
 
 /** Ce qui sépare deux Datasets mis à plat, par Army puis par entité. */
@@ -277,6 +300,7 @@ export function compareFacts(before: Map<string, Fact>, after: Map<string, Fact>
       change.added = a.items.filter((x) => !b.items!.includes(x));
     }
     if (same) change.noise = true;
+    if (options.bare) change.origin = options.bare.get(key)?.value !== a?.value ? 'correction' : f.authority;
     if (options.stages) {
       const reached = options.stages.find(([, facts]) => facts.get(key)?.[same ? 'shown' : 'value'] === a?.[same ? 'shown' : 'value']);
       change.stage = reached?.[0] ?? 'local';

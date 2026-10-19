@@ -507,3 +507,5 @@ h1 .home:hover { color: var(--accent); }
 .stage.merged { color: var(--ok); }
 .stage.proposed { color: var(--accent); }
 .stage.local { color: var(--unknown); }
+.origin { font-size: 11px; color: var(--muted); margin-left: 2px; white-space: nowrap; }
+.origin.correction, .origin.contribution { color: var(--accent); }

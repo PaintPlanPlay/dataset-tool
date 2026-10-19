@@ -16,7 +16,7 @@ export type { ButtonName, ButtonState, Overview } from '../../src/gui/overview.t
 export type { Inspection, SearchHit } from '../../src/gui/provenance.ts';
 export type { PendingChange } from '../../src/gui/pending.ts';
 export type { SourceShift, Unreleased } from '../../src/gui/unreleased.ts';
-export type { ArmyChanges, EntityChange, FieldChange, Stage } from '../../src/changes.ts';
+export type { ArmyChanges, EntityChange, FieldChange, Origin, Stage } from '../../src/changes.ts';
 export type { CorrectionItem, DraftCheck, Mark, SavedFile, Sheet, Suggestions } from '../../src/gui/sheets.ts';
 export type { SourceConflict } from '../../src/findings.ts';
 

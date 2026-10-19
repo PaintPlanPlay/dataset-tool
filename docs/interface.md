@@ -108,6 +108,11 @@ sheet.
   option`, `up to 2`), then each option with its weapons (`Boy w/ Burna — ➶
   Burna`). If it reads badly here, it reads badly in the apps: fix it before you
   publish. This is an imitation of the apps' display, kept by hand.
+- Each change also says where its new value comes from: **BSData**, the
+  **MFM**, a **Correction** or a **Contribution** — for these two, who wrote it
+  last (*you, not proposed* for what you have not proposed yet); hover for the
+  file. The second row of buttons filters by source: only what BSData brought,
+  or only what the project forces.
 - A list (keywords, army rules, abilities…) shows only what leaves it and what
   joins it; hover a line for the whole list.
 - What a player would not notice is hidden: a list in another order, internal

@@ -307,3 +307,44 @@ section('Tableau de bord : les étapes');
     rmSync(repo.dir, { recursive: true, force: true });
   }
 }
+
+section('Tableau de bord : sources et auteurs');
+{
+  const repo = await datasetRepo();
+  repo.edit<ArmyFile>(ORKS, (a) => {
+    const boyz = unitOf(a, 'u-boyz');
+    boyz.points = 1;
+    boyz.models[0].M = '1"';
+    unitOf(a, 'u-mekgunz').weapons.find((w) => w.name === 'Kustom mega-kannon')!.profiles[0].A = '1';
+    a.detachments.find((d) => d.id === 'war-horde')!.rules.find((r) => r.id === 'get-stuck-in')!.summary = 'An old summary.';
+  });
+  repo.write('manifest.json', repo.manifest('wh40k-11e-mfm-1-4-r1', ['wh40k-11e-mfm-1-4-r1']));
+  repo.commit('Release r1');
+  repo.git('tag', 'wh40k-11e-mfm-1-4-r1');
+  // Une Pending Change : la Correction du coût du Warboss, modifiée sans être proposée.
+  const warbossPoints = 'corrections/wh40k-11e/orks/warboss-points.json';
+  repo.edit<{ patch: { points: number } }>(warbossPoints, (c) => (c.patch.points = 123));
+
+  const { gui, at } = await serve(repo.dir);
+  try {
+    const u = await at<Unreleased>('/api/unreleased');
+    const orks = u.armies.find((a) => a.id === 'orks');
+    const change = (id: string, field: RegExp) => orks?.entities.find((e) => e.id === id)?.changes.find((c) => field.test(c.field));
+    const describe = (id: string, field: RegExp) => JSON.stringify(change(id, field));
+    check('un coût que le MFM donne : MFM', change('u-boyz', /^points$/)?.origin === 'mfm', describe('u-boyz', /^points$/));
+    check('un profil que BSData donne : BSData', change('u-boyz', /^profile/)?.origin === 'bsdata', describe('u-boyz', /^profile/));
+    const kannon = change('u-mekgunz', /Kustom mega-kannon/);
+    check(
+      'une valeur qu\'une Correction force : la Correction, son fichier et son auteur',
+      kannon?.origin === 'correction' && kannon.file === 'corrections/wh40k-11e/orks/mek-gunz-attacks.json' && kannon.by === 'Test',
+      JSON.stringify(kannon),
+    );
+    const rule = change('war-horde', /Get Stuck In.*description/);
+    check('ce qu\'une Contribution écrit : la Contribution et son auteur', rule?.origin === 'contribution' && rule.by === 'Test', JSON.stringify(rule));
+    const pending = change('u-warboss', /^points$/);
+    check('une Correction pas encore proposée : « vous »', pending?.origin === 'correction' && pending.file === warbossPoints && pending.by === 'you', JSON.stringify(pending));
+  } finally {
+    await gui.close();
+    rmSync(repo.dir, { recursive: true, force: true });
+  }
+}

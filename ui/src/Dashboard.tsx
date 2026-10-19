@@ -5,7 +5,7 @@
  * arrive, Army par Army, chaque changement à son étape.
  */
 import { useEffect, useState } from 'react';
-import { api, type ArmyChanges, type EntityChange, type FieldChange, type Overview, type SourceShift, type Stage, type Unreleased } from './api.ts';
+import { api, type ArmyChanges, type EntityChange, type FieldChange, type Origin, type Overview, type SourceShift, type Stage, type Unreleased } from './api.ts';
 
 const SOURCE: Record<string, string> = { bsdata: 'BSData', mfm: 'MFM' };
 const KIND: Record<EntityChange['kind'], string> = { unit: 'Unit', detachment: 'Detachment', stratagem: 'Stratagem', armyRule: 'Army Rule', core: 'Core' };
@@ -14,6 +14,13 @@ const STAGE: Record<Stage, { label: string; hint: string }> = {
   merged: { label: 'on main', hint: 'Merged: the next Release publishes it' },
   proposed: { label: 'proposed', hint: 'In a pull request under review' },
   local: { label: 'local', hint: 'On this machine only: nothing proposed yet' },
+};
+
+const ORIGIN: Record<Origin, { label: string; hint: string }> = {
+  bsdata: { label: 'BSData', hint: 'The new value comes from BSData' },
+  mfm: { label: 'MFM', hint: 'The new value comes from the Munitorum Field Manual' },
+  correction: { label: 'Correction', hint: 'A Correction of the project forces the new value' },
+  contribution: { label: 'Contribution', hint: 'The project writes the new value' },
 };
 
 const short = (commit: string | null | undefined) => (commit ? commit.slice(0, 7) : '—');
@@ -75,6 +82,17 @@ function StageBadge({ stage }: { stage?: Stage }) {
   ) : null;
 }
 
+function OriginBadge({ change: c }: { change: FieldChange }) {
+  if (!c.origin) return null;
+  const by = c.by ? ` · ${c.by === 'you' ? 'you, not proposed' : c.by}` : '';
+  return (
+    <span className={`origin ${c.origin}`} title={`${ORIGIN[c.origin].hint}${c.file ? ` — ${c.file}` : ''}`}>
+      {ORIGIN[c.origin].label}
+      {by}
+    </span>
+  );
+}
+
 function Entity({ entity, onOpen }: { entity: EntityChange; onOpen: (target: string) => void }) {
   return (
     <details className="entity" open={entity.status === 'changed'}>
@@ -90,7 +108,7 @@ function Entity({ entity, onOpen }: { entity: EntityChange; onOpen: (target: str
         {entity.changes.map((c) => (
           <div className="change" key={c.field}>
             <span className="change-field">
-              {c.field} <StageBadge stage={c.stage} />
+              {c.field} <StageBadge stage={c.stage} /> <OriginBadge change={c} />
             </span>
             <span className="lines">
               <Lines change={c} />
@@ -114,6 +132,7 @@ export function Dashboard({ overview, onOpen }: { overview: Overview | null; onO
   const [error, setError] = useState<string | null>(null);
   const [all, setAll] = useState(false);
   const [stage, setStage] = useState<Stage | ''>('');
+  const [origin, setOrigin] = useState<Origin | ''>('');
 
   // L'état global se relit après chaque tâche ou écriture : le tableau de bord suit.
   useEffect(() => {
@@ -132,7 +151,8 @@ export function Dashboard({ overview, onOpen }: { overview: Overview | null; onO
 
   const changes = data.armies.flatMap((a) => a.entities.flatMap((e) => e.changes));
   const byStage = (s: Stage) => changes.filter((c) => c.stage === s).length;
-  const armies = keep(data.armies, (c) => !stage || c.stage === stage);
+  const byOrigin = (o: Origin) => changes.filter((c) => c.origin === o).length;
+  const armies = keep(data.armies, (c) => (!stage || c.stage === stage) && (!origin || c.origin === origin));
 
   return (
     <div className="dashboard">
@@ -170,6 +190,18 @@ export function Dashboard({ overview, onOpen }: { overview: Overview | null; onO
                 </button>
               ))}
             </span>
+            {changes.some((c) => c.origin) && (
+              <span className="segmented" role="group" aria-label="Source">
+                <button type="button" className={origin === '' ? 'on' : ''} onClick={() => setOrigin('')}>
+                  Any source
+                </button>
+                {(Object.keys(ORIGIN) as Origin[]).map((o) => (
+                  <button type="button" key={o} className={origin === o ? 'on' : ''} title={ORIGIN[o].hint} onClick={() => setOrigin(o)} disabled={!byOrigin(o)}>
+                    {ORIGIN[o].label} {byOrigin(o)}
+                  </button>
+                ))}
+              </span>
+            )}
             <label className="toggle">
               <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Show everything, reordered lists included
             </label>
