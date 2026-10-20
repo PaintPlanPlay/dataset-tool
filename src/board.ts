@@ -132,7 +132,7 @@ export function findingsOf(ws: BoardSource): Finding[] {
         label: t.label(c.target),
         detail: `${c.state}: ${c.note}`,
         sheet: sheetOfTarget(c.target),
-        ...(c.state === 'unresolved' ? { reattach: c.target } : {}),
+        ...(c.state === 'unresolved' || (c.state === 'flagged' && c.note.includes('reattach')) ? { reattach: c.target } : {}),
       });
   for (const c of out.conflicts ?? [])
     found.push({

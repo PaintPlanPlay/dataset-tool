@@ -281,6 +281,12 @@ the same name. Reattaching rewrites the entry's target and keeps everything it
 says; it is a pending change you can undo. If the element you pick already has
 its own entry, both are shown side by side and you keep one.
 
+A contribution that created a wargear option BSData lacked is *flagged* once
+the import translates that option itself (the Nobz' special weapons): its
+**Reattach…** proposes first the wargear alternative that gives the same
+weapons, and moves the entry's cost and abilities onto it — the option is no
+longer created.
+
 That flag is the one thing watched on a contribution. It never replaces what
 we wrote: it only asks for a second look.
 

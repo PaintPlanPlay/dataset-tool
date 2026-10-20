@@ -11,8 +11,9 @@
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ArmyFile, CoreFile, Unit } from '@paintplanplay/dataset-schema';
-import { authoredEffectProblems, type AuthoredEffect } from '../authored.ts';
+import type { ArmyFile, CoreFile, Unit, WargearAlternative, WargearOption } from '@paintplanplay/dataset-schema';
+import { authoredEffectProblems, sameWeapons, type AuthoredEffect } from '../authored.ts';
+import { alternativeTarget } from '../wargear.ts';
 import { CORE_ROOT, parseTarget } from '../corrections/apply.ts';
 import { homes } from '../home.ts';
 import { ApiError, datasetOf, refreshing } from './api.ts';
@@ -23,6 +24,8 @@ import type { Workspace } from './workspace.ts';
 interface Element {
   target: string;
   label: string;
+  /** Pour une Wargear Alternative : elle, son option et son Unit, de quoi comparer ce qu'elle donne. */
+  wargear?: { unit: Unit; option: WargearOption; alternative: WargearAlternative };
 }
 
 export interface Candidate extends Element {
@@ -72,8 +75,19 @@ function elementsOf(files: Map<string, unknown>, gameSystem: string, root: strin
 
 function unitElements(u: Unit, entity: string): Element[] {
   if (entity === 'ability') return u.abilities.map((a) => ({ target: `${u.id}::ability:${a.name}`, label: a.name }));
-  if (entity === 'option')
-    return (u.optionGroups ?? []).flatMap((g) => g.options.map((o) => ({ target: `${u.id}::option:${g.id}|${o.id}`, label: `${g.name} › ${o.name}` })));
+  if (entity === 'option') {
+    const groups = (u.optionGroups ?? []).flatMap((g) => g.options.map((o) => ({ target: `${u.id}::option:${g.id}|${o.id}`, label: `${g.name} › ${o.name}` })));
+    // Les Wargear Alternatives, à l'adresse de leur option d'origine.
+    const known = new Set(groups.map((e) => e.target));
+    const alternatives = (u.wargearOptions ?? []).flatMap((o) =>
+      o.alternatives.map((a) => ({
+        target: alternativeTarget(u.id, o, a.id),
+        label: a.name ?? a.weapons.map((w) => w.weapon.slice(w.weapon.indexOf('|') + 1)).join(' and '),
+        wargear: { unit: u, option: o, alternative: a },
+      })),
+    );
+    return [...alternatives.filter((a) => !known.has(a.target)), ...groups.map((g) => ({ ...g, wargear: alternatives.find((a) => a.target === g.target)?.wargear }))];
+  }
   return [];
 }
 
@@ -172,7 +186,10 @@ export function reattachCandidates(ws: Workspace, target: string): Reattachable 
         .filter((e) => e.target !== target)
         .map((e): Candidate => {
           const existing = described.get(h.canonical(e.target));
-          return { ...e, holder, score: score(was, e), ...(existing ? { existing } : {}) };
+          // Une option créée à la main va d'abord à la Wargear Alternative qui donne les mêmes Weapons.
+          const same = contribution.option && e.wargear && sameWeapons(contribution.option.weapons, e.wargear.alternative, e.wargear.option, e.wargear.unit);
+          const { wargear: _w, ...element } = e;
+          return { ...element, holder, score: same ? 3 : score(was, e), ...(existing ? { existing } : {}) };
         }),
     )
     .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label))
@@ -212,11 +229,23 @@ export function reattachContribution(ws: Workspace, input: ReattachInput): { tar
   if (existing && !input.keep) throw new ApiError(409, `${input.to} already has a Contribution: choose which to keep`);
 
   const rest = effects.filter((e) => e !== moved && e !== existing);
+  // L'élément visé existe : une option que la Contribution créait n'est plus à créer, son coût et ses aptitudes restent.
+  const { option: _created, ...carried } = moved;
+  const kept = carried.wargearCost !== undefined || carried.abilities !== undefined || moved.option === undefined;
   const next =
     existing && input.keep === 'existing'
       ? [...rest, existing]
-      : [...rest, { ...moved, target: existing?.target ?? input.to }];
-  const placed = next.find((e) => h.canonical(e.target) === h.canonical(input.to))!;
+      : kept
+        ? [...rest, { ...(moved.option ? carried : moved), target: existing?.target ?? input.to }]
+        : existing
+          ? [...rest, existing]
+          : rest;
+  const placed = next.find((e) => h.canonical(e.target) === h.canonical(input.to));
+  if (!placed) {
+    writeContributions(ws, next);
+    void refreshing(ws);
+    return { target: input.to };
+  }
   const problems = authoredEffectProblems(placed);
   if (problems.length) throw new ApiError(400, `${input.to}: refused`, problems);
   writeContributions(ws, next);

@@ -92,6 +92,22 @@ export interface AuthoredEffect {
 /** Ce qu'une Contribution donne d'un Stratagem : tout, sauf son identifiant et ce qu'il fait. */
 export type CreatedStratagem = Pick<Stratagem, 'name' | 'detachmentId' | 'cp' | 'phases' | 'playerTurn' | 'timing'> & Partial<Pick<Stratagem, 'trigger' | 'category' | 'target'>>;
 
+/**
+ * Une Wargear Alternative donne-t-elle ce qu'une option de groupe donnait ?
+ * Les mêmes Weapons (une option de choix), ou la même figurine une fois équipée
+ * — son Default Wargear, moins ce que la Wargear Option rend, plus ce que
+ * l'alternative apporte (une configuration de pool : « Nob w/ Big Choppa »).
+ */
+export function sameWeapons(option: string[], alternative: WargearOption['alternatives'][number], wargearOption: WargearOption, unit: Unit): boolean {
+  const given = new Set(alternative.weapons.map((w) => w.weapon));
+  const carried = new Set(unit.modelTypes?.find((t) => t.name === wargearOption.model)?.defaultWargear.map((w) => w.weapon) ?? []);
+  for (const w of wargearOption.replaces) carried.delete(w.weapon);
+  for (const r of given) carried.add(r);
+  const wanted = new Set(option);
+  const equal = (a: Set<string>) => a.size === wanted.size && [...a].every((r) => wanted.has(r));
+  return wanted.size > 0 && ((given.size > 0 && equal(given)) || equal(carried));
+}
+
 /** Une Wargear Option telle qu'une Contribution l'écrit : sa phrase, sans son identifiant ni ce que ses alternatives coûtent. */
 export type WrittenWargearOption = Omit<WargearOption, 'id' | 'alternatives'> & { alternatives: { id: string; name?: string; weapons: WargearOption['alternatives'][number]['weapons'] }[] };
 
@@ -483,6 +499,8 @@ export function applyAuthoredEffects(
       hits++;
     };
     let drifted = false;
+    /** Le nom de la Wargear Alternative traduite qui donne ce qu'une option créée à la main donnait. */
+    let replaced: string | undefined;
     if (entity === 'wargear') {
       // Une Wargear Option écrite à la main remplace la traduite de même identifiant, s'ajoute, ou la retire.
       for (const a of armies)
@@ -540,6 +558,14 @@ export function applyAuthoredEffects(
                 hits++;
               }
       if (hits && e.wargearCost !== undefined) wargearLinks.set(e.target, e.wargearCost);
+      // Une option créée à la main que l'import donne désormais : la Contribution est à rattacher à la Wargear Alternative traduite.
+      if (e.option)
+        for (const a of armies)
+          for (const u of a.units)
+            if (u.id === root && !replaced)
+              for (const o of u.wargearOptions ?? [])
+                for (const alt of o.alternatives)
+                  if (alt.id !== optionId && sameWeapons(e.option.weapons, alt, o, u)) replaced = alt.name ?? alt.id;
     } else if (entity === 'ability') {
       for (const a of armies) for (const u of a.units) if (u.id === root) for (const ab of u.abilities) if (ab.name === name) take(ab);
     } else if (entity === 'rule' || entity === 'enhancement') {
@@ -587,7 +613,9 @@ export function applyAuthoredEffects(
     else if (!hits) {
       unresolved.push(e.target);
       contributions.push({ target: e.target, reason: e.reason, state: 'unresolved', note: 'the target is not in the Dataset' });
-    } else if (drifted)
+    } else if (replaced !== undefined)
+      contributions.push({ target: e.target, reason: e.reason, state: 'flagged', note: `the import now gives this option as « ${replaced} »: reattach the contribution to it` });
+    else if (drifted)
       contributions.push({ target: e.target, reason: e.reason, state: 'flagged', note: 'BSData changed this Wargear Option since it was written: review the sentence' });
     else if (missingAbilities.size)
       contributions.push({

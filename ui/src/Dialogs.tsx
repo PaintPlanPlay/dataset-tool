@@ -162,7 +162,7 @@ export function CorrectionsDialog({ sheet, onOpen, onChanged, onClose }: { sheet
                   </>
                 )
               )}
-              {c.kind === 'contribution' && c.state === 'unresolved' && (
+              {c.kind === 'contribution' && (c.state === 'unresolved' || (c.state === 'flagged' && c.note.includes('reattach'))) && (
                 <button type="button" onClick={() => setReattach(c.target)} title="Move it to the element that replaced its target">
                   Reattach…
                 </button>

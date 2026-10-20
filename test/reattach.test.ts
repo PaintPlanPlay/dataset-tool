@@ -57,7 +57,15 @@ const renamed: AuthoredEffect = { target: 'u-warboss::ability:Da Boss Fixture (A
 const twin: AuthoredEffect = { target: 'u-warboss::ability:Leader (Old)', summary: 'Old wording of the attachment.', reason: 'Written before the rename.' };
 const already: AuthoredEffect = { target: 'u-warboss::ability:Leader', summary: 'Current wording of the attachment.', reason: 'Rewritten by hand after the rename.' };
 const moved: AuthoredEffect = { target: 'u-warboss-old::ability:Da Boss Fixture', summary: 'Ability of a unit whose id changed.', reason: 'Written before BSData changed the id.' };
-const contributions = [...(JSON.parse(readFileSync(join(dir, ORKS), 'utf8')) as AuthoredEffect[]), renamed, twin, already, moved];
+// Une option créée à la main dans le pool des Meganobz, que l'import donne désormais ; un coût posé sur une option du Warboss.
+const createdTwin: AuthoredEffect = {
+  target: 'u-meganobz::option:g-meganobz|contrib-twin',
+  option: { name: 'Meganob w/ Twin Killsaw', weapons: ['melee|Twin Killsaw'], maxCarriers: 6, isDefault: false },
+  wargearCost: { item: 'Twin Killsaws' },
+  reason: 'Written when BSData lacked the option.',
+};
+const squig: AuthoredEffect = { target: 'u-warboss::option:g-warboss-gun|e-slugga', wargearCost: { item: 'Attack squig' }, reason: 'Test: a cost on a Warboss option.' };
+const contributions = [...(JSON.parse(readFileSync(join(dir, ORKS), 'utf8')) as AuthoredEffect[]), renamed, twin, already, moved, createdTwin, squig];
 writeFileSync(join(dir, ORKS), toJson(contributions.sort((a, b) => a.target.localeCompare(b.target))));
 git('add', '-A');
 git('commit', '-q', '-m', 'Dataset publié');
@@ -123,6 +131,30 @@ try {
   const offerUnit = await candidates(moved.target);
   check('elle propose l\'Unit de même nom', offerUnit.candidates[0]?.target === 'u-warboss::ability:Da Boss Fixture', JSON.stringify(offerUnit.candidates.map((c) => c.target)));
   check('nommée d\'après le Dataset publié', offerUnit.label === 'Da Boss Fixture' && offerUnit.candidates[0]?.holder === 'Warboss');
+
+  section('Les Contributions d\'options passent aux Wargear Alternatives');
+  {
+    const bill = (unitId: string, alternativeId: string) => {
+      const army = ws.current?.files.get(`${GS}/armies/orks.json`) as ArmyFile;
+      const a = army.units.find((u) => u.id === unitId)?.wargearOptions?.flatMap((o) => o.alternatives).find((x) => x.id === alternativeId);
+      return a?.wargearCost?.item;
+    };
+    check('un coût posé sur une option du Warboss reste actif, sur la Wargear Alternative de même identifiant', verdict().get(squig.target) === 'active' && bill('u-warboss', 'e-slugga') === 'Attack squig', String(bill('u-warboss', 'e-slugga')));
+    const flagged = ws.current?.contributions?.find((c) => c.target === createdTwin.target);
+    check('une option créée que l\'import donne désormais est signalée, à rattacher', flagged?.state === 'flagged' && /reattach/.test(flagged.note), JSON.stringify(flagged));
+    const board = (await call<Unreleased>('/api/unreleased')).body;
+    check('le tableau de bord propose de la rattacher', board.findings.some((f) => f.reattach === createdTwin.target));
+    const offer = await candidates(createdTwin.target);
+    check('la Wargear Alternative qui donne les mêmes Weapons vient en premier', offer.candidates[0]?.target === 'u-meganobz::option:m-mnz-twin|m-mnz-twin', JSON.stringify(offer.candidates.slice(0, 3).map((c) => c.target)));
+    const done = await reattach(createdTwin.target, offer.candidates[0].target);
+    const after = effect('u-meganobz::option:m-mnz-twin|m-mnz-twin');
+    check('rattachée, elle ne crée plus d\'option et garde son coût', done.status === 200 && after?.option === undefined && after?.wargearCost?.item === 'Twin Killsaws' && !effect(createdTwin.target), JSON.stringify(after));
+    await refresh();
+    check('elle redevient active, le coût porté par l\'alternative traduite', verdict().get('u-meganobz::option:m-mnz-twin|m-mnz-twin') === 'active' && bill('u-meganobz', 'm-mnz-twin') === 'Twin Killsaws');
+    await call('/api/pending/undo', { id: (await call<PendingChange[]>('/api/pending')).body.find((p) => p.target.includes('m-mnz-twin') || p.from === createdTwin.target)?.id });
+    git('checkout', '-q', '--', '.');
+    await refresh();
+  }
 
   section('Ce qui ne se rattache pas');
   check('un genre d\'élément différent est refusé', (await reattach(renamed.target, 'u-warboss')).status === 400);
