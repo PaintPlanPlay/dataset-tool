@@ -469,6 +469,21 @@ export function applyAuthoredEffects(
               }
               hits++;
             }
+      // La même Wargear Alternative dans la nouvelle forme : son entrée garde l'identifiant de l'option.
+      for (const a of armies)
+        for (const u of a.units)
+          if (u.id === root)
+            for (const o of u.wargearOptions ?? [])
+              for (const alt of o.alternatives) {
+                if (alt.id !== optionId) continue;
+                if (e.abilities !== undefined) {
+                  const known = e.abilities.filter((n) => u.abilities.some((ab) => ab.name === n));
+                  for (const n of e.abilities) if (!known.includes(n)) missingAbilities.add(n);
+                  if (known.length) alt.abilities = known;
+                  else delete alt.abilities;
+                }
+                hits++;
+              }
       if (hits && e.wargearCost !== undefined) wargearLinks.set(e.target, e.wargearCost);
     } else if (entity === 'ability') {
       for (const a of armies) for (const u of a.units) if (u.id === root) for (const ab of u.abilities) if (ab.name === name) take(ab);

@@ -1,23 +1,27 @@
 /**
- * Le Wargear Cost porté par la Wargear Option (#121).
+ * Le Wargear Cost porté par la Wargear Alternative (#121).
  *
  * Le MFM facture de l'équipement par un nom (`Twin Killsaws: 5`), BSData décrit
- * des options (`Meganob w/ Twin Killsaw`) : rien ne les relie. Une fois le MFM
+ * des choix (`Meganob w/ Twin Killsaw`) : rien ne les relie. Une fois le MFM
  * et les Corrections appliqués, cette étape propose, pour chaque ligne
- * `wargear` d'une Unit, la Wargear Option qu'elle facture, en comparant des
- * noms normalisés — casse, accents, pluriel simple, préfixe « 2 X » qui donne
- * une quantité de 2, forme « … w/ X » — au nom des options et de leurs Weapons.
+ * `wargear` d'une Unit, ce qu'elle facture, en comparant des noms normalisés —
+ * casse, accents, pluriel simple, préfixe « 2 X » qui donne une quantité de 2,
+ * forme « … w/ X » — au nom des choix et de leurs Weapons.
  *
- * Elle ne lie que si **exactement une option non par défaut** correspond. Tout
- * le reste devient un finding : ligne orpheline, ambiguë, ou qui ne vise
- * qu'une option par défaut (le Lascannon de coque est payant, un autre ne
- * l'est peut-être pas : le mainteneur décide). Un lien posé à la main — une
- * Contribution — prime toujours, y compris pour délier ; s'il désigne une
- * ligne disparue, il est signalé et ne facture rien.
+ * Elle ne lie que si **exactement un choix payable** correspond. Tout le reste
+ * devient un finding : ligne orpheline, ambiguë, ou qui ne vise que ce qui est
+ * porté d'office (le Lascannon de coque est payant, un autre ne l'est peut-être
+ * pas : le mainteneur décide). Un lien posé à la main — une Contribution —
+ * prime toujours, y compris pour délier ; s'il désigne une ligne disparue, il
+ * est signalé et ne facture rien.
  *
- * Le montant n'est jamais recopié dans l'option : il reste dans la ligne.
+ * La même règle vaut pour les deux formes du Dataset : les options des groupes
+ * de choix, et les Wargear Alternatives des Wargear Options. Les findings
+ * suivent les groupes de choix tant qu'ils sont publiés.
+ *
+ * Le montant n'est jamais recopié : il reste dans la ligne.
  */
-import type { ArmyFile, Unit, WargearCost, WeaponOption } from '@paintplanplay/dataset-schema';
+import type { ArmyFile, Unit, WargearCost, WargearOption } from '@paintplanplay/dataset-schema';
 
 export interface WargearFinding {
   army: string;
@@ -40,6 +44,13 @@ export interface WargearFinding {
 /** Adresse d'une Wargear Option : `<unitId>::option:<groupId>|<optionId>`. */
 export const optionTarget = (unitId: string, groupId: string, optionId: string) => `${unitId}::option:${groupId}|${optionId}`;
 
+/**
+ * Adresse d'une Wargear Alternative : celle de son option d'origine. Une
+ * Wargear Option née d'un groupe que la traduction a dû scinder (`<groupId>~2`)
+ * garde l'adresse du groupe.
+ */
+export const alternativeTarget = (unitId: string, option: WargearOption, alternativeId: string) => optionTarget(unitId, option.id.replace(/~\d+$/, ''), alternativeId);
+
 /** Un nom comparable : sans casse ni accents, mots au singulier. */
 export function wargearKey(name: string): string {
   return name
@@ -60,22 +71,75 @@ function counted(name: string): { quantity: number; rest: string } {
   return n >= 2 && m ? { quantity: n, rest: m[2] } : { quantity: 1, rest: name };
 }
 
-/** Les noms sous lesquels une option peut être facturée, et la quantité que son nom annonce. */
-function namesOf(o: WeaponOption): { keys: Set<string>; quantity: number } {
-  const { quantity, rest } = counted(o.name);
+/** Les noms sous lesquels un choix peut être facturé, et la quantité que son nom annonce. */
+function namesOf(name: string, weapons: string[]): { keys: Set<string>; quantity: number } {
+  const { quantity, rest } = counted(name);
   const keys = new Set([wargearKey(rest)]);
-  const w = /\bw\/\s*(.+)$/i.exec(o.name);
+  const w = /\bw\/\s*(.+)$/i.exec(name);
   if (w) keys.add(wargearKey(w[1]));
-  for (const ref of o.weapons) keys.add(wargearKey(ref.slice(ref.indexOf('|') + 1)));
+  for (const ref of weapons) keys.add(wargearKey(ref.slice(ref.indexOf('|') + 1)));
   return { keys, quantity };
 }
 
-interface Located {
-  groupId: string;
-  option: WeaponOption;
+/** Ce qu'une ligne du MFM peut facturer : un choix, avec son adresse et ce qu'il porte. */
+interface Billable {
+  /** L'adresse d'un lien posé à la main. */
+  target: string;
+  name: string;
+  keys: Set<string>;
+  quantity: number;
+  /** Porté d'office : une ligne qui ne vise que lui se signale, sans se lier. */
+  isDefault: boolean;
+  cost(): WargearCost | undefined;
+  bill(cost: WargearCost | undefined): void;
 }
 
-const optionsOf = (u: Unit): Located[] => (u.optionGroups ?? []).flatMap((g) => g.options.map((option) => ({ groupId: g.id, option })));
+/** Les options des groupes de choix d'une Unit. */
+function optionBillables(u: Unit): Billable[] {
+  return (u.optionGroups ?? []).flatMap((g) =>
+    g.options.map((o) => ({
+      target: optionTarget(u.id, g.id, o.id),
+      name: o.name,
+      ...namesOf(o.name, o.weapons),
+      isDefault: o.isDefault,
+      cost: () => o.wargearCost,
+      bill: (c: WargearCost | undefined) => {
+        if (c) o.wargearCost = c;
+        else delete o.wargearCost;
+      },
+    })),
+  );
+}
+
+/**
+ * Les Wargear Alternatives d'une Unit, et son Default Wargear : une ligne qui
+ * ne vise que ce qui est porté d'office se signale sans se lier.
+ */
+function alternativeBillables(u: Unit): Billable[] {
+  const alternatives = (u.wargearOptions ?? []).flatMap((o) =>
+    o.alternatives.map((a): Billable => {
+      const weapons = a.weapons.map((w) => w.weapon);
+      const names = namesOf(a.name ?? weapons.map((r) => r.slice(r.indexOf('|') + 1)).join(' and '), weapons);
+      const lone = a.weapons.length === 1 ? a.weapons[0].count : 1;
+      return {
+        target: alternativeTarget(u.id, o, a.id),
+        name: a.name ?? weapons.join(', '),
+        keys: names.keys,
+        quantity: Math.max(names.quantity, lone),
+        isDefault: false,
+        cost: () => a.wargearCost,
+        bill: (c) => {
+          if (c) a.wargearCost = c;
+          else delete a.wargearCost;
+        },
+      };
+    }),
+  );
+  const carried = [...new Set((u.modelTypes ?? []).flatMap((t) => t.defaultWargear.map((w) => w.weapon)))].map(
+    (ref): Billable => ({ target: '', name: ref.slice(ref.indexOf('|') + 1), ...namesOf(ref.slice(ref.indexOf('|') + 1), [ref]), isDefault: true, cost: () => undefined, bill: () => undefined }),
+  );
+  return [...alternatives, ...carried];
+}
 
 /**
  * Pose les Wargear Costs sur les Units des fichiers construits, et rend les
@@ -90,7 +154,8 @@ export function linkWargear(files: Map<string, unknown>, gameSystem: string, man
   const occurrences = armies.flatMap((a) => a.units.map((u) => ({ army: a.id, unit: u }))).sort((x, y) => Number(Boolean(x.unit.ally)) - Number(Boolean(y.unit.ally)));
 
   for (const { army, unit } of occurrences) {
-    const own = linkUnit(unit, manual);
+    const own = linkUnit(unit, optionBillables(unit), manual);
+    linkUnit(unit, alternativeBillables(unit), withPools(unit, manual));
     if (reported.has(unit.id)) continue;
     reported.add(unit.id);
     findings.push(...own.map((f) => ({ army, unitId: unit.id, unit: unit.name, ...f })));
@@ -98,42 +163,56 @@ export function linkWargear(files: Map<string, unknown>, gameSystem: string, man
   return findings.sort((a, b) => a.army.localeCompare(b.army) || a.unit.localeCompare(b.unit) || a.item.localeCompare(b.item));
 }
 
-function linkUnit(unit: Unit, manual: Map<string, WargearCost | null>): Omit<WargearFinding, 'army' | 'unitId' | 'unit'>[] {
+/**
+ * Les liens manuels qui visent une Wargear Alternative par l'adresse qu'avait
+ * son entrée dans un groupe de choix : une configuration de pool garde son
+ * identifiant, mais plus celui du pool qui la contenait.
+ */
+function withPools(unit: Unit, manual: Map<string, WargearCost | null>): Map<string, WargearCost | null> {
+  const prefix = `${unit.id}::option:`;
+  const byAlternative = new Map<string, WargearCost | null>();
+  for (const [target, link] of manual) if (target.startsWith(prefix)) byAlternative.set(target.slice(target.indexOf('|') + 1), link);
+  const out = new Map(manual);
+  for (const o of unit.wargearOptions ?? [])
+    for (const a of o.alternatives) {
+      const target = alternativeTarget(unit.id, o, a.id);
+      if (!out.has(target) && byAlternative.has(a.id)) out.set(target, byAlternative.get(a.id)!);
+    }
+  return out;
+}
+
+function linkUnit(unit: Unit, billables: Billable[], manual: Map<string, WargearCost | null>): Omit<WargearFinding, 'army' | 'unitId' | 'unit'>[] {
   const lines = unit.wargear ?? [];
-  const options = optionsOf(unit);
   const out: Omit<WargearFinding, 'army' | 'unitId' | 'unit'>[] = [];
-  const decided = new Set<WeaponOption>();
+  const decided = new Set<Billable>();
   const covered = new Set<string>();
 
   // Les liens posés à la main d'abord : ils priment, pour lier comme pour délier.
-  for (const { groupId, option } of options) {
-    delete option.wargearCost;
-    const target = optionTarget(unit.id, groupId, option.id);
-    if (!manual.has(target)) continue;
-    decided.add(option);
-    const link = manual.get(target);
+  for (const b of billables) {
+    b.bill(undefined);
+    if (!b.target || !manual.has(b.target)) continue;
+    decided.add(b);
+    const link = manual.get(b.target);
     if (!link) continue;
     if (!lines.some((l) => l.item === link.item)) {
-      out.push({ item: link.item, kind: 'missing-line', options: [option.name], target });
+      out.push({ item: link.item, kind: 'missing-line', options: [b.name], target: b.target });
       continue;
     }
-    option.wargearCost = { item: link.item, ...((link.quantity ?? 1) > 1 ? { quantity: link.quantity } : {}) };
+    b.bill({ item: link.item, ...((link.quantity ?? 1) > 1 ? { quantity: link.quantity } : {}) });
     covered.add(link.item);
   }
 
-  const names = new Map(options.map((o) => [o.option, namesOf(o.option)]));
   for (const line of lines) {
     if (covered.has(line.item)) continue;
     const key = wargearKey(line.item);
-    const matching = options.filter((o) => !decided.has(o.option) && names.get(o.option)!.keys.has(key)).map((o) => o.option);
-    const paid = matching.filter((o) => !o.isDefault);
-    if (paid.length === 1 && !paid[0].wargearCost) {
-      const quantity = names.get(paid[0])!.quantity;
-      paid[0].wargearCost = { item: line.item, ...(quantity > 1 ? { quantity } : {}) };
+    const matching = billables.filter((b) => !decided.has(b) && b.keys.has(key));
+    const paid = matching.filter((b) => !b.isDefault);
+    if (paid.length === 1 && !paid[0].cost()) {
+      paid[0].bill({ item: line.item, ...(paid[0].quantity > 1 ? { quantity: paid[0].quantity } : {}) });
       continue;
     }
-    const kind = paid.length > 1 || (paid.length === 1 && paid[0].wargearCost) ? 'ambiguous' : matching.length ? 'default-only' : 'orphan';
-    out.push({ item: line.item, kind, options: (paid.length ? paid : matching).map((o) => o.name) });
+    const kind = paid.length > 1 || (paid.length === 1 && paid[0].cost()) ? 'ambiguous' : matching.length ? 'default-only' : 'orphan';
+    out.push({ item: line.item, kind, options: (paid.length ? paid : matching).map((b) => b.name) });
   }
   return out;
 }

@@ -205,3 +205,38 @@ section('Une Enhancement qui apporte une Weapon');
   const onUnit = await build({ snapshot, authored: authored([{ target: 'u-warboss::ability:Da Boss Fixture', weapon: thunderbuss, reason: 'Test' }]) });
   check('seule une Enhancement apporte une Weapon', onUnit.contributions.some((c) => c.target === 'u-warboss::ability:Da Boss Fixture' && c.state === 'rejected'));
 }
+
+section('Le Wargear Cost porté par la Wargear Alternative');
+{
+  const authored = (effects: AuthoredEffect[]): AuthoredCore => ({ battleSizes: [], referenceTargets: [], effects });
+  const alternativeOf = (u: Unit, id: string) => u.wargearOptions?.flatMap((o) => o.alternatives).find((a) => a.id === id);
+  const billed = (u: Unit, id: string) => {
+    const a = alternativeOf(u, id);
+    return a?.wargearCost ? `${a.wargearCost.item}×${a.wargearCost.quantity ?? 1}` : 'none';
+  };
+  const meganobz = unitOf(plain, 'orks', 'Meganobz');
+  check('« Twin Killsaws » (MFM) se lie à la Wargear Alternative « Meganob w/ Twin Killsaw »', billed(meganobz, 'm-mnz-twin') === 'Twin Killsaws×1', billed(meganobz, 'm-mnz-twin'));
+  const exterminator = unitOf(plain, 'astra-militarum', 'Leman Russ Exterminator');
+  check('« 2 Multi-meltas » se lie avec une quantité de 2', billed(exterminator, 'e-ext-2mm') === 'Multi-melta×2', billed(exterminator, 'e-ext-2mm'));
+  check('le Lascannon de coque, porté d\'office, n\'est pas lié', !exterminator.wargearOptions?.some((o) => o.alternatives.some((a) => a.wargearCost?.item === 'Lascannon')));
+  check('le montant n\'est jamais recopié dans l\'alternative', !JSON.stringify(alternativeOf(meganobz, 'm-mnz-twin')).includes('"points"'));
+  const wolves = unitOf(plain, 'space-marines', 'Wolf Guard Terminators');
+  check('une alternative sans Weapon distincte se lie par son nom : « Storm Shield »', billed(wolves, 'm-wgt-shield') === 'Storm Shield×1', billed(wolves, 'm-wgt-shield'));
+
+  const manual = await build({
+    snapshot,
+    authored: authored([
+      { target: 'u-meganobz::option:g-meganobz|m-mnz-twin', wargearCost: null, reason: 'Test : délier' },
+      { target: 'u-exterminator::option:g-ext-hull|e-ext-hb', wargearCost: { item: 'Heavy bolter' }, reason: 'Test : lever l\'ambiguïté' },
+      { target: 'u-wolfguard-terminators::option:g-wgt|m-wgt-shield', abilities: ['Storm Shield'], reason: 'Le bouclier apporte l\'aptitude Storm Shield' },
+    ]),
+  });
+  check('une Contribution posée sur l\'option vaut pour la Wargear Alternative : délier', billed(unitOf(manual, 'orks', 'Meganobz'), 'm-mnz-twin') === 'none');
+  check('… et lier, à l\'adresse de son groupe', billed(unitOf(manual, 'astra-militarum', 'Leman Russ Exterminator'), 'e-ext-hb') === 'Heavy bolter×1');
+  check(
+    'les aptitudes qu\'elle apporte figurent sur la Wargear Alternative',
+    alternativeOf(unitOf(manual, 'space-marines', 'Wolf Guard Terminators'), 'm-wgt-shield')?.abilities?.join() === 'Storm Shield',
+  );
+  const problems = [...manual.files].filter(([p]) => p.includes('/armies/')).flatMap(([, f]) => validateFile('army', f));
+  check('le Dataset reste valide', problems.length === 0, problems.join(' | '));
+}

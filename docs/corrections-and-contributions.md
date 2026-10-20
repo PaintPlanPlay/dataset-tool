@@ -254,7 +254,7 @@ or `option`.
 | a stratagem | `<armyId>::stratagem:<stratagemId>` |
 | a core stratagem | `core::stratagem:<stratagemId>` |
 | an army rule | `<armyId>::armyrule:<ruleId>` |
-| a wargear option | `<unitId>::option:<groupId>\|<optionId>` |
+| a wargear option — and the wargear alternative of the same id | `<unitId>::option:<groupId>\|<optionId>` |
 
 **What a build does with each entry**
 

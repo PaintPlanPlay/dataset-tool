@@ -100,7 +100,7 @@ section('Ce que l\'import ne sait pas lire : le Captain');
   const todo = out.wargearToWrite.find((w) => w.unitId === captain.id);
   check('un constat « options à écrire », par groupe et raison', Boolean(todo?.groups.length) && todo!.army === 'space-marines', JSON.stringify(todo));
   check('les Units traduites n\'y sont pas', !out.wargearToWrite.some((w) => w.unit === 'Nobz' || w.unit === 'Warboss'));
-  const report = renderReport(makeReport(out));
+  const report = renderReport(makeReport(out, undefined));
   check('le rapport de construction les compte', report.includes('## Wargear options to write (1)') && report.includes('**Captain**'), report.slice(report.indexOf('## Wargear options'), report.indexOf('## Wargear options') + 200));
 }
 
