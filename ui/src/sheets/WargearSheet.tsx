@@ -10,7 +10,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { modelTypesOf, wargearSentence, weaponName, type ModelType, type Unit, type WargearAlternative, type WargearOption, type WargearWho, type WeaponCount } from '@paintplanplay/dataset-schema';
-import { Badges, Field, useEditor, type FieldProps } from '../editor/Editor.tsx';
+import { Badges, Field, PointsInput, useEditor, type FieldProps } from '../editor/Editor.tsx';
 import { pointer, type Path } from '../editor/values.ts';
 
 const weaponRef = (w: { kind: string; name: string }) => `${w.kind}|${w.name}`;
@@ -357,6 +357,14 @@ function AlternativeRow({ alternative, path, at, onChange, onRemove }: { alterna
                 </option>
               ))}
             </select>
+            {cost && line && (
+              <>
+                {' at '}
+                <PointsInput value={line.points} onChange={(points) => ctx.onChange(['wargear'], lines.map((l) => (l.item === line.item ? { ...l, points } : l)))} />
+                {' pts'}
+                <Badges path={['wargear', lines.indexOf(line), 'points']} value={line.points} />
+              </>
+            )}
             {cost && (
               <>
                 {' × '}

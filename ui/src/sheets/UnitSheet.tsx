@@ -5,7 +5,7 @@
  * effectifs) s'affiche sans se saisir.
  */
 import type { ReactNode } from 'react';
-import { alternativeText, type Unit } from '@paintplanplay/dataset-schema';
+import type { Unit } from '@paintplanplay/dataset-schema';
 import type { WargearFinding } from '../../../src/wargear.ts';
 import { Badges, Field, PointsInput, useEditor, type FieldProps } from '../editor/Editor.tsx';
 import { defaultOf, type Path } from '../editor/values.ts';
@@ -294,22 +294,21 @@ function WargearLines({ findings, section }: { findings: WargearFinding[]; secti
   const unit = ctx.draft as Unit;
   const lines = unit.wargear ?? [];
   const set = (next: NonNullable<Unit['wargear']>) => ctx.onChange(['wargear'], next.length ? next : undefined);
+  // Une ligne qu'une Wargear Alternative facture se lit et se corrige sous cette alternative : ici, seulement les autres.
+  const billed = new Set((unit.wargearOptions ?? []).flatMap((o) => o.alternatives).flatMap((a) => (a.wargearCost ? [a.wargearCost.item] : [])));
+  const shown = lines.map((l, i) => ({ l, i })).filter(({ l }) => !billed.has(l.item) || !l.item);
   return (
     <section className="list">
       <h3 className="list-title">
-        MFM wargear lines <span className="count">{lines.length}</span>
+        MFM wargear lines no alternative bills <span className="count">{shown.length}</span>
         <span className="section-source"> · {section}</span>
         <Badges path={['wargear']} value={unit.wargear} />
         <button type="button" className="add" title="Add an MFM line" onClick={() => set([...lines, { item: '', points: 0 }])}>
           +
         </button>
       </h3>
-      {lines.length === 0 && <p className="empty">The MFM bills no wargear for this Unit.</p>}
-      {lines.map((l, i) => {
-        const linked = (unit.wargearOptions ?? [])
-          .flatMap((o) => o.alternatives)
-          .filter((a) => a.wargearCost?.item === l.item)
-          .map((a) => ({ name: a.name ?? alternativeText(a), cost: a.wargearCost }));
+      {shown.length === 0 && <p className="empty">{lines.length ? 'Every MFM line bills a wargear alternative: see its folded line above.' : 'The MFM bills no wargear for this Unit.'}</p>}
+      {shown.map(({ l, i }) => {
         const finding = findings.find((f) => f.item === l.item && f.kind !== 'missing-line');
         return (
           <div key={i} className="item wargear-line">
@@ -320,14 +319,10 @@ function WargearLines({ findings, section }: { findings: WargearFinding[]; secti
               {' pts'}
               <Badges path={['wargear', i, 'points']} value={l.points} />
             </span>
-            {linked.length ? (
-              <span className="linked">→ {linked.map(({ name, cost }) => `${name}${(cost?.quantity ?? 1) > 1 ? ` ×${cost!.quantity}` : ''}`).join(', ')}</span>
-            ) : (
-              <span className="note warning">
-                {finding ? FINDING_LABEL[finding.kind] : 'not linked'}
-                {finding?.options.length ? ` (${finding.options.join(', ')})` : ''}
-              </span>
-            )}
+            <span className="note warning">
+              {finding ? FINDING_LABEL[finding.kind] : 'not linked'}
+              {finding?.options.length ? ` (${finding.options.join(', ')})` : ''}
+            </span>
             <button type="button" className="remove" title="Remove this line" onClick={() => set(lines.filter((_x, j) => j !== i))}>
               −
             </button>
