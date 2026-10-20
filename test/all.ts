@@ -20,5 +20,6 @@ await import('./gui.test.ts');
 await import('./unreleased.test.ts');
 await import('./sheets.test.ts');
 await import('./wargear.test.ts');
+await import('./reattach.test.ts');
 
 console.log(failed() ? `\n✘ ${failed()} contrôle(s) en échec` : '\n✔ tous les contrôles passent');

@@ -265,6 +265,16 @@ or `option`.
 | **rejected** | not applied: off schema, rules text, or the retired 40kdc-data effect format. A stratagem or detachment rule the entry creates is still created; only the rest is set aside |
 | **target missing** (unresolved) | the rule, option group or unit it names is not in the dataset |
 
+When an upstream source renames what an entry names — BSData drops « (Aura) »
+from an ability, or gives a datasheet a new id — the entry becomes *target
+missing*. Do not rewrite it: click **Reattach…** next to it, on the dashboard
+(*Contributions to review*) or in the sheet's **Corrections (n)**. The tool
+lists the elements of the same kind that could have replaced it, the same name
+without its bracketed suffix first; for a unit whose id changed, the units of
+the same name. Reattaching rewrites the entry's target and keeps everything it
+says; it is a pending change you can undo. If the element you pick already has
+its own entry, both are shown side by side and you keep one.
+
 That flag is the one thing watched on a contribution. It never replaces what
 we wrote: it only asks for a second look.
 

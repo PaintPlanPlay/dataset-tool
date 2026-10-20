@@ -6,6 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { api, type ArmyChanges, type CaughtUp, type Counters, type FindingKind, type EntityChange, type FieldChange, type Origin, type Overview, type SourceShift, type Stage, type Unreleased } from './api.ts';
+import { ReattachDialog } from './Dialogs.tsx';
 
 const SOURCE: Record<string, string> = { bsdata: 'BSData', mfm: 'MFM' };
 const KIND: Record<EntityChange['kind'], string> = { unit: 'Unit', detachment: 'Detachment', stratagem: 'Stratagem', armyRule: 'Army Rule', core: 'Core' };
@@ -240,6 +241,7 @@ export function Dashboard({ overview, onOpen, onWrite }: Props) {
   const [stage, setStage] = useState<Stage | ''>('');
   const [origin, setOrigin] = useState<Origin | ''>('');
   const [findings, setFindings] = useState<{ kind: FindingKind; army?: string } | null>(null);
+  const [reattach, setReattach] = useState<string | null>(null);
 
   // L'état global se relit après chaque tâche ou écriture : le tableau de bord suit.
   useEffect(() => {
@@ -343,9 +345,24 @@ export function Dashboard({ overview, onOpen, onWrite }: Props) {
                 <span className="change-field">{f.label}</span>
               )}
               <span className="lines">{f.detail}</span>
+              {f.reattach && (
+                <button type="button" onClick={() => setReattach(f.reattach!)} title="Move it to the element that replaced its target">
+                  Reattach…
+                </button>
+              )}
             </div>
           ))}
         </section>
+      )}
+      {reattach && (
+        <ReattachDialog
+          target={reattach}
+          onClose={() => setReattach(null)}
+          onDone={(to) => {
+            setReattach(null);
+            onWrite(`Contribution reattached to ${to}`);
+          }}
+        />
       )}
       {data.release && !data.note && changes.length === 0 && <p className="empty">Nothing differs from the Release in production.</p>}
       {data.caughtUp.length > 0 && <CaughtUpList items={data.caughtUp} onOpen={onOpen} onRemoved={(r) => onWrite(`${r.length} caught-up Correction(s) removed`)} />}

@@ -4,7 +4,7 @@
  * tout le Dataset), et les désaccords entre sources.
  */
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { api, type CorrectionItem, type SourceConflict } from './api.ts';
+import { api, type Candidate, type CorrectionItem, type Reattachable, type SourceConflict } from './api.ts';
 import { toast } from './Toast.tsx';
 
 function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
@@ -90,6 +90,7 @@ export function CorrectionsDialog({ sheet, onOpen, onChanged, onClose }: { sheet
   const [items, setItems] = useState<CorrectionItem[] | null>(null);
   const [q, setQ] = useState('');
   const [confirm, setConfirm] = useState<CorrectionItem | null>(null);
+  const [reattach, setReattach] = useState<string | null>(null);
   const load = useCallback(() => api.corrections(sheet, q).then(setItems, (e: Error) => toast.error('Corrections could not be listed', e.message)), [sheet, q]);
   useEffect(() => void load(), [load]);
 
@@ -161,6 +162,11 @@ export function CorrectionsDialog({ sheet, onOpen, onChanged, onClose }: { sheet
                   </>
                 )
               )}
+              {c.kind === 'contribution' && c.state === 'unresolved' && (
+                <button type="button" onClick={() => setReattach(c.target)} title="Move it to the element that replaced its target">
+                  Reattach…
+                </button>
+              )}
               <button type="button" onClick={() => setConfirm(c)}>
                 Delete
               </button>
@@ -168,6 +174,18 @@ export function CorrectionsDialog({ sheet, onOpen, onChanged, onClose }: { sheet
           </li>
         ))}
       </ul>
+      {reattach && (
+        <ReattachDialog
+          target={reattach}
+          onClose={() => setReattach(null)}
+          onDone={(to) => {
+            setReattach(null);
+            toast.ok(`Reattached to ${to}`);
+            void load();
+            onChanged();
+          }}
+        />
+      )}
       {confirm && (
         <Modal title="Delete?" onClose={() => setConfirm(null)}>
           <p>
@@ -183,6 +201,97 @@ export function CorrectionsDialog({ sheet, onOpen, onChanged, onClose }: { sheet
             </button>
           </div>
         </Modal>
+      )}
+    </Modal>
+  );
+}
+
+/** Ce qu'une Contribution dit, en clair : sa Description, puis le reste de ce qu'elle porte. */
+function ContributionText({ entry }: { entry: Reattachable['contribution'] }) {
+  const { target: _target, reason, summary, ...rest } = entry;
+  return (
+    <div className="contribution-text">
+      {summary ? <p>{summary}</p> : <p className="hint">No Description.</p>}
+      {Object.keys(rest).length > 0 && <code className="patch">{JSON.stringify(rest)}</code>}
+      <p className="reason">{reason}</p>
+    </div>
+  );
+}
+
+/**
+ * Rattacher une Contribution dont la cible a changé de nom à l'élément qui l'a
+ * remplacée, le plus proche en tête. Si cet élément a déjà sa Contribution, on
+ * montre les deux et on garde celle qu'on choisit.
+ */
+export function ReattachDialog({ target, onDone, onClose }: { target: string; onDone: (to: string) => void; onClose: () => void }) {
+  const [data, setData] = useState<Reattachable | null>(null);
+  const [both, setBoth] = useState<Candidate | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => void api.reattachCandidates(target).then(setData, (e: Error) => toast.error('No candidates', e.message)), [target]);
+
+  const go = async (to: string, keep?: 'moved' | 'existing') => {
+    setBusy(true);
+    try {
+      const done = await api.reattach(target, to, keep);
+      onDone(done.target);
+    } catch (e) {
+      toast.error(`${target}: not reattached`, (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal title="Reattach a Contribution" onClose={onClose} wide>
+      <p>
+        <code>{target}</code> no longer finds <b>{data?.label ?? '…'}</b>. Pick the element that replaced it: the Contribution moves there as it is, Description and
+        Modifiers included. It becomes a Pending Change you can undo.
+      </p>
+      {data && <ContributionText entry={data.contribution} />}
+      {data?.candidates.length === 0 && <p className="empty">No candidate: nothing of the same kind is left. Delete the Contribution instead.</p>}
+      {both && data ? (
+        <div className="side-by-side">
+          <p>
+            <b>{both.label}</b> already has a Contribution. Keep one; the other is deleted.
+          </p>
+          <div className="columns">
+            <section>
+              <h3>This one, reattached</h3>
+              <ContributionText entry={data.contribution} />
+              <button type="button" className="primary" disabled={busy} onClick={() => void go(both.target, 'moved')}>
+                Keep this one
+              </button>
+            </section>
+            <section>
+              <h3>The one already there</h3>
+              <ContributionText entry={both.existing!} />
+              <button type="button" disabled={busy} onClick={() => void go(both.target, 'existing')}>
+                Keep that one
+              </button>
+            </section>
+          </div>
+          <button type="button" className="link" onClick={() => setBoth(null)}>
+            back to the candidates
+          </button>
+        </div>
+      ) : (
+        <ul className="corrections">
+          {data?.candidates.map((c) => (
+            <li key={c.target} className="correction">
+              <div className="correction-head">
+                <b>{c.label}</b> <span className="muted">· {c.holder}</span>
+                {c.score >= 2 && <span className="state active"> same name</span>}
+                {c.existing && <span className="state flagged"> has a Contribution</span>}
+              </div>
+              <div className="correction-actions">
+                <small>{c.target}</small>
+                <button type="button" disabled={busy} onClick={() => (c.existing ? setBoth(c) : void go(c.target))}>
+                  Reattach here
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </Modal>
   );

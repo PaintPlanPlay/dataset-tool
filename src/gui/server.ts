@@ -19,6 +19,7 @@ import { defaultProbe, overview, type Probe } from './overview.ts';
 import { removeCaughtUp, unreleased } from './unreleased.ts';
 import { pendingChanges, pendingFingerprint, undoPending } from './pending.ts';
 import { checkDraft, deleteCorrection, listCorrections, saveSheet, sheetOf, suggestions } from './sheets.ts';
+import { reattachCandidates, reattachContribution } from './reattach.ts';
 import { inspect, search } from './provenance.ts';
 import type { UiFactory, UiHandle } from './ui.ts';
 import type { Workspace } from './workspace.ts';
@@ -163,6 +164,13 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
         const body = await readBody(req);
         deleteCorrection(ws, { path: typeof body.path === 'string' ? body.path : undefined, target: typeof body.target === 'string' ? body.target : undefined });
         return send(res, 200, { ok: true });
+      }
+      case 'GET /api/contributions/reattach':
+        return send(res, 200, reattachCandidates(ws, param('target')));
+      case 'POST /api/contributions/reattach': {
+        const body = await readBody(req);
+        const keep = body.keep === 'moved' || body.keep === 'existing' ? body.keep : undefined;
+        return send(res, 200, reattachContribution(ws, { from: String(body.from ?? ''), to: String(body.to ?? ''), ...(keep ? { keep } : {}) }));
       }
       case 'GET /api/unsimulated':
         return send(res, 200, findUnsimulated(datasetOf(ws).files).map((u) => ({ ...u, sheet: sheetOfTarget(u.target) })));

@@ -43,6 +43,8 @@ export interface Finding {
   detail: string;
   /** La fiche où le régler. */
   sheet?: string;
+  /** Une Contribution dont la cible a disparu : à rattacher à l'élément qui l'a remplacée. */
+  reattach?: string;
 }
 
 export interface Counters {
@@ -123,7 +125,15 @@ export function findingsOf(ws: BoardSource): Finding[] {
     if (army) for (const e of entries) home.set(e.target, army);
   }
   for (const c of out.contributions ?? [])
-    if (c.state !== 'active') found.push({ army: t.armyOf(c.target) || (home.get(c.target) ?? ''), kind: 'contribution', label: t.label(c.target), detail: `${c.state}: ${c.note}`, sheet: sheetOfTarget(c.target) });
+    if (c.state !== 'active')
+      found.push({
+        army: t.armyOf(c.target) || (home.get(c.target) ?? ''),
+        kind: 'contribution',
+        label: t.label(c.target),
+        detail: `${c.state}: ${c.note}`,
+        sheet: sheetOfTarget(c.target),
+        ...(c.state === 'unresolved' ? { reattach: c.target } : {}),
+      });
   for (const c of out.conflicts ?? [])
     found.push({
       army: c.army,
