@@ -114,3 +114,15 @@ export function wargearSentence(u: Pick<Unit, 'name' | 'minModels' | 'maxModels'
         : `${subject} can each have their ${replaced} replaced with ${what}`;
   return single ? { text: `${head}.` } : { text: `${head}:`, items: alts.map(alternativeText) };
 }
+
+/**
+ * La phrase du Default Wargear d'un type de figurine, comme sur la fiche :
+ * « This model is equipped with: 1 Kustom Choppa; 1 Kustom Shoota. »,
+ * « Every Boy model is equipped with: … », « The Boss Nob is equipped with: … ».
+ */
+export function equippedSentence(u: Pick<Unit, 'name' | 'minModels' | 'maxModels' | 'modelTypes'>, type: ModelType): string {
+  const only = modelTypesOf(u).length === 1;
+  const subject = type.max <= 1 ? (only ? 'This model' : `The ${type.name}`) : only ? 'Every model' : `Every ${type.name} model`;
+  const carried = type.defaultWargear.map(counted).join('; ');
+  return carried ? `${subject} is equipped with: ${carried}.` : `${subject} is equipped with nothing.`;
+}

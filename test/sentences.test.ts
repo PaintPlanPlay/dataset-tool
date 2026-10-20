@@ -6,7 +6,7 @@
  *
  *   npx tsx test/sentences.test.ts
  */
-import { wargearCap, wargearSentence, modelsOfTypes, type ArmyFile, type Unit, type WargearOption } from '@paintplanplay/dataset-schema';
+import { equippedSentence, wargearCap, wargearSentence, modelsOfTypes, type ArmyFile, type Unit, type WargearOption } from '@paintplanplay/dataset-schema';
 import { validateFile } from '@paintplanplay/dataset-schema/validate';
 import { build } from '../src/build.ts';
 import { openSnapshot } from '../src/snapshot.ts';
@@ -38,6 +38,7 @@ section('Le Warboss : un groupe avec un défaut, un seul choix');
     JSON.stringify(boss.wargearOptions),
   );
   check('sa Wargear Alternative à l\'identifiant de son entrée', option?.alternatives.length === 1 && option.alternatives[0].id === 'e-slugga' && option.alternatives[0].weapons.map((w) => w.weapon).join() === 'ranged|Slugga');
+  check('« This model is equipped with »', equippedSentence(boss, type!) === 'This model is equipped with: 1 Big choppa; 1 Kombi-rokkit; 1 Stikkbomb.', type ? equippedSentence(boss, type) : '');
   check('la phrase de la fiche', option ? wargearSentence(boss, option).text === 'This model’s Kombi-rokkit can be replaced with 1 Slugga.' : false, option ? wargearSentence(boss, option).text : '');
 }
 
@@ -47,6 +48,9 @@ section('Une Unit sans composition prend ses types dans les entrées de figurine
   check('« Meganob w/ … » est un Meganob', meganobz.modelTypes?.map((t) => t.name).join() === 'Meganob', JSON.stringify(meganobz.modelTypes?.map((t) => t.name)));
   check('à l\'effectif de l\'Unit', meganobz.modelTypes?.[0].min === meganobz.minModels && meganobz.modelTypes?.[0].max === meganobz.maxModels);
   const boyz = unitOf('orks', 'Boyz');
+  const nob = boyz.modelTypes?.find((t) => t.name === 'Boss Nob');
+  check('« Every Boy model is equipped with »', equippedSentence(boyz, boyz.modelTypes![0]) === 'Every Boy model is equipped with: 1 Choppa; 1 Slugga.', equippedSentence(boyz, boyz.modelTypes![0]));
+  check('un type nommé à plusieurs figurines', nob ? equippedSentence(boyz, nob).startsWith('Every Boss Nob model is equipped with') : false);
   check('les Boyz : des Boyz et un Boss Nob, chacun son Default Wargear', boyz.modelTypes?.map((t) => t.name).sort().join() === 'Boss Nob,Boy', JSON.stringify(boyz.modelTypes));
 }
 
