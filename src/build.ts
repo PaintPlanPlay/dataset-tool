@@ -31,7 +31,7 @@ import { applyCorrections, applyDetachmentCorrections, applyStratagemCorrections
 import type { CorrectionFile } from './corrections/files.ts';
 import { detachmentElement, reconcile, stratagemElement, upstreamElement, type CorrectionVerdict } from './corrections/lifecycle.ts';
 import { buildDetachments } from './detachments.ts';
-import type { EnhancementWeaponFinding, SourceConflict } from './findings.ts';
+import type { EnhancementWeaponFinding, SourceConflict, WargearToWrite } from './findings.ts';
 import { assignIds, emptyRegistry, type IdRegistry } from './ids.ts';
 import { findRulesText, type TextFinding } from './notext.ts';
 import type { Snapshot } from './snapshot.ts';
@@ -41,7 +41,7 @@ import { applyMfm, mfmDuplicates, mfmKey, type MfmConflict, type MfmDuplicate, t
 import { coreName, coreStatus, findUnsimulated, type UnsimulatedKey } from './rules.ts';
 import { linkWargear, type WargearFinding } from './wargear.ts';
 
-export type { EnhancementWeaponFinding, SourceConflict } from './findings.ts';
+export type { EnhancementWeaponFinding, SourceConflict, WargearToWrite } from './findings.ts';
 
 export interface BuildInput {
   snapshot: Snapshot;
@@ -82,6 +82,8 @@ export interface BuildOutput {
   wargear: WargearFinding[];
   /** Les Weapons d'Enhancement que BSData donne sans Enhancement dans le Dataset. */
   enhancementWeapons: EnhancementWeaponFinding[];
+  /** Les Units dont les Wargear Options sont à écrire : la traduction n'a pas su lire leur équipement. */
+  wargearToWrite: WargearToWrite[];
 }
 
 /**
@@ -279,8 +281,11 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   // 1. Upstream Sources : BSData, puis le MFM qui fait autorité sur ce qu'il publie.
   const once = new OncePerUnit();
   const placements = new Map<string, Placement>();
+  const wargearToWrite: WargearToWrite[] = [];
   const merged = composed.map((army) => {
     const id = armyIds.get(army)!;
+    for (const u of army.units)
+      if (u.untranslated?.length) once.report(`wargear:${u.id}`, !u.ally, () => wargearToWrite.push({ army: id, unitId: u.id, unit: u.name, groups: u.untranslated! }));
     if (!army.mfm) armiesWithoutMfm.push(army.file);
     // La faction de l'Army d'abord : une Unit partagée prend le prix de son propre codex.
     const ordered = army.mfm ? [army.mfm, ...mfm.filter((f) => f !== army.mfm)] : mfm;
@@ -424,5 +429,6 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
     unsimulated: findUnsimulated(files),
     wargear,
     enhancementWeapons,
+    wargearToWrite: wargearToWrite.sort((a, b) => a.army.localeCompare(b.army) || a.unit.localeCompare(b.unit)),
   };
 }

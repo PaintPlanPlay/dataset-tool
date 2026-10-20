@@ -179,6 +179,7 @@ const FINDING: Record<FindingKind, { label: string; hint: string; todo: boolean 
   unsimulated: { label: 'unsimulated keys', hint: 'Modifier keys the simulation does not play: a typo, or a key to teach it', todo: false },
   wargear: { label: 'wargear costs not linked', hint: 'MFM wargear lines no option bills: link them on the unit sheet', todo: false },
   enhancementWeapon: { label: 'Enhancement weapons', hint: 'Weapons BSData gives an Enhancement the Dataset lacks, or a datasheet carries', todo: false },
+  wargearToWrite: { label: 'wargear options to write', hint: 'Units whose wargear the import could not read: they publish no wargear option until you write them on their sheet', todo: false },
 };
 
 /** Les chiffres « à traiter » et « à compléter » ; chacun ouvre sa liste. */

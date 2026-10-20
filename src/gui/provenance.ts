@@ -7,7 +7,7 @@ import type { ArmyFile, CoreFile, Detachment, Stratagem, Unit } from '@paintplan
 import { CORE_ROOT, parseTarget } from '../corrections/apply.ts';
 import type { ContributionVerdict } from '../authored.ts';
 import type { CorrectionVerdict } from '../corrections/lifecycle.ts';
-import type { SourceConflict } from '../findings.ts';
+import type { SourceConflict, WargearToWrite } from '../findings.ts';
 import type { WargearFinding } from '../wargear.ts';
 
 export type Origin = 'bsdata' | 'mfm' | 'analysis' | 'project' | 'correction' | 'published';
@@ -28,6 +28,8 @@ export interface DatasetView {
   contributions?: ContributionVerdict[];
   /** Les lignes `wargear` du MFM qu'aucune Wargear Option ne facture, et les liens manuels qui ne visent plus rien. */
   wargear?: WargearFinding[];
+  /** Les Units dont les Wargear Options sont à écrire. */
+  wargearToWrite?: WargearToWrite[];
 }
 
 export interface FieldOrigin {

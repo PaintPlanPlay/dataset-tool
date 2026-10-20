@@ -1,0 +1,4757 @@
+{
+ "catalogue": {
+  "id": "orks-wargear",
+  "name": "Orks",
+  "library": false,
+  "entryLinks": [
+   {
+    "id": "root-2efc-c4b3-2ecc-5a37",
+    "name": "Warboss",
+    "targetId": "2efc-c4b3-2ecc-5a37",
+    "type": "selectionEntry"
+   },
+   {
+    "id": "root-b16a-7132-3f8a-abe5",
+    "name": "Nobz",
+    "targetId": "b16a-7132-3f8a-abe5",
+    "type": "selectionEntry"
+   },
+   {
+    "id": "root-306a-b2ac-aaf1-9a7c",
+    "name": "Battlewagon",
+    "targetId": "306a-b2ac-aaf1-9a7c",
+    "type": "selectionEntry"
+   },
+   {
+    "id": "root-e3b1-1240-2476-cd86",
+    "name": "Boyz",
+    "targetId": "e3b1-1240-2476-cd86",
+    "type": "selectionEntry"
+   },
+   {
+    "id": "root-7067-34f4-5272-e05f",
+    "name": "Meganobz",
+    "targetId": "7067-34f4-5272-e05f",
+    "type": "selectionEntry"
+   }
+  ],
+  "sharedSelectionEntries": [
+   {
+    "id": "2efc-c4b3-2ecc-5a37",
+    "name": "Warboss",
+    "type": "model",
+    "constraints": [
+     {
+      "id": "ff6a-ce21-ff14-2892",
+      "type": "max",
+      "field": "716d-91b7-d55a-1022",
+      "scope": "self",
+      "value": 0
+     },
+     {
+      "id": "e478-9036-9d78-7cc0",
+      "type": "min",
+      "field": "716d-91b7-d55a-1022",
+      "scope": "self",
+      "value": 0
+     },
+     {
+      "id": "0316-ea51-1c37-2811",
+      "type": "max",
+      "field": "75bb-ded1-c86d-bdf0",
+      "scope": "self",
+      "value": 6
+     },
+     {
+      "id": "ee5c-c42d-776b-3583",
+      "type": "max",
+      "field": "f759-1bc4-cb3a-f0d2",
+      "scope": "self",
+      "value": 1
+     },
+     {
+      "id": "3fcf-76b8-99ec-9181",
+      "type": "max",
+      "field": "selections",
+      "scope": "force",
+      "value": 3
+     }
+    ],
+    "modifiers": [
+     {
+      "type": "set",
+      "field": "3fcf-76b8-99ec-9181",
+      "value": 2,
+      "conditions": [
+       {
+        "type": "atLeast",
+        "field": "selections",
+        "value": 1,
+        "scope": "roster",
+        "childId": "d62d-db22-4893-4bc0"
+       }
+      ]
+     }
+    ],
+    "costs": [
+     {
+      "name": "pts",
+      "typeId": "pts",
+      "value": 100
+     }
+    ],
+    "categoryLinks": [
+     {
+      "name": "Warboss"
+     },
+     {
+      "name": "Character"
+     },
+     {
+      "name": "Infantry"
+     },
+     {
+      "name": "Grenades"
+     },
+     {
+      "name": "Faction: Orks"
+     },
+     {
+      "name": "Leader"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Warboss",
+      "typeName": "Unit",
+      "characteristics": [
+       {
+        "name": "M",
+        "$text": "6\""
+       },
+       {
+        "name": "T",
+        "$text": "6"
+       },
+       {
+        "name": "Sv",
+        "$text": "4+"
+       },
+       {
+        "name": "W",
+        "$text": "6"
+       },
+       {
+        "name": "LD",
+        "$text": "6+"
+       },
+       {
+        "name": "OC",
+        "$text": "1"
+       },
+       {
+        "name": "InSv",
+        "$text": "5+"
+       },
+       {
+        "name": "Base",
+        "$text": "50mm"
+       }
+      ]
+     }
+    ],
+    "selectionEntryGroups": [
+     {
+      "id": "eec2-6ed3-27cd-f0cd",
+      "name": "Wargear",
+      "selectionEntryGroups": [
+       {
+        "id": "53ac-c9aa-5ea8-e719",
+        "name": "Kustom Choppa",
+        "defaultSelectionEntryId": "d034-cadd-41e5-dc21",
+        "constraints": [
+         {
+          "id": "6715-6ca0-2b78-4243",
+          "type": "min",
+          "field": "selections",
+          "scope": "parent",
+          "value": 1
+         },
+         {
+          "id": "fb57-3605-f127-dafa",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 1
+         }
+        ],
+        "selectionEntries": [
+         {
+          "id": "d034-cadd-41e5-dc21",
+          "name": "Kustom Choppa",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Kustom Choppa",
+            "typeName": "Melee Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "Melee"
+             },
+             {
+              "name": "A",
+              "$text": "6"
+             },
+             {
+              "name": "WS",
+              "$text": "2+"
+             },
+             {
+              "name": "S",
+              "$text": "7"
+             },
+             {
+              "name": "AP",
+              "$text": "-2"
+             },
+             {
+              "name": "D",
+              "$text": "2"
+             },
+             {
+              "name": "Keywords",
+              "$text": "CLEAVE 2"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "id": "1694-28e7-4b1f-5c3f",
+          "name": "Power Klaw",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Power Klaw",
+            "typeName": "Melee Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "Melee"
+             },
+             {
+              "name": "A",
+              "$text": "6"
+             },
+             {
+              "name": "WS",
+              "$text": "2+"
+             },
+             {
+              "name": "S",
+              "$text": "12"
+             },
+             {
+              "name": "AP",
+              "$text": "-2"
+             },
+             {
+              "name": "D",
+              "$text": "2"
+             },
+             {
+              "name": "Keywords",
+              "$text": ""
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "id": "ec28-c189-8e38-0c9e",
+        "name": "Kustom Shoota",
+        "defaultSelectionEntryId": "30aa-7eed-2a62-12a1",
+        "constraints": [
+         {
+          "id": "2ba7-1566-d8a3-871f",
+          "type": "min",
+          "field": "selections",
+          "scope": "parent",
+          "value": 1
+         },
+         {
+          "id": "3546-de74-6f7e-9e8d",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 1
+         }
+        ],
+        "selectionEntries": [
+         {
+          "id": "30aa-7eed-2a62-12a1",
+          "name": "Kustom Shoota",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Kustom Shoota",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "18\""
+             },
+             {
+              "name": "A",
+              "$text": "4"
+             },
+             {
+              "name": "BS",
+              "$text": "5+"
+             },
+             {
+              "name": "S",
+              "$text": "4"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "LETHAL HITS: non-MONSTER/VEHICLE, RAPID FIRE 2"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "id": "ad1c-5b8f-7e01-6fed",
+          "name": "Kombi-skorcha",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "➤ Kombi-skorcha - Skorcha",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "12\""
+             },
+             {
+              "name": "A",
+              "$text": "3"
+             },
+             {
+              "name": "BS",
+              "$text": "-"
+             },
+             {
+              "name": "S",
+              "$text": "5"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "BLAST 1, TORRENT"
+             }
+            ]
+           },
+           {
+            "name": "➤ Kombi-skorcha - Shoota",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "18\""
+             },
+             {
+              "name": "A",
+              "$text": "2"
+             },
+             {
+              "name": "BS",
+              "$text": "5+"
+             },
+             {
+              "name": "S",
+              "$text": "4"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "LETHAL HITS: non-MONSTER/VEHICLE, RAPID FIRE 1"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "id": "44b5-40a7-7c84-cb9f",
+          "name": "Kombi-rokkit",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "➤ Kombi-rokkit - Busta Rokkit",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "24\""
+             },
+             {
+              "name": "A",
+              "$text": "1"
+             },
+             {
+              "name": "BS",
+              "$text": "5+"
+             },
+             {
+              "name": "S",
+              "$text": "10"
+             },
+             {
+              "name": "AP",
+              "$text": "-2"
+             },
+             {
+              "name": "D",
+              "$text": "3"
+             },
+             {
+              "name": "Keywords",
+              "$text": ""
+             }
+            ]
+           },
+           {
+            "name": "➤ Kombi-rokkit - Shoota",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "18\""
+             },
+             {
+              "name": "A",
+              "$text": "2"
+             },
+             {
+              "name": "BS",
+              "$text": "5+"
+             },
+             {
+              "name": "S",
+              "$text": "4"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "LETHAL HITS: non-MONSTER/VEHICLE, RAPID FIRE 1"
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "id": "b16a-7132-3f8a-abe5",
+    "name": "Nobz",
+    "type": "unit",
+    "constraints": [
+     {
+      "id": "5264-5776-0bbf-992e",
+      "type": "max",
+      "field": "716d-91b7-d55a-1022",
+      "scope": "self",
+      "value": 0
+     },
+     {
+      "id": "d0a5-d3ec-41b5-b30e",
+      "type": "min",
+      "field": "716d-91b7-d55a-1022",
+      "scope": "self",
+      "value": 0
+     },
+     {
+      "id": "ec4a-e4db-414d-4e32",
+      "type": "max",
+      "field": "75bb-ded1-c86d-bdf0",
+      "scope": "self",
+      "value": 3
+     },
+     {
+      "id": "fa25-97a9-ada3-1702",
+      "type": "max",
+      "field": "selections",
+      "scope": "force",
+      "value": 3
+     },
+     {
+      "id": "a87e-96f5-f695-416a",
+      "type": "max",
+      "field": "f759-1bc4-cb3a-f0d2",
+      "scope": "root-entry",
+      "value": 1
+     },
+     {
+      "id": "7881-e4bb-11a9-7457",
+      "type": "max",
+      "field": "associations",
+      "scope": "self",
+      "value": 1
+     },
+     {
+      "id": "9a5a-9661-fb03-039a",
+      "type": "max",
+      "field": "associations",
+      "scope": "self",
+      "value": 1
+     }
+    ],
+    "modifiers": [
+     {
+      "type": "set",
+      "field": "fa25-97a9-ada3-1702",
+      "value": 2,
+      "conditions": [
+       {
+        "type": "atLeast",
+        "field": "selections",
+        "value": 1,
+        "scope": "roster",
+        "childId": "d62d-db22-4893-4bc0"
+       }
+      ]
+     }
+    ],
+    "costs": [
+     {
+      "name": "pts",
+      "typeId": "pts",
+      "value": 115
+     }
+    ],
+    "categoryLinks": [
+     {
+      "name": "Infantry"
+     },
+     {
+      "name": "Nobz"
+     },
+     {
+      "name": "Faction: Orks"
+     },
+     {
+      "name": "Explosives"
+     }
+    ],
+    "selectionEntryGroups": [
+     {
+      "id": "5222-939b-c573-eb83",
+      "name": "5-10 Nobz",
+      "defaultSelectionEntryId": "252b-cdba-84bd-3ed3",
+      "constraints": [
+       {
+        "id": "8006-2034-a682-c0e6",
+        "type": "min",
+        "field": "selections",
+        "scope": "parent",
+        "value": 5
+       },
+       {
+        "id": "5654-21fe-abfe-5887",
+        "type": "max",
+        "field": "selections",
+        "scope": "parent",
+        "value": 10
+       }
+      ],
+      "selectionEntries": [
+       {
+        "id": "252b-cdba-84bd-3ed3",
+        "name": "Nob w/ Kustom Shoota and Kustom Krumpa",
+        "type": "model",
+        "constraints": [
+         {
+          "id": "5654-21fe-abfe-5887",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 10
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Nob",
+          "typeName": "Unit",
+          "characteristics": [
+           {
+            "name": "M",
+            "$text": "6\""
+           },
+           {
+            "name": "T",
+            "$text": "5"
+           },
+           {
+            "name": "Sv",
+            "$text": "4+"
+           },
+           {
+            "name": "W",
+            "$text": "3"
+           },
+           {
+            "name": "LD",
+            "$text": "7+"
+           },
+           {
+            "name": "OC",
+            "$text": "1"
+           },
+           {
+            "name": "InSv",
+            "$text": ""
+           },
+           {
+            "name": "Base",
+            "$text": "32mm"
+           }
+          ]
+         }
+        ],
+        "selectionEntries": [
+         {
+          "id": "9600-28e3-276e-9074",
+          "name": "Kustom Krumpa",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Kustom Krumpa",
+            "typeName": "Melee Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "Melee"
+             },
+             {
+              "name": "A",
+              "$text": "3"
+             },
+             {
+              "name": "WS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "10"
+             },
+             {
+              "name": "AP",
+              "$text": "-2"
+             },
+             {
+              "name": "D",
+              "$text": "2"
+             },
+             {
+              "name": "Keywords",
+              "$text": ""
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "6fbb-bcc2-29b6-4513",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "ea48-2a0b-c5c2-ffad",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "c153-27d9-c9ab-42de",
+          "name": "Kustom Shoota",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Kustom Shoota",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "18\""
+             },
+             {
+              "name": "A",
+              "$text": "4"
+             },
+             {
+              "name": "BS",
+              "$text": "5+"
+             },
+             {
+              "name": "S",
+              "$text": "4"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "LETHAL HITS: non-MONSTER/VEHICLE, RAPID FIRE 2"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "42c1-23aa-aad3-e01e",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "2cf2-f5b4-4093-24a4",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "id": "e4b1-2a15-2843-283a",
+        "name": "Nob w/ Kombi-rokkit and Kustom Krumpa",
+        "type": "model",
+        "constraints": [
+         {
+          "id": "5654-21fe-abfe-5887",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 10
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Nob",
+          "typeName": "Unit",
+          "characteristics": [
+           {
+            "name": "M",
+            "$text": "6\""
+           },
+           {
+            "name": "T",
+            "$text": "5"
+           },
+           {
+            "name": "Sv",
+            "$text": "4+"
+           },
+           {
+            "name": "W",
+            "$text": "3"
+           },
+           {
+            "name": "LD",
+            "$text": "7+"
+           },
+           {
+            "name": "OC",
+            "$text": "1"
+           },
+           {
+            "name": "InSv",
+            "$text": ""
+           },
+           {
+            "name": "Base",
+            "$text": "32mm"
+           }
+          ]
+         }
+        ],
+        "selectionEntries": [
+         {
+          "id": "5735-1a0e-6c15-0706",
+          "name": "Kustom Krumpa",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Kustom Krumpa",
+            "typeName": "Melee Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "Melee"
+             },
+             {
+              "name": "A",
+              "$text": "3"
+             },
+             {
+              "name": "WS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "10"
+             },
+             {
+              "name": "AP",
+              "$text": "-2"
+             },
+             {
+              "name": "D",
+              "$text": "2"
+             },
+             {
+              "name": "Keywords",
+              "$text": ""
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "3559-5cd8-230a-3560",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "d783-8536-773c-c8c1",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "45be-78ba-031b-3d05",
+          "name": "Kombi-rokkit",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "➤ Kombi-rokkit - Busta Rokkit",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "24\""
+             },
+             {
+              "name": "A",
+              "$text": "1"
+             },
+             {
+              "name": "BS",
+              "$text": "5+"
+             },
+             {
+              "name": "S",
+              "$text": "10"
+             },
+             {
+              "name": "AP",
+              "$text": "-2"
+             },
+             {
+              "name": "D",
+              "$text": "3"
+             },
+             {
+              "name": "Keywords",
+              "$text": ""
+             }
+            ]
+           },
+           {
+            "name": "➤ Kombi-rokkit - Shoota",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "18\""
+             },
+             {
+              "name": "A",
+              "$text": "2"
+             },
+             {
+              "name": "BS",
+              "$text": "5+"
+             },
+             {
+              "name": "S",
+              "$text": "4"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "LETHAL HITS: non-MONSTER/VEHICLE, RAPID FIRE 1"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "3f70-90a1-dd2a-6908",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "20dc-3ce4-97f3-3e3b",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "selectionEntryGroups": [
+       {
+        "id": "87f0-7198-3984-126d",
+        "name": "Special Weapons",
+        "selectionEntries": [
+         {
+          "id": "658e-5036-daea-5f67",
+          "name": "Nob w/ Big Choppa",
+          "type": "model",
+          "constraints": [
+           {
+            "id": "bbd3-35c2-f651-9a50",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 2
+           }
+          ],
+          "profiles": [
+           {
+            "name": "Nob",
+            "typeName": "Unit",
+            "characteristics": [
+             {
+              "name": "M",
+              "$text": "6\""
+             },
+             {
+              "name": "T",
+              "$text": "5"
+             },
+             {
+              "name": "Sv",
+              "$text": "4+"
+             },
+             {
+              "name": "W",
+              "$text": "3"
+             },
+             {
+              "name": "LD",
+              "$text": "7+"
+             },
+             {
+              "name": "OC",
+              "$text": "1"
+             },
+             {
+              "name": "InSv",
+              "$text": ""
+             },
+             {
+              "name": "Base",
+              "$text": "32mm"
+             }
+            ]
+           }
+          ],
+          "selectionEntries": [
+           {
+            "id": "f80a-9224-dc82-11c5",
+            "name": "Big Choppa",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Big Choppa",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "4"
+               },
+               {
+                "name": "WS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "7"
+               },
+               {
+                "name": "AP",
+                "$text": "-1"
+               },
+               {
+                "name": "D",
+                "$text": "2"
+               },
+               {
+                "name": "Keywords",
+                "$text": "CLEAVE 2"
+               }
+              ]
+             }
+            ],
+            "constraints": [
+             {
+              "id": "ba5a-20e7-8b55-d1af",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "da9b-a2c0-ab48-5dba",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "8743-2189-da1d-a244",
+              "type": "max",
+              "field": "selections",
+              "scope": "unit",
+              "value": 1
+             }
+            ],
+            "modifiers": [
+             {
+              "type": "set",
+              "field": "8743-2189-da1d-a244",
+              "value": 2,
+              "conditions": [
+               {
+                "type": "atLeast",
+                "field": "selections",
+                "value": 10,
+                "scope": "unit",
+                "childId": "model"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "id": "41b9-8766-6685-5634",
+          "name": "Nob w/ Big Skorcha and Kustom Choppa",
+          "type": "model",
+          "constraints": [
+           {
+            "id": "3c0c-9d9c-0412-2773",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 2
+           }
+          ],
+          "profiles": [
+           {
+            "name": "Nob",
+            "typeName": "Unit",
+            "characteristics": [
+             {
+              "name": "M",
+              "$text": "6\""
+             },
+             {
+              "name": "T",
+              "$text": "5"
+             },
+             {
+              "name": "Sv",
+              "$text": "4+"
+             },
+             {
+              "name": "W",
+              "$text": "3"
+             },
+             {
+              "name": "LD",
+              "$text": "7+"
+             },
+             {
+              "name": "OC",
+              "$text": "1"
+             },
+             {
+              "name": "InSv",
+              "$text": ""
+             },
+             {
+              "name": "Base",
+              "$text": "32mm"
+             }
+            ]
+           }
+          ],
+          "selectionEntries": [
+           {
+            "id": "0f81-5fca-0e82-6c6f",
+            "name": "Big Skorcha",
+            "type": "upgrade",
+            "constraints": [
+             {
+              "id": "b6f7-45ab-1496-2e0a",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "0088-70cd-86a7-3474",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "183d-6f3b-2c33-754e",
+              "type": "max",
+              "field": "selections",
+              "scope": "unit",
+              "value": 1
+             }
+            ],
+            "modifiers": [
+             {
+              "type": "set",
+              "field": "183d-6f3b-2c33-754e",
+              "value": 2,
+              "conditions": [
+               {
+                "type": "atLeast",
+                "field": "selections",
+                "value": 10,
+                "scope": "unit",
+                "childId": "model"
+               }
+              ]
+             }
+            ],
+            "profiles": [
+             {
+              "name": "Big Skorcha",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "18\""
+               },
+               {
+                "name": "A",
+                "$text": "3"
+               },
+               {
+                "name": "BS",
+                "$text": "-"
+               },
+               {
+                "name": "S",
+                "$text": "5"
+               },
+               {
+                "name": "AP",
+                "$text": "-1"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": "BLAST 2, TORRENT"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "9591-41b1-b764-438b",
+            "name": "Kustom Choppa",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Kustom Choppa",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "4"
+               },
+               {
+                "name": "WS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "5"
+               },
+               {
+                "name": "AP",
+                "$text": "-2"
+               },
+               {
+                "name": "D",
+                "$text": "2"
+               },
+               {
+                "name": "Keywords",
+                "$text": ""
+               }
+              ]
+             }
+            ],
+            "constraints": [
+             {
+              "id": "d5bd-2b22-2c75-cf15",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "3741-b183-4cc3-2b2b",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "id": "ca2c-1cb7-82d7-ebf0",
+          "name": "Nob w/ Kustom Big Shoota and Kustom Choppa",
+          "type": "model",
+          "constraints": [
+           {
+            "id": "a308-fbb6-79a6-e3f7",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 2
+           }
+          ],
+          "profiles": [
+           {
+            "name": "Nob",
+            "typeName": "Unit",
+            "characteristics": [
+             {
+              "name": "M",
+              "$text": "6\""
+             },
+             {
+              "name": "T",
+              "$text": "5"
+             },
+             {
+              "name": "Sv",
+              "$text": "4+"
+             },
+             {
+              "name": "W",
+              "$text": "3"
+             },
+             {
+              "name": "LD",
+              "$text": "7+"
+             },
+             {
+              "name": "OC",
+              "$text": "1"
+             },
+             {
+              "name": "InSv",
+              "$text": ""
+             },
+             {
+              "name": "Base",
+              "$text": "32mm"
+             }
+            ]
+           }
+          ],
+          "selectionEntries": [
+           {
+            "id": "a699-e1c3-e17f-5098",
+            "name": "Kustom Big Shoota",
+            "type": "upgrade",
+            "constraints": [
+             {
+              "id": "19d7-3f23-a85d-4202",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "a82d-0d91-989e-bdd6",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "e7ca-c515-f461-950b",
+              "type": "max",
+              "field": "selections",
+              "scope": "unit",
+              "value": 1
+             }
+            ],
+            "modifiers": [
+             {
+              "type": "set",
+              "field": "e7ca-c515-f461-950b",
+              "value": 2,
+              "conditions": [
+               {
+                "type": "atLeast",
+                "field": "selections",
+                "value": 10,
+                "scope": "unit",
+                "childId": "model"
+               }
+              ]
+             }
+            ],
+            "profiles": [
+             {
+              "name": "Kustom Big Shoota",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "18\""
+               },
+               {
+                "name": "A",
+                "$text": "8"
+               },
+               {
+                "name": "BS",
+                "$text": "5+"
+               },
+               {
+                "name": "S",
+                "$text": "4"
+               },
+               {
+                "name": "AP",
+                "$text": "0"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": "LETHAL HITS: non-MONSTER/VEHICLE"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "e26c-4637-c2c5-c6be",
+            "name": "Kustom Choppa",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Kustom Choppa",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "4"
+               },
+               {
+                "name": "WS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "5"
+               },
+               {
+                "name": "AP",
+                "$text": "-2"
+               },
+               {
+                "name": "D",
+                "$text": "2"
+               },
+               {
+                "name": "Keywords",
+                "$text": ""
+               }
+              ]
+             }
+            ],
+            "constraints": [
+             {
+              "id": "f8c4-2905-84dd-d83d",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "e39a-dd62-0884-7cdb",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "id": "cff4-311e-b386-0879",
+          "name": "Nob w/ Kustom Krumpa and Paired Krumpas",
+          "type": "model",
+          "constraints": [
+           {
+            "id": "de27-99c5-46d1-63b8",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 2
+           }
+          ],
+          "profiles": [
+           {
+            "name": "Nob",
+            "typeName": "Unit",
+            "characteristics": [
+             {
+              "name": "M",
+              "$text": "6\""
+             },
+             {
+              "name": "T",
+              "$text": "5"
+             },
+             {
+              "name": "Sv",
+              "$text": "4+"
+             },
+             {
+              "name": "W",
+              "$text": "3"
+             },
+             {
+              "name": "LD",
+              "$text": "7+"
+             },
+             {
+              "name": "OC",
+              "$text": "1"
+             },
+             {
+              "name": "InSv",
+              "$text": ""
+             },
+             {
+              "name": "Base",
+              "$text": "32mm"
+             }
+            ]
+           }
+          ],
+          "selectionEntries": [
+           {
+            "id": "9a9f-3dab-02c0-8be7",
+            "name": "Paired Krumpas",
+            "type": "upgrade",
+            "constraints": [
+             {
+              "id": "a39f-8cd8-7762-8686",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "b9dc-7b31-6f2b-2f0b",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "c74d-ac83-4197-d376",
+              "type": "max",
+              "field": "selections",
+              "scope": "unit",
+              "value": 1
+             }
+            ],
+            "modifiers": [
+             {
+              "type": "set",
+              "field": "c74d-ac83-4197-d376",
+              "value": 2,
+              "conditions": [
+               {
+                "type": "atLeast",
+                "field": "selections",
+                "value": 10,
+                "scope": "unit",
+                "childId": "model"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "8aac-0ca1-9f4c-324b",
+            "name": "Kustom Krumpa",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Kustom Krumpa",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "3"
+               },
+               {
+                "name": "WS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "10"
+               },
+               {
+                "name": "AP",
+                "$text": "-2"
+               },
+               {
+                "name": "D",
+                "$text": "2"
+               },
+               {
+                "name": "Keywords",
+                "$text": ""
+               }
+              ]
+             }
+            ],
+            "constraints": [
+             {
+              "id": "54c2-e677-2e0d-f892",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "f32c-1254-f3c3-3a99",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "id": "306a-b2ac-aaf1-9a7c",
+    "name": "Battlewagon",
+    "type": "model",
+    "constraints": [
+     {
+      "id": "cbf3-a0b1-78c9-4be9",
+      "type": "max",
+      "field": "716d-91b7-d55a-1022",
+      "scope": "self",
+      "value": 0
+     },
+     {
+      "id": "db6b-b087-cadb-48e1",
+      "type": "min",
+      "field": "716d-91b7-d55a-1022",
+      "scope": "self",
+      "value": 0
+     },
+     {
+      "id": "259d-90f8-4b67-d316",
+      "type": "max",
+      "field": "75bb-ded1-c86d-bdf0",
+      "scope": "self",
+      "value": 3
+     },
+     {
+      "id": "a3fe-ad12-3404-8578",
+      "type": "max",
+      "field": "selections",
+      "scope": "force",
+      "value": 3
+     }
+    ],
+    "modifiers": [
+     {
+      "type": "set",
+      "field": "a3fe-ad12-3404-8578",
+      "value": 2,
+      "conditions": [
+       {
+        "type": "atLeast",
+        "field": "selections",
+        "value": 1,
+        "scope": "roster",
+        "childId": "d62d-db22-4893-4bc0"
+       }
+      ]
+     }
+    ],
+    "costs": [
+     {
+      "name": "pts",
+      "typeId": "pts",
+      "value": 160
+     }
+    ],
+    "categoryLinks": [
+     {
+      "name": "Vehicle"
+     },
+     {
+      "name": "Transport"
+     },
+     {
+      "name": "Faction: Orks"
+     },
+     {
+      "name": "Battlewagon"
+     },
+     {
+      "name": "Frame"
+     },
+     {
+      "name": "Wagon"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Battlewagon",
+      "typeName": "Unit",
+      "characteristics": [
+       {
+        "name": "M",
+        "$text": "10\""
+       },
+       {
+        "name": "T",
+        "$text": "11"
+       },
+       {
+        "name": "Sv",
+        "$text": "3+"
+       },
+       {
+        "name": "W",
+        "$text": "16"
+       },
+       {
+        "name": "LD",
+        "$text": "7+"
+       },
+       {
+        "name": "OC",
+        "$text": "5"
+       },
+       {
+        "name": "InSv",
+        "$text": "6+"
+       },
+       {
+        "name": "Base",
+        "$text": "Hull"
+       }
+      ]
+     }
+    ],
+    "selectionEntryGroups": [
+     {
+      "id": "f5cb-13eb-c974-fd0a",
+      "name": "Wargear",
+      "selectionEntries": [
+       {
+        "id": "a460-bd0e-c8ad-28b3",
+        "name": "Crushin' Bulk",
+        "type": "upgrade",
+        "constraints": [
+         {
+          "id": "8e62-66f7-5289-9bfb",
+          "type": "min",
+          "field": "selections",
+          "scope": "parent",
+          "value": 1
+         },
+         {
+          "id": "af8e-6ef6-60e4-bd8d",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 1
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Crushin' Bulk",
+          "typeName": "Melee Weapons",
+          "characteristics": [
+           {
+            "name": "Range",
+            "$text": "Melee"
+           },
+           {
+            "name": "A",
+            "$text": "6"
+           },
+           {
+            "name": "WS",
+            "$text": "3+"
+           },
+           {
+            "name": "S",
+            "$text": "8"
+           },
+           {
+            "name": "AP",
+            "$text": "-2"
+           },
+           {
+            "name": "D",
+            "$text": "2"
+           },
+           {
+            "name": "Keywords",
+            "$text": "CLEAVE 1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "id": "f9ec-4a35-f1e6-5082",
+        "name": "Grabbin' Klaw",
+        "type": "upgrade",
+        "profiles": [
+         {
+          "name": "Grabbin' Klaw",
+          "typeName": "Melee Weapons",
+          "characteristics": [
+           {
+            "name": "Range",
+            "$text": "Melee"
+           },
+           {
+            "name": "A",
+            "$text": "2"
+           },
+           {
+            "name": "WS",
+            "$text": "3+"
+           },
+           {
+            "name": "S",
+            "$text": "10"
+           },
+           {
+            "name": "AP",
+            "$text": "-2"
+           },
+           {
+            "name": "D",
+            "$text": "2"
+           },
+           {
+            "name": "Keywords",
+            "$text": "EXTRA ATTACKS"
+           }
+          ]
+         }
+        ],
+        "constraints": [
+         {
+          "id": "91be-56c3-3cb0-26f7",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 1
+         }
+        ]
+       },
+       {
+        "id": "933c-6d35-7e81-6e6d",
+        "name": "Wreckin' Ball",
+        "type": "upgrade",
+        "profiles": [
+         {
+          "name": "Wreckin' Ball",
+          "typeName": "Melee Weapons",
+          "characteristics": [
+           {
+            "name": "Range",
+            "$text": "Melee"
+           },
+           {
+            "name": "A",
+            "$text": "1"
+           },
+           {
+            "name": "WS",
+            "$text": "3+"
+           },
+           {
+            "name": "S",
+            "$text": "10"
+           },
+           {
+            "name": "AP",
+            "$text": "0"
+           },
+           {
+            "name": "D",
+            "$text": "D6"
+           },
+           {
+            "name": "Keywords",
+            "$text": "CLEAVE 2, EXTRA ATTACKS"
+           }
+          ]
+         }
+        ],
+        "constraints": [
+         {
+          "id": "3020-2ff-5ea2-83f4",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 1
+         }
+        ]
+       },
+       {
+        "id": "5d45-ef3f-5da5-f363",
+        "name": "Big Shoota",
+        "type": "upgrade",
+        "profiles": [
+         {
+          "name": "Big Shoota",
+          "typeName": "Ranged Weapons",
+          "characteristics": [
+           {
+            "name": "Range",
+            "$text": "36\""
+           },
+           {
+            "name": "A",
+            "$text": "3"
+           },
+           {
+            "name": "BS",
+            "$text": "5+"
+           },
+           {
+            "name": "S",
+            "$text": "5"
+           },
+           {
+            "name": "AP",
+            "$text": "0"
+           },
+           {
+            "name": "D",
+            "$text": "1"
+           },
+           {
+            "name": "Keywords",
+            "$text": "LETHAL HITS: non-MONSTER/VEHICLE, RAPID FIRE 2"
+           }
+          ]
+         }
+        ],
+        "constraints": [
+         {
+          "id": "c1b6-f288-3559-d495",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 4
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "id": "e3b1-1240-2476-cd86",
+    "name": "Boyz",
+    "type": "unit",
+    "constraints": [
+     {
+      "id": "d69e-4a59-6b45-6fdf",
+      "type": "max",
+      "field": "716d-91b7-d55a-1022",
+      "scope": "self",
+      "value": 0
+     },
+     {
+      "id": "5eb6-0d30-9597-362a",
+      "type": "min",
+      "field": "716d-91b7-d55a-1022",
+      "scope": "self",
+      "value": 0
+     },
+     {
+      "id": "e07d-b9c2-77b8-05e4",
+      "type": "max",
+      "field": "75bb-ded1-c86d-bdf0",
+      "scope": "self",
+      "value": 3
+     },
+     {
+      "id": "4fd9-fe6e-357c-e91e",
+      "type": "max",
+      "field": "selections",
+      "scope": "force",
+      "value": 6
+     },
+     {
+      "id": "75b7-210c-6471-f37b",
+      "type": "max",
+      "field": "f759-1bc4-cb3a-f0d2",
+      "scope": "root-entry",
+      "value": 1
+     },
+     {
+      "id": "126e-4457-7fbe-6591",
+      "type": "max",
+      "field": "associations",
+      "scope": "self",
+      "value": 1
+     },
+     {
+      "id": "f106-1730-86fd-e85b",
+      "type": "max",
+      "field": "associations",
+      "scope": "self",
+      "value": 1
+     }
+    ],
+    "modifiers": [
+     {
+      "type": "set",
+      "field": "4fd9-fe6e-357c-e91e",
+      "value": 4,
+      "conditions": [
+       {
+        "type": "atLeast",
+        "field": "selections",
+        "value": 1,
+        "scope": "roster",
+        "childId": "d62d-db22-4893-4bc0"
+       }
+      ]
+     }
+    ],
+    "costs": [
+     {
+      "name": "pts",
+      "typeId": "pts",
+      "value": 85
+     }
+    ],
+    "categoryLinks": [
+     {
+      "name": "Infantry"
+     },
+     {
+      "name": "Battleline"
+     },
+     {
+      "name": "Mob"
+     },
+     {
+      "name": "Boyz"
+     },
+     {
+      "name": "Faction: Orks"
+     },
+     {
+      "name": "Explosives"
+     }
+    ],
+    "selectionEntryGroups": [
+     {
+      "id": "3d4f-216d-1b28-ee93",
+      "name": "9-18 Boyz",
+      "defaultSelectionEntryId": "7629-a9f5-e881-6ff9",
+      "constraints": [
+       {
+        "id": "f6e1-5c7-8f81-8953",
+        "type": "min",
+        "field": "selections",
+        "scope": "parent",
+        "value": 9
+       },
+       {
+        "id": "b4d7-19fe-4355-cb1d",
+        "type": "max",
+        "field": "selections",
+        "scope": "parent",
+        "value": 18
+       }
+      ],
+      "selectionEntries": [
+       {
+        "id": "7629-a9f5-e881-6ff9",
+        "name": "Boy",
+        "type": "model",
+        "constraints": [
+         {
+          "id": "f738-7505-6d55-355",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 18
+         },
+         {
+          "id": "5450-fb84-01d2-2306",
+          "type": "min",
+          "field": "selections",
+          "scope": "parent",
+          "value": 6
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Boy",
+          "typeName": "Unit",
+          "characteristics": [
+           {
+            "name": "M",
+            "$text": "6\""
+           },
+           {
+            "name": "T",
+            "$text": "5"
+           },
+           {
+            "name": "Sv",
+            "$text": "5+"
+           },
+           {
+            "name": "W",
+            "$text": "1"
+           },
+           {
+            "name": "LD",
+            "$text": "7+"
+           },
+           {
+            "name": "OC",
+            "$text": "2"
+           },
+           {
+            "name": "InSv",
+            "$text": ""
+           },
+           {
+            "name": "Base",
+            "$text": "32mm"
+           }
+          ]
+         }
+        ],
+        "selectionEntries": [
+         {
+          "id": "6e34-5e0b-f267-40f5",
+          "name": "Choppa",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Choppa",
+            "typeName": "Melee Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "Melee"
+             },
+             {
+              "name": "A",
+              "$text": "3"
+             },
+             {
+              "name": "WS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "5"
+             },
+             {
+              "name": "AP",
+              "$text": "-1"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": ""
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "89f1-d92c-894e-c264",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "b43-2519-9427-fcfe",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "f678-5f8a-c349-16d2",
+          "name": "Slugga",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Slugga",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "12\""
+             },
+             {
+              "name": "A",
+              "$text": "1"
+             },
+             {
+              "name": "BS",
+              "$text": "5+"
+             },
+             {
+              "name": "S",
+              "$text": "4"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "CLOSE-QUARTERS, LETHAL HITS: non-MONSTER/VEHICLE"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "f1cc-eba6-1787-596d",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "8453-29f3-10b0-5645",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "a4f1-37ba-4b1b-98e4",
+          "name": "Shoota",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Shoota",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "18\""
+             },
+             {
+              "name": "A",
+              "$text": "2"
+             },
+             {
+              "name": "BS",
+              "$text": "5+"
+             },
+             {
+              "name": "S",
+              "$text": "4"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "LETHAL HITS: non-MONSTER/VEHICLE, RAPID FIRE 1"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "dca2-5d33-d349-9d23",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "ad60-eb9a-5e53-75bb",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "selectionEntryGroups": [
+       {
+        "id": "80bc-1cce-f5af-1a8c",
+        "name": "Special Weapons",
+        "constraints": [
+         {
+          "id": "f5a8-81f8-8095-1798",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 3
+         }
+        ],
+        "modifiers": [
+         {
+          "type": "increment",
+          "field": "f5a8-81f8-8095-1798",
+          "value": 3,
+          "conditions": [
+           {
+            "type": "atLeast",
+            "field": "selections",
+            "value": 20,
+            "scope": "e3b1-1240-2476-cd86",
+            "childId": "model"
+           }
+          ]
+         }
+        ],
+        "selectionEntries": [
+         {
+          "id": "6fc2-677d-fc5e-9329",
+          "name": "Boy w/ Big shoota",
+          "type": "model",
+          "constraints": [
+           {
+            "id": "f738-7505-6d55-355",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 2
+           }
+          ],
+          "profiles": [
+           {
+            "name": "Boy",
+            "typeName": "Unit",
+            "characteristics": [
+             {
+              "name": "M",
+              "$text": "6\""
+             },
+             {
+              "name": "T",
+              "$text": "5"
+             },
+             {
+              "name": "Sv",
+              "$text": "5+"
+             },
+             {
+              "name": "W",
+              "$text": "1"
+             },
+             {
+              "name": "LD",
+              "$text": "7+"
+             },
+             {
+              "name": "OC",
+              "$text": "2"
+             },
+             {
+              "name": "InSv",
+              "$text": ""
+             },
+             {
+              "name": "Base",
+              "$text": "32mm"
+             }
+            ]
+           }
+          ],
+          "selectionEntries": [
+           {
+            "id": "f7e0-a138-dd37-e42f",
+            "name": "Big Shoota",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Big Shoota",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "36\""
+               },
+               {
+                "name": "A",
+                "$text": "3"
+               },
+               {
+                "name": "BS",
+                "$text": "5+"
+               },
+               {
+                "name": "S",
+                "$text": "4"
+               },
+               {
+                "name": "AP",
+                "$text": "0"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": "LETHAL HITS: non-MONSTER/VEHICLE, RAPID FIRE 2"
+               }
+              ]
+             }
+            ],
+            "constraints": [
+             {
+              "id": "cc97-efea-57be-32d0",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "ef58-8aa5-0cd0-cfde",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "4685-cd81-70c4-c12c",
+              "type": "max",
+              "field": "selections",
+              "scope": "unit",
+              "value": 1
+             }
+            ],
+            "modifiers": [
+             {
+              "type": "set",
+              "field": "4685-cd81-70c4-c12c",
+              "value": 2,
+              "conditions": [
+               {
+                "type": "atLeast",
+                "field": "selections",
+                "value": 20,
+                "scope": "unit",
+                "childId": "model"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "0cef-0554-b4f6-2799",
+            "name": "Choppa",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Choppa",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "3"
+               },
+               {
+                "name": "WS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "5"
+               },
+               {
+                "name": "AP",
+                "$text": "-1"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": ""
+               }
+              ]
+             }
+            ],
+            "constraints": [
+             {
+              "id": "11a6-82d5-9a61-fa7c",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "86d4-27bc-49ab-d0c6",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             }
+            ]
+           },
+           {
+            "id": "c288-510d-4b99-e926",
+            "name": "Slugga",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Slugga",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "12\""
+               },
+               {
+                "name": "A",
+                "$text": "1"
+               },
+               {
+                "name": "BS",
+                "$text": "5+"
+               },
+               {
+                "name": "S",
+                "$text": "4"
+               },
+               {
+                "name": "AP",
+                "$text": "0"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": "CLOSE-QUARTERS, LETHAL HITS: non-MONSTER/VEHICLE"
+               }
+              ]
+             }
+            ],
+            "constraints": [
+             {
+              "id": "8e05-e19c-9215-db91",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "5fee-c9c1-bd0f-cf76",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "id": "ca6b-d75f-c372-64ab",
+          "name": "Boy w/ Rokkit launcha",
+          "type": "model",
+          "constraints": [
+           {
+            "id": "f738-7505-6d55-355",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 2
+           }
+          ],
+          "profiles": [
+           {
+            "name": "Boy",
+            "typeName": "Unit",
+            "characteristics": [
+             {
+              "name": "M",
+              "$text": "6\""
+             },
+             {
+              "name": "T",
+              "$text": "5"
+             },
+             {
+              "name": "Sv",
+              "$text": "5+"
+             },
+             {
+              "name": "W",
+              "$text": "1"
+             },
+             {
+              "name": "LD",
+              "$text": "7+"
+             },
+             {
+              "name": "OC",
+              "$text": "2"
+             },
+             {
+              "name": "InSv",
+              "$text": ""
+             },
+             {
+              "name": "Base",
+              "$text": "32mm"
+             }
+            ]
+           }
+          ],
+          "selectionEntries": [
+           {
+            "id": "6db5-ec11-70f7-7c0e",
+            "name": "Rokkit Launcha",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "➤ Rokkit Launcha - Busta",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "24\""
+               },
+               {
+                "name": "A",
+                "$text": "2"
+               },
+               {
+                "name": "BS",
+                "$text": "5+"
+               },
+               {
+                "name": "S",
+                "$text": "10"
+               },
+               {
+                "name": "AP",
+                "$text": "-2"
+               },
+               {
+                "name": "D",
+                "$text": "3"
+               },
+               {
+                "name": "Keywords",
+                "$text": "\n"
+               }
+              ]
+             },
+             {
+              "name": "➤ Rokkit Launcha - Blasta",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "24\""
+               },
+               {
+                "name": "A",
+                "$text": "2"
+               },
+               {
+                "name": "BS",
+                "$text": "5+"
+               },
+               {
+                "name": "S",
+                "$text": "4"
+               },
+               {
+                "name": "AP",
+                "$text": "0"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": "BLAST 2"
+               }
+              ]
+             }
+            ],
+            "constraints": [
+             {
+              "id": "a062-609c-6243-e6",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "2ca7-388f-56be-d90",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "ac26-6e7e-2ba0-33e2",
+              "type": "max",
+              "field": "selections",
+              "scope": "unit",
+              "value": 1
+             }
+            ],
+            "modifiers": [
+             {
+              "type": "set",
+              "field": "ac26-6e7e-2ba0-33e2",
+              "value": 2,
+              "conditions": [
+               {
+                "type": "atLeast",
+                "field": "selections",
+                "value": 20,
+                "scope": "unit",
+                "childId": "model"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "f609-48f5-216a-0071",
+            "name": "Choppa",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Choppa",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "3"
+               },
+               {
+                "name": "WS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "5"
+               },
+               {
+                "name": "AP",
+                "$text": "-1"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": ""
+               }
+              ]
+             }
+            ],
+            "constraints": [
+             {
+              "id": "188c-0235-63d2-f591",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "c841-8b8a-1a7c-4238",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             }
+            ]
+           },
+           {
+            "id": "2abf-afac-b852-e624",
+            "name": "Slugga",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Slugga",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "12\""
+               },
+               {
+                "name": "A",
+                "$text": "1"
+               },
+               {
+                "name": "BS",
+                "$text": "5+"
+               },
+               {
+                "name": "S",
+                "$text": "4"
+               },
+               {
+                "name": "AP",
+                "$text": "0"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": "CLOSE-QUARTERS, LETHAL HITS: non-MONSTER/VEHICLE"
+               }
+              ]
+             }
+            ],
+            "constraints": [
+             {
+              "id": "90ac-8fdc-d65c-a60a",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "a4be-0a40-925a-aaf9",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "id": "daba-130f-7c6b-5707",
+          "name": "Boy w/ Burna",
+          "type": "model",
+          "constraints": [
+           {
+            "id": "a2c4-5668-7287-dc7a",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 2
+           }
+          ],
+          "profiles": [
+           {
+            "name": "Boy",
+            "typeName": "Unit",
+            "characteristics": [
+             {
+              "name": "M",
+              "$text": "6\""
+             },
+             {
+              "name": "T",
+              "$text": "5"
+             },
+             {
+              "name": "Sv",
+              "$text": "5+"
+             },
+             {
+              "name": "W",
+              "$text": "1"
+             },
+             {
+              "name": "LD",
+              "$text": "7+"
+             },
+             {
+              "name": "OC",
+              "$text": "2"
+             },
+             {
+              "name": "InSv",
+              "$text": ""
+             },
+             {
+              "name": "Base",
+              "$text": "32mm"
+             }
+            ]
+           }
+          ],
+          "selectionEntries": [
+           {
+            "id": "1584-ed8c-83e1-3aee",
+            "name": "Burna",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Burna",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "12\""
+               },
+               {
+                "name": "A",
+                "$text": "3"
+               },
+               {
+                "name": "BS",
+                "$text": "-"
+               },
+               {
+                "name": "S",
+                "$text": "4"
+               },
+               {
+                "name": "AP",
+                "$text": "0"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": "BLAST 1, TORRENT"
+               }
+              ]
+             }
+            ],
+            "constraints": [
+             {
+              "id": "b673-34ef-a0dd-2879",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "9056-a12c-e1de-06d5",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "794b-2d07-59f5-4276",
+              "type": "max",
+              "field": "selections",
+              "scope": "unit",
+              "value": 1
+             }
+            ],
+            "modifiers": [
+             {
+              "type": "set",
+              "field": "794b-2d07-59f5-4276",
+              "value": 2,
+              "conditions": [
+               {
+                "type": "atLeast",
+                "field": "selections",
+                "value": 20,
+                "scope": "unit",
+                "childId": "model"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "9413-f7df-776d-9b40",
+            "name": "Choppa",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Choppa",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "3"
+               },
+               {
+                "name": "WS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "5"
+               },
+               {
+                "name": "AP",
+                "$text": "-1"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": ""
+               }
+              ]
+             }
+            ],
+            "constraints": [
+             {
+              "id": "948a-c49a-e306-6b2d",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "c917-ebae-d49d-26d1",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             }
+            ]
+           },
+           {
+            "id": "5d57-beb3-99b5-ed0f",
+            "name": "Slugga",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Slugga",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "12\""
+               },
+               {
+                "name": "A",
+                "$text": "1"
+               },
+               {
+                "name": "BS",
+                "$text": "5+"
+               },
+               {
+                "name": "S",
+                "$text": "4"
+               },
+               {
+                "name": "AP",
+                "$text": "0"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": "CLOSE-QUARTERS, LETHAL HITS: non-MONSTER/VEHICLE"
+               }
+              ]
+             }
+            ],
+            "constraints": [
+             {
+              "id": "2e97-3fd7-40f3-c06d",
+              "type": "min",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             },
+             {
+              "id": "c47b-4ff9-7b62-8aff",
+              "type": "max",
+              "field": "selections",
+              "scope": "parent",
+              "value": 1
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "id": "0fe0-6121-efa6-8057",
+      "name": "1-2 Nobz",
+      "selectionEntries": [
+       {
+        "id": "4660-3a1-f9f9-1a2b",
+        "name": "Nob",
+        "type": "model",
+        "constraints": [
+         {
+          "id": "ede-2175-7bb2-79a4",
+          "type": "min",
+          "field": "selections",
+          "scope": "parent",
+          "value": 1
+         },
+         {
+          "id": "a749-65d7-b74b-c1f6",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 2
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Nob",
+          "typeName": "Unit",
+          "characteristics": [
+           {
+            "name": "M",
+            "$text": "6\""
+           },
+           {
+            "name": "T",
+            "$text": "5"
+           },
+           {
+            "name": "Sv",
+            "$text": "5+"
+           },
+           {
+            "name": "W",
+            "$text": "3"
+           },
+           {
+            "name": "LD",
+            "$text": "7+"
+           },
+           {
+            "name": "OC",
+            "$text": "2"
+           },
+           {
+            "name": "InSv",
+            "$text": ""
+           },
+           {
+            "name": "Base",
+            "$text": "32mm"
+           }
+          ]
+         }
+        ],
+        "selectionEntryGroups": [
+         {
+          "id": "592c-f0be-c73a-5a3d",
+          "name": "Kustom Choppa and Kombi-skorcha",
+          "defaultSelectionEntryId": "4d53-3dd9-b7f7-55dc",
+          "constraints": [
+           {
+            "id": "8388-2a17-ad50-fdb1",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "45eb-12d8-7b6a-77d9",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ],
+          "selectionEntries": [
+           {
+            "id": "4d53-3dd9-b7f7-55dc",
+            "name": "Kustom Choppa and Kombi-skorcha",
+            "type": "upgrade",
+            "selectionEntryGroups": [
+             {
+              "id": "0c63-6931-d9e1-9fb1",
+              "name": "Kustom Choppa",
+              "defaultSelectionEntryId": "5c3f-2bdd-133e-e307",
+              "constraints": [
+               {
+                "id": "c8f5-eca4-f00e-9fc5",
+                "type": "min",
+                "field": "selections",
+                "scope": "parent",
+                "value": 1
+               },
+               {
+                "id": "1b5d-2c7c-a271-fd07",
+                "type": "max",
+                "field": "selections",
+                "scope": "parent",
+                "value": 1
+               }
+              ],
+              "selectionEntries": [
+               {
+                "id": "5c3f-2bdd-133e-e307",
+                "name": "Kustom Choppa",
+                "type": "upgrade",
+                "profiles": [
+                 {
+                  "name": "Kustom Choppa",
+                  "typeName": "Melee Weapons",
+                  "characteristics": [
+                   {
+                    "name": "Range",
+                    "$text": "Melee"
+                   },
+                   {
+                    "name": "A",
+                    "$text": "4"
+                   },
+                   {
+                    "name": "WS",
+                    "$text": "3+"
+                   },
+                   {
+                    "name": "S",
+                    "$text": "5"
+                   },
+                   {
+                    "name": "AP",
+                    "$text": "-2"
+                   },
+                   {
+                    "name": "D",
+                    "$text": "2"
+                   },
+                   {
+                    "name": "Keywords",
+                    "$text": ""
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "id": "bc3e-6309-50bc-0b78",
+                "name": "Power Klaw",
+                "type": "upgrade",
+                "profiles": [
+                 {
+                  "name": "Power Klaw",
+                  "typeName": "Melee Weapons",
+                  "characteristics": [
+                   {
+                    "name": "Range",
+                    "$text": "Melee"
+                   },
+                   {
+                    "name": "A",
+                    "$text": "3"
+                   },
+                   {
+                    "name": "WS",
+                    "$text": "3+"
+                   },
+                   {
+                    "name": "S",
+                    "$text": "10"
+                   },
+                   {
+                    "name": "AP",
+                    "$text": "-2"
+                   },
+                   {
+                    "name": "D",
+                    "$text": "2"
+                   },
+                   {
+                    "name": "Keywords",
+                    "$text": ""
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "id": "e360-c9d0-1b56-3550",
+              "name": "Kombi-skorcha",
+              "defaultSelectionEntryId": "6fac-8215-b15d-cb97",
+              "constraints": [
+               {
+                "id": "c66a-91d5-0cca-d20e",
+                "type": "min",
+                "field": "selections",
+                "scope": "parent",
+                "value": 1
+               },
+               {
+                "id": "c4ff-8c7b-4275-583d",
+                "type": "max",
+                "field": "selections",
+                "scope": "parent",
+                "value": 1
+               }
+              ],
+              "selectionEntries": [
+               {
+                "id": "fdf3-b784-db0c-3b1e",
+                "name": "Kustom Shoota",
+                "type": "upgrade",
+                "profiles": [
+                 {
+                  "name": "Kustom Shoota",
+                  "typeName": "Ranged Weapons",
+                  "characteristics": [
+                   {
+                    "name": "Range",
+                    "$text": "18\""
+                   },
+                   {
+                    "name": "A",
+                    "$text": "4"
+                   },
+                   {
+                    "name": "BS",
+                    "$text": "5+"
+                   },
+                   {
+                    "name": "S",
+                    "$text": "4"
+                   },
+                   {
+                    "name": "AP",
+                    "$text": "0"
+                   },
+                   {
+                    "name": "D",
+                    "$text": "1"
+                   },
+                   {
+                    "name": "Keywords",
+                    "$text": "LETHAL HITS: non-MONSTER/VEHICLE, RAPID FIRE 2"
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "id": "6fac-8215-b15d-cb97",
+                "name": "Kombi-skorcha",
+                "type": "upgrade",
+                "profiles": [
+                 {
+                  "name": "➤ Kombi-skorcha - Skorcha",
+                  "typeName": "Ranged Weapons",
+                  "characteristics": [
+                   {
+                    "name": "Range",
+                    "$text": "12\""
+                   },
+                   {
+                    "name": "A",
+                    "$text": "3"
+                   },
+                   {
+                    "name": "BS",
+                    "$text": "-"
+                   },
+                   {
+                    "name": "S",
+                    "$text": "5"
+                   },
+                   {
+                    "name": "AP",
+                    "$text": "0"
+                   },
+                   {
+                    "name": "D",
+                    "$text": "1"
+                   },
+                   {
+                    "name": "Keywords",
+                    "$text": "BLAST 1, TORRENT"
+                   }
+                  ]
+                 },
+                 {
+                  "name": "➤ Kombi-skorcha - Shoota",
+                  "typeName": "Ranged Weapons",
+                  "characteristics": [
+                   {
+                    "name": "Range",
+                    "$text": "18\""
+                   },
+                   {
+                    "name": "A",
+                    "$text": "2"
+                   },
+                   {
+                    "name": "BS",
+                    "$text": "5+"
+                   },
+                   {
+                    "name": "S",
+                    "$text": "4"
+                   },
+                   {
+                    "name": "AP",
+                    "$text": "0"
+                   },
+                   {
+                    "name": "D",
+                    "$text": "1"
+                   },
+                   {
+                    "name": "Keywords",
+                    "$text": "LETHAL HITS: non-MONSTER/VEHICLE, RAPID FIRE 1"
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "id": "01ad-a957-628b-a130",
+                "name": "Kombi-rokkit",
+                "type": "upgrade",
+                "profiles": [
+                 {
+                  "name": "➤ Kombi-rokkit - Busta Rokkit",
+                  "typeName": "Ranged Weapons",
+                  "characteristics": [
+                   {
+                    "name": "Range",
+                    "$text": "24\""
+                   },
+                   {
+                    "name": "A",
+                    "$text": "1"
+                   },
+                   {
+                    "name": "BS",
+                    "$text": "5+"
+                   },
+                   {
+                    "name": "S",
+                    "$text": "10"
+                   },
+                   {
+                    "name": "AP",
+                    "$text": "-2"
+                   },
+                   {
+                    "name": "D",
+                    "$text": "3"
+                   },
+                   {
+                    "name": "Keywords",
+                    "$text": ""
+                   }
+                  ]
+                 },
+                 {
+                  "name": "➤ Kombi-rokkit - Shoota",
+                  "typeName": "Ranged Weapons",
+                  "characteristics": [
+                   {
+                    "name": "Range",
+                    "$text": "18\""
+                   },
+                   {
+                    "name": "A",
+                    "$text": "2"
+                   },
+                   {
+                    "name": "BS",
+                    "$text": "5+"
+                   },
+                   {
+                    "name": "S",
+                    "$text": "4"
+                   },
+                   {
+                    "name": "AP",
+                    "$text": "0"
+                   },
+                   {
+                    "name": "D",
+                    "$text": "1"
+                   },
+                   {
+                    "name": "Keywords",
+                    "$text": "LETHAL HITS: non-MONSTER/VEHICLE, RAPID FIRE 1"
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "f674-1a9a-4c01-0925",
+            "name": "Big Choppa",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Big Choppa",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "4"
+               },
+               {
+                "name": "WS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "7"
+               },
+               {
+                "name": "AP",
+                "$text": "-1"
+               },
+               {
+                "name": "D",
+                "$text": "2"
+               },
+               {
+                "name": "Keywords",
+                "$text": "CLEAVE 2"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "id": "7067-34f4-5272-e05f",
+    "name": "Meganobz",
+    "type": "unit",
+    "constraints": [
+     {
+      "id": "22ec-611e-e05c-08db",
+      "type": "max",
+      "field": "716d-91b7-d55a-1022",
+      "scope": "self",
+      "value": 0
+     },
+     {
+      "id": "f988-d64d-9ec9-ed50",
+      "type": "min",
+      "field": "716d-91b7-d55a-1022",
+      "scope": "self",
+      "value": 0
+     },
+     {
+      "id": "f4c1-0246-905b-e096",
+      "type": "max",
+      "field": "75bb-ded1-c86d-bdf0",
+      "scope": "self",
+      "value": 3
+     },
+     {
+      "id": "bf31-da26-b6b3-3246",
+      "type": "max",
+      "field": "selections",
+      "scope": "force",
+      "value": 3
+     },
+     {
+      "id": "812e-2cf3-e056-1e41",
+      "type": "max",
+      "field": "f759-1bc4-cb3a-f0d2",
+      "scope": "root-entry",
+      "value": 1
+     },
+     {
+      "id": "396f-37b3-4815-7baf",
+      "type": "max",
+      "field": "associations",
+      "scope": "self",
+      "value": 1
+     },
+     {
+      "id": "7744-2bb7-1465-18fe",
+      "type": "max",
+      "field": "associations",
+      "scope": "self",
+      "value": 1
+     }
+    ],
+    "modifiers": [
+     {
+      "type": "set",
+      "field": "bf31-da26-b6b3-3246",
+      "value": 2,
+      "conditions": [
+       {
+        "type": "atLeast",
+        "field": "selections",
+        "value": 1,
+        "scope": "roster",
+        "childId": "d62d-db22-4893-4bc0"
+       }
+      ]
+     }
+    ],
+    "costs": [
+     {
+      "name": "pts",
+      "typeId": "pts",
+      "value": 70
+     }
+    ],
+    "categoryLinks": [
+     {
+      "name": "Infantry"
+     },
+     {
+      "name": "Meganobz"
+     },
+     {
+      "name": "Faction: Orks"
+     },
+     {
+      "name": "Mega Armour"
+     },
+     {
+      "name": "Explosives"
+     }
+    ],
+    "selectionEntryGroups": [
+     {
+      "id": "3b89-522e-3f86-44a2",
+      "name": "2-6 Meganobz",
+      "defaultSelectionEntryId": "e924-a316-2b53-ff06",
+      "constraints": [
+       {
+        "id": "aceb-8cf0-15d1-2314",
+        "type": "min",
+        "field": "selections",
+        "scope": "parent",
+        "value": 2
+       },
+       {
+        "id": "3112-7bdb-8445-68b0",
+        "type": "max",
+        "field": "selections",
+        "scope": "parent",
+        "value": 6
+       }
+      ],
+      "selectionEntries": [
+       {
+        "id": "e924-a316-2b53-ff06",
+        "name": "Meganob w/ Kustom Shoota and Power Klaw",
+        "type": "model",
+        "constraints": [
+         {
+          "id": "3112-7bdb-8445-68b0",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 6
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Meganob",
+          "typeName": "Unit",
+          "characteristics": [
+           {
+            "name": "M",
+            "$text": "5\""
+           },
+           {
+            "name": "T",
+            "$text": "6"
+           },
+           {
+            "name": "Sv",
+            "$text": "2+"
+           },
+           {
+            "name": "W",
+            "$text": "3"
+           },
+           {
+            "name": "LD",
+            "$text": "7+"
+           },
+           {
+            "name": "OC",
+            "$text": "1"
+           },
+           {
+            "name": "InSv",
+            "$text": ""
+           },
+           {
+            "name": "Base",
+            "$text": "40mm"
+           }
+          ]
+         }
+        ],
+        "selectionEntries": [
+         {
+          "id": "61c1-e101-ef1b-bef7",
+          "name": "Kustom Shoota",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "➤ Kustom Shoota - Aimed",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "18\""
+             },
+             {
+              "name": "A",
+              "$text": "4"
+             },
+             {
+              "name": "BS",
+              "$text": "5+"
+             },
+             {
+              "name": "S",
+              "$text": "4"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "LETHAL HITS: non-MONSTER/VEHICLE, RAPID FIRE 2"
+             }
+            ]
+           },
+           {
+            "name": "➤ Kustom Shoota - Point Blank",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "6\""
+             },
+             {
+              "name": "A",
+              "$text": "D3+3"
+             },
+             {
+              "name": "BS",
+              "$text": "-"
+             },
+             {
+              "name": "S",
+              "$text": "4"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "CLOSE-QUARTERS, TORRENT"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "39a9-8518-11a-34fa",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "425c-7795-a74a-efe0",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "8fa-1aac-77f4-982f",
+          "name": "Power Klaw",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Power Klaw",
+            "typeName": "Melee Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "Melee"
+             },
+             {
+              "name": "A",
+              "$text": "3"
+             },
+             {
+              "name": "WS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "10"
+             },
+             {
+              "name": "AP",
+              "$text": "-2"
+             },
+             {
+              "name": "D",
+              "$text": "2"
+             },
+             {
+              "name": "Keywords",
+              "$text": ""
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "41a3-3dd0-5c7a-edad",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "1380-c9a3-9667-2a",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "id": "cdad-e2e0-9db3-93fc",
+        "name": "Meganob w/ Kombi-weapon and Power Klaw",
+        "type": "model",
+        "constraints": [
+         {
+          "id": "3112-7bdb-8445-68b0",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 6
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Meganob",
+          "typeName": "Unit",
+          "characteristics": [
+           {
+            "name": "M",
+            "$text": "5\""
+           },
+           {
+            "name": "T",
+            "$text": "6"
+           },
+           {
+            "name": "Sv",
+            "$text": "2+"
+           },
+           {
+            "name": "W",
+            "$text": "3"
+           },
+           {
+            "name": "LD",
+            "$text": "7+"
+           },
+           {
+            "name": "OC",
+            "$text": "1"
+           },
+           {
+            "name": "InSv",
+            "$text": ""
+           },
+           {
+            "name": "Base",
+            "$text": "40mm"
+           }
+          ]
+         }
+        ],
+        "selectionEntries": [
+         {
+          "id": "e1e6-7211-759d-5c5c",
+          "name": "Kombi-weapon",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "➤ Kombi-weapon - Point Blank",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "12\""
+             },
+             {
+              "name": "A",
+              "$text": "3"
+             },
+             {
+              "name": "BS",
+              "$text": "-"
+             },
+             {
+              "name": "S",
+              "$text": "5"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "BLAST 1, TORRENT"
+             }
+            ]
+           },
+           {
+            "name": "➤ Kombi-weapon - Kill Shot",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "24\""
+             },
+             {
+              "name": "A",
+              "$text": "1"
+             },
+             {
+              "name": "BS",
+              "$text": "5+"
+             },
+             {
+              "name": "S",
+              "$text": "10"
+             },
+             {
+              "name": "AP",
+              "$text": "-2"
+             },
+             {
+              "name": "D",
+              "$text": "3"
+             },
+             {
+              "name": "Keywords",
+              "$text": "\n"
+             }
+            ]
+           },
+           {
+            "name": "➤ Kombi-weapon - Shoota",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "18\""
+             },
+             {
+              "name": "A",
+              "$text": "2"
+             },
+             {
+              "name": "BS",
+              "$text": "5+"
+             },
+             {
+              "name": "S",
+              "$text": "4"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "LETHAL HITS: non-MONSTER/VEHICLE, RAPID FIRE 1"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "39a9-8518-11a-34fa",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "425c-7795-a74a-efe0",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "8a3c-fba8-9fdc-5c7c",
+          "name": "Power Klaw",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Power Klaw",
+            "typeName": "Melee Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "Melee"
+             },
+             {
+              "name": "A",
+              "$text": "3"
+             },
+             {
+              "name": "WS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "10"
+             },
+             {
+              "name": "AP",
+              "$text": "-2"
+             },
+             {
+              "name": "D",
+              "$text": "2"
+             },
+             {
+              "name": "Keywords",
+              "$text": ""
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "41a3-3dd0-5c7a-edad",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "1380-c9a3-9667-2a",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "id": "caae-830b-ecc1-cf",
+        "name": "Meganob w/ Kombi-weapon and Killsaw",
+        "type": "model",
+        "constraints": [
+         {
+          "id": "3112-7bdb-8445-68b0",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 6
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Meganob",
+          "typeName": "Unit",
+          "characteristics": [
+           {
+            "name": "M",
+            "$text": "5\""
+           },
+           {
+            "name": "T",
+            "$text": "6"
+           },
+           {
+            "name": "Sv",
+            "$text": "2+"
+           },
+           {
+            "name": "W",
+            "$text": "3"
+           },
+           {
+            "name": "LD",
+            "$text": "7+"
+           },
+           {
+            "name": "OC",
+            "$text": "1"
+           },
+           {
+            "name": "InSv",
+            "$text": ""
+           },
+           {
+            "name": "Base",
+            "$text": "40mm"
+           }
+          ]
+         }
+        ],
+        "selectionEntries": [
+         {
+          "id": "547c-d49e-2a5c-8e2b",
+          "name": "Kombi-weapon",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "➤ Kombi-weapon - Point Blank",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "12\""
+             },
+             {
+              "name": "A",
+              "$text": "3"
+             },
+             {
+              "name": "BS",
+              "$text": "-"
+             },
+             {
+              "name": "S",
+              "$text": "5"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "BLAST 1, TORRENT"
+             }
+            ]
+           },
+           {
+            "name": "➤ Kombi-weapon - Kill Shot",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "24\""
+             },
+             {
+              "name": "A",
+              "$text": "1"
+             },
+             {
+              "name": "BS",
+              "$text": "5+"
+             },
+             {
+              "name": "S",
+              "$text": "10"
+             },
+             {
+              "name": "AP",
+              "$text": "-2"
+             },
+             {
+              "name": "D",
+              "$text": "3"
+             },
+             {
+              "name": "Keywords",
+              "$text": "\n"
+             }
+            ]
+           },
+           {
+            "name": "➤ Kombi-weapon - Shoota",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "18\""
+             },
+             {
+              "name": "A",
+              "$text": "2"
+             },
+             {
+              "name": "BS",
+              "$text": "5+"
+             },
+             {
+              "name": "S",
+              "$text": "4"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "LETHAL HITS: non-MONSTER/VEHICLE, RAPID FIRE 1"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "39a9-8518-11a-34fa",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "425c-7795-a74a-efe0",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "e969-4a21-64a7-da78",
+          "name": "Killsaw",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Killsaw",
+            "typeName": "Melee Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "Melee"
+             },
+             {
+              "name": "A",
+              "$text": "3"
+             },
+             {
+              "name": "WS",
+              "$text": "4+"
+             },
+             {
+              "name": "S",
+              "$text": "10"
+             },
+             {
+              "name": "AP",
+              "$text": "-2"
+             },
+             {
+              "name": "D",
+              "$text": "3"
+             },
+             {
+              "name": "Keywords",
+              "$text": ""
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "41a3-3dd0-5c7a-edad",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "1380-c9a3-9667-2a",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "id": "2565-a1d8-4dd8-7649",
+        "name": "Meganob w/ Kustom Shoota and Killsaw",
+        "type": "model",
+        "constraints": [
+         {
+          "id": "3112-7bdb-8445-68b0",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 6
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Meganob",
+          "typeName": "Unit",
+          "characteristics": [
+           {
+            "name": "M",
+            "$text": "5\""
+           },
+           {
+            "name": "T",
+            "$text": "6"
+           },
+           {
+            "name": "Sv",
+            "$text": "2+"
+           },
+           {
+            "name": "W",
+            "$text": "3"
+           },
+           {
+            "name": "LD",
+            "$text": "7+"
+           },
+           {
+            "name": "OC",
+            "$text": "1"
+           },
+           {
+            "name": "InSv",
+            "$text": ""
+           },
+           {
+            "name": "Base",
+            "$text": "40mm"
+           }
+          ]
+         }
+        ],
+        "selectionEntries": [
+         {
+          "id": "756a-fea3-6a89-787e",
+          "name": "Kustom Shoota",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "➤ Kustom Shoota - Aimed",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "18\""
+             },
+             {
+              "name": "A",
+              "$text": "4"
+             },
+             {
+              "name": "BS",
+              "$text": "5+"
+             },
+             {
+              "name": "S",
+              "$text": "4"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "LETHAL HITS: non-MONSTER/VEHICLE, RAPID FIRE 2"
+             }
+            ]
+           },
+           {
+            "name": "➤ Kustom Shoota - Point Blank",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "6\""
+             },
+             {
+              "name": "A",
+              "$text": "D3+3"
+             },
+             {
+              "name": "BS",
+              "$text": "-"
+             },
+             {
+              "name": "S",
+              "$text": "4"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "CLOSE-QUARTERS, TORRENT"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "39a9-8518-11a-34fa",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "425c-7795-a74a-efe0",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "cfe8-c103-b7d2-1bdf",
+          "name": "Killsaw",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Killsaw",
+            "typeName": "Melee Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "Melee"
+             },
+             {
+              "name": "A",
+              "$text": "3"
+             },
+             {
+              "name": "WS",
+              "$text": "4+"
+             },
+             {
+              "name": "S",
+              "$text": "10"
+             },
+             {
+              "name": "AP",
+              "$text": "-2"
+             },
+             {
+              "name": "D",
+              "$text": "3"
+             },
+             {
+              "name": "Keywords",
+              "$text": ""
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "41a3-3dd0-5c7a-edad",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "1380-c9a3-9667-2a",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "id": "731f-2f2-7ca0-23ed",
+        "name": "Meganob w/ Twin Killsaw",
+        "type": "model",
+        "constraints": [
+         {
+          "id": "3112-7bdb-8445-68b0",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 6
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Meganob",
+          "typeName": "Unit",
+          "characteristics": [
+           {
+            "name": "M",
+            "$text": "5\""
+           },
+           {
+            "name": "T",
+            "$text": "6"
+           },
+           {
+            "name": "Sv",
+            "$text": "2+"
+           },
+           {
+            "name": "W",
+            "$text": "3"
+           },
+           {
+            "name": "LD",
+            "$text": "7+"
+           },
+           {
+            "name": "OC",
+            "$text": "1"
+           },
+           {
+            "name": "InSv",
+            "$text": ""
+           },
+           {
+            "name": "Base",
+            "$text": "40mm"
+           }
+          ]
+         }
+        ],
+        "selectionEntries": [
+         {
+          "id": "b46a-4885-3b28-428b",
+          "name": "Twin Killsaw",
+          "type": "upgrade",
+          "constraints": [
+           {
+            "id": "b615-19ae-ee33-9cff",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "eeb4-6a30-ab7a-271e",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ],
+          "profiles": [
+           {
+            "name": "Twin Killsaw",
+            "typeName": "Melee Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "Melee"
+             },
+             {
+              "name": "A",
+              "$text": "3"
+             },
+             {
+              "name": "WS",
+              "$text": "4+"
+             },
+             {
+              "name": "S",
+              "$text": "10"
+             },
+             {
+              "name": "AP",
+              "$text": "-2"
+             },
+             {
+              "name": "D",
+              "$text": "3"
+             },
+             {
+              "name": "Keywords",
+              "$text": "TWIN-LINKED"
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

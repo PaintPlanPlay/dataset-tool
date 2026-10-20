@@ -57,6 +57,7 @@ first. It is the description of the daily update's pull request, and
 | **Contributions set aside** | refused: off schema, or rules text | fix the entry |
 | **Contributions whose target is gone** | the rule or option group they applied to disappeared | **Reattach…** it to what replaced it (dashboard or Corrections (n)), or delete it |
 | **Modifier keys the simulation does not play** | | fix a typo, or leave it for the simulator to learn |
+| **Wargear options to write** | units whose wargear the import could not read (a mandatory choice without a default, a weapon no option offers…): they publish no wargear option | write them on the unit sheet — or, when many units share the pattern, teach it to the import |
 | **Wargear costs not linked** | MFM wargear lines no option bills | link by hand on the unit sheet |
 | **Enhancement Weapons to check** | *orphan*: a weapon BSData gives an enhancement the Dataset does not have; *collision*: a datasheet carrying the weapon of one of its army's enhancements | an orphan waits for its detachment in the MFM; a collision usually means a new or renamed shared BSData group to leave out |
 | **Authored entries not found** | a default target, the sample list or an ally rule names something gone | fix the file in `authored/` |

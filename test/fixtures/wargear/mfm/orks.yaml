@@ -1,0 +1,48 @@
+name: Orks
+slug: orks
+version: "1.5"
+firstSeen: 2026-10-01
+detachments: []
+units:
+  - name: Warboss
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 1, points: 100 }
+  - name: Nobz
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 5, points: 115 }
+          - { models: 10, points: 230 }
+    wargear:
+      - { item: Paired Krumpas, points: 5 }
+  - name: Battlewagon
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 1, points: 160 }
+    wargear:
+      # Ligne de test : un ajout payant.
+      - { item: Wreckin' Ball, points: 10 }
+  - name: Boyz
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 10, points: 85 }
+          - { models: 20, points: 170 }
+  - name: Meganobz
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 2, points: 70 }
+          - { models: 3, points: 105 }
+          - { models: 5, points: 175 }
+          - { models: 6, points: 210 }
+    wargear:
+      - { item: Twin Killsaw, points: 5 }

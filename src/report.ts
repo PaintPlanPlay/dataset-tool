@@ -58,6 +58,8 @@ export interface DriftReport {
   wargear: BuildOutput['wargear'];
   /** Les Weapons d'Enhancement orphelines, et celles qu'une datasheet porte. */
   enhancementWeapons: BuildOutput['enhancementWeapons'];
+  /** Les Units dont les Wargear Options sont à écrire. */
+  wargearToWrite: BuildOutput['wargearToWrite'];
   /** Ce que les fichiers écrits par le projet nomment et que la construction n'a plus : cibles, List d'exemple, Ally Rules. */
   unresolvedAuthored: string[];
   /** Lignes du MFM écartées parce qu'une autre porte déjà leur nom dans la même faction. */
@@ -188,6 +190,7 @@ export function makeReport(out: BuildOutput, previous: Map<string, unknown> | un
     unsimulated: out.unsimulated,
     wargear: out.wargear,
     enhancementWeapons: out.enhancementWeapons,
+    wargearToWrite: out.wargearToWrite,
     unresolvedAuthored: out.unresolvedAuthored,
     mfmDuplicates: out.mfmDuplicates,
     sources: index.sources,
@@ -227,6 +230,7 @@ const FINDING_LABEL: Record<Finding['kind'], string> = {
   unsimulated: 'unsimulated keys',
   wargear: 'wargear costs not linked',
   enhancementWeapon: 'Enhancement Weapons',
+  wargearToWrite: 'wargear options to write',
 };
 
 /** Un changement en lignes de diff : une liste par ses éléments, un bloc ligne à ligne. */
@@ -347,6 +351,11 @@ export function renderReport(r: DriftReport, options: { budget?: number } = {}):
     L.push(...bounded(r.unsimulated, 40, (u) => `- \`${u.key}\` · ${u.rule} — ${u.target}`), '');
   }
 
+  if (r.wargearToWrite.length) {
+    L.push(`## Wargear options to write (${r.wargearToWrite.length})`, '');
+    L.push('The import could not read these units\' wargear: they publish no wargear option until someone writes them on the unit\'s sheet. Teaching the import the pattern fixes every unit that shares it.', '');
+    L.push(...bounded(r.wargearToWrite, 80, (w) => `- **${w.unit}** · ${w.army} — ${w.groups.map((g) => `${g.group}: ${g.why}`).join('; ')}`), '');
+  }
   if (r.wargear.length) {
     L.push(`## Wargear costs not linked (${r.wargear.length})`, '');
     L.push('An MFM `wargear` line bills nothing until a Wargear Option points to it. Link it by hand in the Dataset Tool, or correct the MFM line.', '');
