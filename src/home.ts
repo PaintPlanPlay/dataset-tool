@@ -12,7 +12,7 @@ import type { ArmyFile } from '@paintplanplay/dataset-schema';
 import { CORE_ROOT, parseTarget } from './corrections/apply.ts';
 
 /** Les entités d'une adresse dont la racine est une Unit. */
-const UNIT_ENTITIES = new Set(['unit', 'model', 'weapon', 'ability', 'attachment', 'option']);
+const UNIT_ENTITIES = new Set(['unit', 'model', 'weapon', 'ability', 'attachment', 'option', 'wargear']);
 
 export interface Homes {
   /** L'Army d'origine de l'élément visé, `core` pour un Stratagem Core ; `undefined` s'il est introuvable. */

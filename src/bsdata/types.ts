@@ -1,5 +1,5 @@
 /** Modèle « à plat » des datasheets BSData, tel que le Dataset Tool le manipule avant d'en tirer le Dataset. */
-import type { Weapon, WeaponKind } from '@paintplanplay/dataset-schema';
+import type { ModelType, Weapon, WeaponKind, WargearOption } from '@paintplanplay/dataset-schema';
 import type { ParsedAbility } from './abilities.ts';
 
 /**
@@ -42,6 +42,13 @@ export interface WeaponOption {
   perModels?: number;
   /** Option retenue par défaut dans son groupe. */
   isDefault: boolean;
+  /**
+   * Une limite posée dans l'option même, par Unit (« max 1 par Unit » sur le
+   * Big Choppa d'un Nob) : la nouvelle forme seule s'en sert.
+   */
+  unitCap?: number;
+  /** Ses paliers : « 2 à partir de 10 figurines ». */
+  capBrackets?: { atModels: number; max: number }[];
 }
 
 /**
@@ -98,6 +105,8 @@ export interface OptionGroup {
    */
   pickBrackets: { atModels: number; maxPicks: number }[];
   options: WeaponOption[];
+  /** Un groupe que seule la nouvelle forme lit : l'ancienne ne le publiait pas. */
+  newOnly?: true;
 }
 
 /**
@@ -212,4 +221,10 @@ export interface CatalogueUnit {
    * n'y en a qu'une dans le pack.
    */
   optionGroups?: OptionGroup[];
+  /** Ses types de figurine, chacun avec son Default Wargear. */
+  modelTypes?: ModelType[];
+  /** Ses Wargear Options, traduites de ses choix d'équipement. */
+  wargearOptions?: WargearOption[];
+  /** Les choix d'équipement que la traduction n'a pas su lire : ses Wargear Options sont à écrire. */
+  untranslated?: { group: string; why: string }[];
 }

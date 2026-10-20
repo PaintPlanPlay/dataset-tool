@@ -52,7 +52,7 @@ has the full table):
 
 | You are fixing | `source` |
 |---|---|
-| a characteristic, a weapon, a keyword, an ability's presence, composition, wargear options, the weapon an enhancement brings | `bsdata` |
+| a characteristic, a weapon, a keyword, an ability's presence, composition, Default Wargear (`modelTypes`), the weapon an enhancement brings | `bsdata` |
 | a price, paid wargear, a leader or support attachment, a detachment's points or dispositions, an enhancement's points | `mfm` |
 
 ### Targets
@@ -95,7 +95,7 @@ the patch holds the whole grid.
 
 | Target | Fields a patch may force |
 |---|---|
-| unit | `name`, `isLegends`, `ally`, `keywords`, `factionKeywords`, `armyRules`, `composition`, `optionGroups`, `defaultLoadout` (source `bsdata`) · `pricing`, `assignedPricing`, `wargear` (source `mfm`) |
+| unit | `name`, `isLegends`, `ally`, `keywords`, `factionKeywords`, `armyRules`, `composition`, `modelTypes` (source `bsdata`) · `pricing`, `assignedPricing`, `wargear` (source `mfm`). A correction of the retired `optionGroups`, `defaultLoadout` or `defaultModels` applies nothing and is listed as orphaned: write the wargear options as sentences instead |
 | model | `M`, `T`, `Sv`, `Inv`, `W`, `LD`, `OC` |
 | weapon | `profiles` (all of them), `maxCarriers` |
 | ability | presence only — `__add`, `__delete` — or `name` to rename it. Never text |
@@ -233,16 +233,21 @@ home army, under the address of that army. It is how the former single
 | `summary` | a rule | one line, 160 characters at most, in your own words |
 | `eligibility` | a detachment rule | the units that benefit, as a keyword filter |
 | `weapon` | an enhancement | the weapon the enhancement brings to its bearer. It wins over the one BSData gives; removing it falls back to BSData's |
-| `wargearCost` | a wargear option | the MFM line that bills the option: `{ "item": "Lascannon" }`, with `"quantity": 2` when it is paid twice per model. `null` removes an automatic link |
-| `abilities` | a wargear option | abilities of the unit, by name, that the option brings |
-| `option` | a wargear option | a whole option BSData does not have: `name`, `weapons`, `maxCarriers`, `isDefault`, optionally `perModels` |
+| `wargearCost` | a wargear alternative | the MFM line that bills it: `{ "item": "Lascannon" }`, with `"quantity": 2` when it is paid twice per model. `null` removes an automatic link |
+| `abilities` | a wargear alternative | abilities of the unit, by name, that it brings |
+| `option` | — | retired: an option created in an option group, before wargear options became sentences. It creates nothing; reattach it to the alternative the import now gives, or rewrite it as a sentence |
+| `wargearOption` | a written wargear option | the sentence, written by hand: `model`, `who`, `replaces`, optionally `upTo`, and `alternatives` (each `id`, `weapons`, optionally `name`). It replaces the translated option of the same id, or adds one; `null` removes the translated one. Costs and abilities of its alternatives go on each alternative's own address |
+| `wargearUpstream` | a written wargear option | what the translation gave under this id when the sentence was written (`null`: nothing). When the translation changes, the entry is *flagged*: review the sentence; saving it again records the new basis |
 | `rule` | a detachment rule | a detachment rule no source has: `{ "name": "…" }`. It is created under the identifier of the target, in every army that publishes the detachment |
 | `stratagem` | a stratagem | its structured fields: `name`, `detachmentId` (`null` for a core stratagem), `cp`, `phases`, `playerTurn`, `timing`, optionally `category` and `target`. A stratagem no source has is created under the identifier of the target, in every army that publishes its detachment; one that exists has its fields replaced — a field left out is dropped |
 | `requires`, `excludes`, `maxTargets` | an enhancement | its restrictions: the keyword groups its bearer needs (one group, every keyword in it), the keywords that forbid a bearer, how many units an upgrade equips. Absent: no restriction, one unit |
 
 A rule entry needs at least one of `modifiers`, `options`, `summary`,
-`eligibility`, `rule` or `stratagem`. A wargear option entry carries only `wargearCost`, `abilities`
-or `option`.
+`eligibility`, `rule` or `stratagem`. A wargear alternative entry carries only `wargearCost` or
+`abilities`; a written wargear option, only `wargearOption` and `wargearUpstream`.
+
+The Default Wargear of a unit is upstream data: correcting it is a correction
+of the unit's `modelTypes`, like any BSData field.
 
 **Targets of contributions**
 
@@ -254,7 +259,8 @@ or `option`.
 | a stratagem | `<armyId>::stratagem:<stratagemId>` |
 | a core stratagem | `core::stratagem:<stratagemId>` |
 | an army rule | `<armyId>::armyrule:<ruleId>` |
-| a wargear option | `<unitId>::option:<groupId>\|<optionId>` |
+| a wargear alternative | `<unitId>::option:<optionId>\|<alternativeId>` — or the address of the option group it came from (`<groupId>\|<optionId>`), which still finds it |
+| a written wargear option (a sentence) | `<unitId>::wargear:<wargearOptionId>` |
 
 **What a build does with each entry**
 
@@ -263,7 +269,24 @@ or `option`.
 | **active** | applied |
 | **flagged** | applied — but an ability the entry names is gone |
 | **rejected** | not applied: off schema, rules text, or the retired 40kdc-data effect format. A stratagem or detachment rule the entry creates is still created; only the rest is set aside |
-| **target missing** (unresolved) | the rule, option group or unit it names is not in the dataset |
+| **target missing** (unresolved) | the rule, wargear alternative or unit it names is not in the dataset |
+
+When an upstream source renames what an entry names — BSData drops « (Aura) »
+from an ability, or gives a datasheet a new id — the entry becomes *target
+missing*. Do not rewrite it: click **Reattach…** next to it, on the dashboard
+(*Contributions to review*) or in the sheet's **Corrections (n)**. The tool
+lists the elements of the same kind that could have replaced it, the same name
+without its bracketed suffix first; for a unit whose id changed, the units of
+the same name. Reattaching rewrites the entry's target and keeps everything it
+says; it is a pending change you can undo. If the element you pick already has
+its own entry, both are shown side by side and you keep one.
+
+A contribution that created a wargear option BSData lacked, in the retired
+option groups, is *target missing*; when the import translates that option
+itself (the Nobz' special weapons), its note says so and its
+**Reattach…** proposes first the wargear alternative that gives the same
+weapons, and moves the entry's cost and abilities onto it — the option is no
+longer created.
 
 That flag is the one thing watched on a contribution. It never replaces what
 we wrote: it only asks for a second look.

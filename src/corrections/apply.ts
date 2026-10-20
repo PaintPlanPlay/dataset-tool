@@ -49,6 +49,9 @@ export function parseTarget(target: string): ParsedTarget {
 }
 
 export const DELETE = '__delete';
+
+/** Les champs d'Unit que le Dataset ne publie plus depuis les phrases (ADR 0024). */
+const RETIRED = ['optionGroups', 'defaultLoadout', 'defaultModels'];
 export const ADD = '__add';
 
 /** Ce qu'`applyCorrections` consomme : une adresse et les champs à forcer. */
@@ -168,7 +171,12 @@ function applyOne(
 
   if (entity === 'unit') {
     if (remove) return { ...unit, isLegends: true, points: 0 };
-    return merge(unit, patch);
+    // Les groupes d'options ne sont plus publiés (ADR 0024) : ce qui les corrigeait est à réécrire en phrases.
+    const retired = Object.keys(patch).filter((k) => RETIRED.includes(k));
+    if (!retired.length) return merge(unit, patch);
+    report.orphans.push({ target, why: `${retired.join(', ')}: retired with the option groups — write the wargear options as sentences on the unit sheet` });
+    const kept = Object.fromEntries(Object.entries(patch).filter(([k]) => !RETIRED.includes(k)));
+    return Object.keys(fields(kept)).length ? merge(unit, kept) : null;
   }
 
   if (entity === 'model') {
@@ -199,7 +207,12 @@ function applyOne(
       weapons.splice(i, 1);
       // Une arme retirée ne doit pas rester dans la dotation par défaut.
       const kept = new Set(weapons.map(weaponRef));
-      return { ...unit, weapons, defaultLoadout: unit.defaultLoadout?.filter((d) => kept.has(weaponRef({ kind: d.kind, name: d.weapon }))) };
+      return {
+        ...unit,
+        weapons,
+        defaultLoadout: unit.defaultLoadout?.filter((d) => kept.has(weaponRef({ kind: d.kind, name: d.weapon }))),
+        ...(unit.modelTypes ? { modelTypes: unit.modelTypes.map((t) => ({ ...t, defaultWargear: t.defaultWargear.filter((w) => kept.has(w.weapon)) })) } : {}),
+      };
     }
     if (i < 0) {
       const [kind, wname] = name.split('|');

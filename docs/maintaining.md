@@ -53,11 +53,12 @@ first. It is the description of the daily update's pull request, and
 | **Armies gone / added** | | check it is real and not a rename upstream |
 | **Disagreements between sources** | the trusted source's value was kept, the other is shown | when the loser is right, write a correction |
 | **Corrections** | each one, *in conflict* first, then *stale*, then *active*; and the *orphaned* ones | delete the stale; decide the conflicts; fix or delete the orphans |
-| **Contributions to review** | what a contribution names is gone (an ability a wargear option brought) | re-target or delete |
+| **Contributions to review** | what a contribution names is gone (an ability a wargear alternative brought) | re-target or delete |
 | **Contributions set aside** | refused: off schema, or rules text | fix the entry |
-| **Contributions whose target is gone** | the rule or option group they applied to disappeared | re-target or delete |
+| **Contributions whose target is gone** | the rule or wargear alternative they applied to disappeared, or they created an option in the retired option groups | **Reattach…** it to what replaced it (dashboard or Corrections (n)), rewrite the option as a sentence, or delete it |
 | **Modifier keys the simulation does not play** | | fix a typo, or leave it for the simulator to learn |
-| **Wargear costs not linked** | MFM wargear lines no option bills | link by hand on the unit sheet |
+| **Wargear options to write** | units whose wargear the import could not read (a mandatory choice without a default, a weapon no option offers…): they publish no wargear option | write them on the unit sheet — or, when many units share the pattern, teach it to the import |
+| **Wargear costs not linked** | MFM wargear lines no wargear alternative bills | link by hand on the unit sheet |
 | **Enhancement Weapons to check** | *orphan*: a weapon BSData gives an enhancement the Dataset does not have; *collision*: a datasheet carrying the weapon of one of its army's enhancements | an orphan waits for its detachment in the MFM; a collision usually means a new or renamed shared BSData group to leave out |
 | **Authored entries not found** | a default target, the sample list or an ally rule names something gone | fix the file in `authored/` |
 | **MFM duplicates dropped** | names the MFM lists twice in one faction | check the kept line is the right one |

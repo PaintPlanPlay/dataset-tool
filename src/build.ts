@@ -23,6 +23,7 @@ import {
   type Detachment,
   type Stratagem,
   type Unit,
+  type WargearOption,
 } from '@paintplanplay/dataset-schema';
 import { armyFaction, armyLabel, composeArmy, playableArmies } from './bsdata/army.ts';
 import type { EnhancementWeapon } from './bsdata/flatten.ts';
@@ -31,7 +32,7 @@ import { applyCorrections, applyDetachmentCorrections, applyStratagemCorrections
 import type { CorrectionFile } from './corrections/files.ts';
 import { detachmentElement, reconcile, stratagemElement, upstreamElement, type CorrectionVerdict } from './corrections/lifecycle.ts';
 import { buildDetachments } from './detachments.ts';
-import type { EnhancementWeaponFinding, SourceConflict } from './findings.ts';
+import type { EnhancementWeaponFinding, SourceConflict, WargearToWrite } from './findings.ts';
 import { assignIds, emptyRegistry, type IdRegistry } from './ids.ts';
 import { findRulesText, type TextFinding } from './notext.ts';
 import type { Snapshot } from './snapshot.ts';
@@ -41,7 +42,7 @@ import { applyMfm, mfmDuplicates, mfmKey, type MfmConflict, type MfmDuplicate, t
 import { coreName, coreStatus, findUnsimulated, type UnsimulatedKey } from './rules.ts';
 import { linkWargear, type WargearFinding } from './wargear.ts';
 
-export type { EnhancementWeaponFinding, SourceConflict } from './findings.ts';
+export type { EnhancementWeaponFinding, SourceConflict, WargearToWrite } from './findings.ts';
 
 export interface BuildInput {
   snapshot: Snapshot;
@@ -78,10 +79,14 @@ export interface BuildOutput {
   textCheck: TextFinding[];
   /** Clés de Modifier que la Simulation ne sait pas jouer : à corriger, dans la saisie ou dans le simulateur. */
   unsimulated: UnsimulatedKey[];
-  /** Les lignes `wargear` du MFM qu'aucune Wargear Option ne facture, et les liens posés à la main qui ne visent plus rien. */
+  /** Les lignes `wargear` du MFM qu'aucune Wargear Alternative ne facture, et les liens posés à la main qui ne visent plus rien. */
   wargear: WargearFinding[];
   /** Les Weapons d'Enhancement que BSData donne sans Enhancement dans le Dataset. */
   enhancementWeapons: EnhancementWeaponFinding[];
+  /** Les Units dont les Wargear Options sont à écrire : la traduction n'a pas su lire leur équipement. */
+  wargearToWrite: WargearToWrite[];
+  /** Les Wargear Options de chaque Unit telles que la traduction de BSData les donne, avant toute Contribution. */
+  translatedWargear: Record<string, WargearOption[]>;
 }
 
 /**
@@ -152,10 +157,9 @@ export function toDatasetUnit(u: CatalogueUnit, abilities: Unit['abilities'] = u
     supportTargets: u.supportTargets,
     minModels: u.minModels,
     maxModels: u.maxModels,
-    ...(u.defaultModels !== undefined ? { defaultModels: u.defaultModels } : {}),
     ...(u.composition?.length ? { composition: u.composition } : {}),
-    ...(u.defaultLoadout?.length ? { defaultLoadout: u.defaultLoadout } : {}),
-    ...(u.optionGroups?.length ? { optionGroups: u.optionGroups } : {}),
+    ...(u.modelTypes?.length ? { modelTypes: u.modelTypes } : {}),
+    ...(u.wargearOptions?.length ? { wargearOptions: u.wargearOptions } : {}),
   };
 }
 
@@ -277,8 +281,11 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   // 1. Upstream Sources : BSData, puis le MFM qui fait autorité sur ce qu'il publie.
   const once = new OncePerUnit();
   const placements = new Map<string, Placement>();
+  const wargearToWrite: WargearToWrite[] = [];
   const merged = composed.map((army) => {
     const id = armyIds.get(army)!;
+    for (const u of army.units)
+      if (u.untranslated?.length) once.report(`wargear:${u.id}`, !u.ally, () => wargearToWrite.push({ army: id, unitId: u.id, unit: u.name, groups: u.untranslated! }));
     if (!army.mfm) armiesWithoutMfm.push(army.file);
     // La faction de l'Army d'abord : une Unit partagée prend le prix de son propre codex.
     const ordered = army.mfm ? [army.mfm, ...mfm.filter((f) => f !== army.mfm)] : mfm;
@@ -399,6 +406,12 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   };
   files.set(corePath(gameSystem), coreFile);
 
+  // Ce que la traduction donne, avant qu'une Contribution n'écrive une Wargear Option à la main : l'empreinte de la dérive.
+  const translatedWargear: Record<string, WargearOption[]> = {};
+  for (const [path, file] of files)
+    if (path.startsWith(`${gameSystem}/armies/`))
+      for (const u of (file as ArmyFile).units) if (u.wargearOptions?.length && !translatedWargear[u.id]) translatedWargear[u.id] = structuredClone(u.wargearOptions);
+
   // Les Effects et résumés écrits par le projet, par-dessus tout le reste.
   const authoredEffects = applyAuthoredEffects(files, gameSystem, input.authored?.effects ?? []);
   authored.unresolved.push(...authoredEffects.unresolved);
@@ -422,5 +435,10 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
     unsimulated: findUnsimulated(files),
     wargear,
     enhancementWeapons,
+    // Une Unit dont une Wargear Option a été écrite à la main n'attend plus qu'on écrive les siennes.
+    wargearToWrite: wargearToWrite
+      .filter((w) => !authoredEffects.contributions.some((c) => c.state !== 'rejected' && c.state !== 'unresolved' && c.target.startsWith(`${w.unitId}::wargear:`)))
+      .sort((a, b) => a.army.localeCompare(b.army) || a.unit.localeCompare(b.unit)),
+    translatedWargear,
   };
 }

@@ -58,6 +58,8 @@ export interface DriftReport {
   wargear: BuildOutput['wargear'];
   /** Les Weapons d'Enhancement orphelines, et celles qu'une datasheet porte. */
   enhancementWeapons: BuildOutput['enhancementWeapons'];
+  /** Les Units dont les Wargear Options sont à écrire. */
+  wargearToWrite: BuildOutput['wargearToWrite'];
   /** Ce que les fichiers écrits par le projet nomment et que la construction n'a plus : cibles, List d'exemple, Ally Rules. */
   unresolvedAuthored: string[];
   /** Lignes du MFM écartées parce qu'une autre porte déjà leur nom dans la même faction. */
@@ -188,6 +190,7 @@ export function makeReport(out: BuildOutput, previous: Map<string, unknown> | un
     unsimulated: out.unsimulated,
     wargear: out.wargear,
     enhancementWeapons: out.enhancementWeapons,
+    wargearToWrite: out.wargearToWrite,
     unresolvedAuthored: out.unresolvedAuthored,
     mfmDuplicates: out.mfmDuplicates,
     sources: index.sources,
@@ -204,9 +207,9 @@ function bounded<T>(items: T[], max: number, render: (item: T) => string): strin
 const short = (sha: string) => sha.slice(0, 7);
 
 const WARGEAR_LABEL: Record<BuildOutput['wargear'][number]['kind'], string> = {
-  orphan: 'no Wargear Option matches',
-  ambiguous: 'several Wargear Options match',
-  'default-only': 'only a default option matches — link it by hand if it is paid',
+  orphan: 'no wargear alternative matches',
+  ambiguous: 'several wargear alternatives match',
+  'default-only': 'only Default Wargear matches — link it by hand on an alternative if it is paid',
   'missing-line': 'linked by hand, but the line is gone: it bills nothing',
 };
 
@@ -227,6 +230,7 @@ const FINDING_LABEL: Record<Finding['kind'], string> = {
   unsimulated: 'unsimulated keys',
   wargear: 'wargear costs not linked',
   enhancementWeapon: 'Enhancement Weapons',
+  wargearToWrite: 'wargear options to write',
 };
 
 /** Un changement en lignes de diff : une liste par ses éléments, un bloc ligne à ligne. */
@@ -337,7 +341,7 @@ export function renderReport(r: DriftReport, options: { budget?: number } = {}):
 
   if (r.unresolvedContributions.length) {
     L.push(`## Contributions whose target is gone (${r.unresolvedContributions.length})`, '');
-    L.push('An upstream change removed what they apply to — a Wargear Option group, a Unit. They are kept, and apply nothing.', '');
+    L.push('An upstream change removed what they apply to — a wargear alternative, a Unit — or they created an option in the retired option groups. They are kept, and apply nothing: reattach them, or rewrite the option as a sentence.', '');
     L.push(...bounded(r.unresolvedContributions, 40, (c) => `- \`${c.target}\` — ${c.reason}`), '');
   }
 
@@ -347,9 +351,14 @@ export function renderReport(r: DriftReport, options: { budget?: number } = {}):
     L.push(...bounded(r.unsimulated, 40, (u) => `- \`${u.key}\` · ${u.rule} — ${u.target}`), '');
   }
 
+  if (r.wargearToWrite.length) {
+    L.push(`## Wargear options to write (${r.wargearToWrite.length})`, '');
+    L.push('The import could not read these units\' wargear: they publish no wargear option until someone writes them on the unit\'s sheet. Teaching the import the pattern fixes every unit that shares it.', '');
+    L.push(...bounded(r.wargearToWrite, 80, (w) => `- **${w.unit}** · ${w.army} — ${w.groups.map((g) => `${g.group}: ${g.why}`).join('; ')}`), '');
+  }
   if (r.wargear.length) {
     L.push(`## Wargear costs not linked (${r.wargear.length})`, '');
-    L.push('An MFM `wargear` line bills nothing until a Wargear Option points to it. Link it by hand in the Dataset Tool, or correct the MFM line.', '');
+    L.push('An MFM `wargear` line bills nothing until a wargear alternative points to it. Link it by hand in the Dataset Tool, or correct the MFM line.', '');
     L.push(...bounded(r.wargear, 80, (f) => `- **${f.unit}** · ${f.army} — \`${f.item}\`: ${WARGEAR_LABEL[f.kind]}${f.options.length ? ` (${f.options.join(', ')})` : ''}`), '');
   }
 

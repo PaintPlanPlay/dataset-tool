@@ -25,11 +25,14 @@ export interface PendingChange {
   /** Ce qu'il faut renvoyer pour l'annuler. */
   id: string;
   kind: 'correction' | 'contribution';
-  action: 'added' | 'modified' | 'deleted';
+  /** `moved` : une Contribution rattachée à un autre élément, contenu intact. */
+  action: 'added' | 'modified' | 'deleted' | 'moved';
   /** Fichier du dépôt du Dataset. */
   path: string;
   /** L'élément visé, quand il y en a un. */
   target: string;
+  /** Pour une Contribution rattachée : ce qu'elle visait. */
+  from?: string;
   /** La fiche qui l'affiche. */
   sheet: string;
   /** Sa raison, pour s'y retrouver dans la liste. */
@@ -149,6 +152,26 @@ function contributionChanges(ws: Workspace, paths: string[], verdicts: Map<strin
       ...(verdict ? { state: verdict.state, note: verdict.note } : {}),
     });
   }
+  return pairMoves(out, before, after);
+}
+
+/** Ce que porte une Contribution, sa cible mise à part. */
+const bodyOf = (e: AuthoredEffect | undefined) => (e ? JSON.stringify({ ...e, target: undefined }) : undefined);
+
+/**
+ * Une Contribution rattachée à un autre élément quitte sa cible et en rejoint
+ * une autre, contenu intact : un seul changement, qu'on annule d'un coup, et
+ * non une suppression et un ajout qu'il faudrait défaire tous les deux.
+ */
+function pairMoves(changes: PendingChange[], before: Map<string, AuthoredEffect>, after: Map<string, AuthoredEffect>): PendingChange[] {
+  const out = [...changes];
+  for (const gone of changes.filter((c) => c.action === 'deleted')) {
+    const body = bodyOf(before.get(gone.target));
+    const arrived = out.find((c) => c.kind === 'contribution' && (c.action === 'added' || c.action === 'modified') && bodyOf(after.get(c.target)) === body);
+    if (!arrived) continue;
+    out.splice(out.indexOf(gone), 1);
+    out.splice(out.indexOf(arrived), 1, { ...arrived, id: `move:${gone.target}>${arrived.target}`, action: 'moved', from: gone.target });
+  }
   return out;
 }
 
@@ -159,21 +182,25 @@ export function undoPending(ws: Workspace, id: string): void {
   if (!change) throw new ApiError(404, `no pending change ${id}`);
   const abs = join(ws.datasetDir, change.path);
 
-  if (change.id.startsWith('contribution:')) {
-    // L'entrée sort de tous les fichiers où elle est, puis revient, publiée, dans celui qui la portait.
-    const paths = changedFiles(ws).map((c) => c.path).filter((p) => isContributionsPath(ws.gameSystem, p));
-    const published = entriesOf(paths, (p) => atHead(ws.datasetDir, p)).get(change.target);
-    for (const path of new Set([...paths, ...(published ? [published.path] : [])])) {
-      const file = join(ws.datasetDir, path);
-      const current = effectsAt(now(ws)(path)).filter((e) => e.target !== change.target);
-      const next = published?.path === path ? [...current, published.e].sort((a, b) => a.target.localeCompare(b.target)) : current;
-      if (next.length === 0) rmSync(file, { force: true });
-      else writeFileSync(file, toJson(next));
-    }
+  if (change.id.startsWith('contribution:') || change.id.startsWith('move:')) {
+    for (const target of [change.target, ...(change.from ? [change.from] : [])]) undoContribution(ws, target);
     return;
   }
   if (change.action === 'added') rmSync(abs, { force: true });
   else git(ws.datasetDir, 'checkout', 'HEAD', '--', change.path);
+}
+
+/** L'entrée sort de tous les fichiers où elle est, puis revient, publiée, dans celui qui la portait. */
+function undoContribution(ws: Workspace, target: string): void {
+  const paths = changedFiles(ws).map((c) => c.path).filter((p) => isContributionsPath(ws.gameSystem, p));
+  const published = entriesOf(paths, (p) => atHead(ws.datasetDir, p)).get(target);
+  for (const path of new Set([...paths, ...(published ? [published.path] : [])])) {
+    const file = join(ws.datasetDir, path);
+    const current = effectsAt(now(ws)(path)).filter((e) => e.target !== target);
+    const next = published?.path === path ? [...current, published.e].sort((a, b) => a.target.localeCompare(b.target)) : current;
+    if (next.length === 0) rmSync(file, { force: true });
+    else writeFileSync(file, toJson(next));
+  }
 }
 
 /**

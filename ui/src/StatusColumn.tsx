@@ -35,7 +35,7 @@ interface Props {
   onHome: () => void;
 }
 
-const ACTION: Record<PendingChange['action'], string> = { added: 'new', modified: 'changed', deleted: 'removed' };
+const ACTION: Record<PendingChange['action'], string> = { added: 'new', modified: 'changed', deleted: 'removed', moved: 'reattached' };
 
 export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOpen, onCorrections, onDisagreements, onUnsimulated, onHome }: Props) {
   const [report, setReport] = useState<JobReport | null>(null);
@@ -215,7 +215,7 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
             {pending.map((p) => (
               <li key={p.id} className={p.state === 'stale' || p.state === 'conflict' || p.state === 'flagged' ? 'attention' : ''}>
                 <button type="button" className="link pending-open" onClick={() => onOpen(p.sheet)} title={p.reason || p.path}>
-                  <span className="pending-action">{ACTION[p.action]}</span> {p.target}
+                  <span className="pending-action">{ACTION[p.action]}</span> {p.from ? `${p.from} → ` : ''}{p.target}
                   {p.state && p.state !== 'active' && <span className={`state ${p.state}`}> {p.state === 'conflict' ? 'in conflict' : p.state}</span>}
                 </button>
                 <button type="button" className="remove visible" title="Undo this change" onClick={() => onUndo(p.id)}>

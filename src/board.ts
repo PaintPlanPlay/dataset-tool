@@ -29,10 +29,10 @@ export interface BoardSource {
 /** Ce qui attend une décision. */
 export type HandleKind = 'conflict' | 'caughtUp' | 'orphan' | 'contribution' | 'disagreement';
 /** Ce qui reste à compléter. */
-export type CompleteKind = 'unsimulated' | 'wargear' | 'enhancementWeapon';
+export type CompleteKind = 'unsimulated' | 'wargear' | 'enhancementWeapon' | 'wargearToWrite';
 
 export const HANDLE: HandleKind[] = ['conflict', 'caughtUp', 'orphan', 'contribution', 'disagreement'];
-export const COMPLETE: CompleteKind[] = ['unsimulated', 'wargear', 'enhancementWeapon'];
+export const COMPLETE: CompleteKind[] = ['unsimulated', 'wargear', 'enhancementWeapon', 'wargearToWrite'];
 const ORIGINS: Origin[] = ['bsdata', 'mfm', 'correction', 'contribution'];
 
 export interface Finding {
@@ -43,6 +43,8 @@ export interface Finding {
   detail: string;
   /** La fiche où le régler. */
   sheet?: string;
+  /** Une Contribution dont la cible a disparu : à rattacher à l'élément qui l'a remplacée. */
+  reattach?: string;
 }
 
 export interface Counters {
@@ -123,7 +125,15 @@ export function findingsOf(ws: BoardSource): Finding[] {
     if (army) for (const e of entries) home.set(e.target, army);
   }
   for (const c of out.contributions ?? [])
-    if (c.state !== 'active') found.push({ army: t.armyOf(c.target) || (home.get(c.target) ?? ''), kind: 'contribution', label: t.label(c.target), detail: `${c.state}: ${c.note}`, sheet: sheetOfTarget(c.target) });
+    if (c.state !== 'active')
+      found.push({
+        army: t.armyOf(c.target) || (home.get(c.target) ?? ''),
+        kind: 'contribution',
+        label: t.label(c.target),
+        detail: `${c.state}: ${c.note}`,
+        sheet: sheetOfTarget(c.target),
+        ...(c.state === 'unresolved' || (c.state === 'flagged' && c.note.includes('reattach')) ? { reattach: c.target } : {}),
+      });
   for (const c of out.conflicts ?? [])
     found.push({
       army: c.army,
@@ -135,6 +145,8 @@ export function findingsOf(ws: BoardSource): Finding[] {
   for (const u of out.unsimulated ?? findUnsimulated(out.files))
     found.push({ army: t.armyOf(u.target), kind: 'unsimulated', label: `${u.rule} · ${t.label(u.target)}`, detail: u.key, sheet: sheetOfTarget(u.target) });
   for (const w of out.wargear ?? []) found.push({ army: w.army, kind: 'wargear', label: `${w.unit} › ${w.item}`, detail: w.kind, sheet: w.unitId });
+  for (const w of out.wargearToWrite ?? [])
+    found.push({ army: w.army, kind: 'wargearToWrite', label: w.unit, detail: w.groups.map((g) => `${g.group}: ${g.why}`).join(' · '), sheet: w.unitId });
   for (const e of out.enhancementWeapons ?? [])
     found.push({ army: e.armies[0] ?? '', kind: 'enhancementWeapon', label: `${e.enhancement} › ${e.weapon}`, detail: e.kind === 'collision' ? `carried by ${e.unit}` : e.kind });
   return found;

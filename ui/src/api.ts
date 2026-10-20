@@ -9,6 +9,7 @@ import type { PendingChange } from '../../src/gui/pending.ts';
 import type { Unreleased } from '../../src/gui/unreleased.ts';
 import type { CorrectionItem, DraftCheck, SavedFile, Sheet, Suggestions } from '../../src/gui/sheets.ts';
 import type { SourceConflict } from '../../src/findings.ts';
+import type { Reattachable } from '../../src/gui/reattach.ts';
 import type { UnsimulatedKey } from '../../src/rules.ts';
 import type { JsonSchema } from './schema.ts';
 
@@ -21,6 +22,7 @@ export type FindingKind = import('../../src/board.ts').HandleKind | import('../.
 export type { ArmyChanges, EntityChange, FieldChange, Origin, Stage } from '../../src/changes.ts';
 export type { CorrectionItem, DraftCheck, Mark, SavedFile, Sheet, Suggestions } from '../../src/gui/sheets.ts';
 export type { SourceConflict } from '../../src/findings.ts';
+export type { Candidate, Reattachable } from '../../src/gui/reattach.ts';
 
 export class ApiError extends Error {
   /** Ce que le serveur a refusé, un constat par ligne — souvent préfixé du chemin du champ fautif. */
@@ -63,6 +65,8 @@ export const api = {
   undo: (id: string) => post('/api/pending/undo', { id }),
   corrections: (sheet: string, q = '') => call<CorrectionItem[]>(`/api/corrections?sheet=${encodeURIComponent(sheet)}&q=${encodeURIComponent(q)}`),
   deleteCorrection: (item: { path?: string; target?: string }) => post('/api/corrections/delete', item),
+  reattachCandidates: (target: string) => call<Reattachable>(`/api/contributions/reattach?target=${encodeURIComponent(target)}`),
+  reattach: (from: string, to: string, keep?: 'moved' | 'existing') => post<{ target: string }>('/api/contributions/reattach', { from, to, ...(keep ? { keep } : {}) }),
   suggest: (army: string, unit: string) => call<Suggestions>(`/api/suggest?army=${encodeURIComponent(army)}&unit=${encodeURIComponent(unit)}`),
   disagreements: () => call<SourceConflict[]>('/api/disagreements'),
   unsimulated: () => call<(UnsimulatedKey & { sheet: string })[]>('/api/unsimulated'),

@@ -2,12 +2,12 @@
  * D'où vient chaque valeur d'une Unit, d'un Detachment ou d'un Stratagem : quelle
  * Upstream Source fait autorité sur le champ, ou quelle Correction l'a changé.
  */
-import type { ArmyFile, CoreFile, Detachment, Stratagem, Unit } from '@paintplanplay/dataset-schema';
+import type { ArmyFile, CoreFile, Detachment, Stratagem, Unit, WargearOption } from '@paintplanplay/dataset-schema';
 
 import { CORE_ROOT, parseTarget } from '../corrections/apply.ts';
 import type { ContributionVerdict } from '../authored.ts';
 import type { CorrectionVerdict } from '../corrections/lifecycle.ts';
-import type { SourceConflict } from '../findings.ts';
+import type { SourceConflict, WargearToWrite } from '../findings.ts';
 import type { WargearFinding } from '../wargear.ts';
 
 export type Origin = 'bsdata' | 'mfm' | 'analysis' | 'project' | 'correction' | 'published';
@@ -28,6 +28,10 @@ export interface DatasetView {
   contributions?: ContributionVerdict[];
   /** Les lignes `wargear` du MFM qu'aucune Wargear Option ne facture, et les liens manuels qui ne visent plus rien. */
   wargear?: WargearFinding[];
+  /** Les Units dont les Wargear Options sont à écrire. */
+  wargearToWrite?: WargearToWrite[];
+  /** Les Wargear Options telles que la traduction de BSData les donne, avant toute Contribution, par Unit. */
+  translatedWargear?: Record<string, WargearOption[]>;
 }
 
 export interface FieldOrigin {

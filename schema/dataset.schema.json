@@ -255,126 +255,198 @@
       ],
       "additionalProperties": false
     },
-    "weaponOption": {
+    "weaponCount": {
+      "description": "Une Weapon, en clé « kind|name », et son nombre.",
+      "type": "object",
+      "properties": {
+        "weapon": {
+          "type": "string",
+          "maxLength": 140
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "weapon",
+        "count"
+      ],
+      "additionalProperties": false
+    },
+    "modelType": {
+      "description": "Un type de figurine de l'Unit et son Default Wargear : ce qu'une figurine de ce type porte d'office.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "defaultWargear": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/weaponCount"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "min",
+        "max",
+        "defaultWargear"
+      ],
+      "additionalProperties": false
+    },
+    "wargearWhoEach": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "each"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "wargearWhoUpTo": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "up-to"
+        },
+        "models": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "type",
+        "models"
+      ],
+      "additionalProperties": false
+    },
+    "wargearWhoPer": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "per"
+        },
+        "models": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "every": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "type",
+        "models",
+        "every"
+      ],
+      "additionalProperties": false
+    },
+    "wargearWho": {
+      "description": "Qui peut prendre la Wargear Option, parmi les figurines de son type.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/wargearWhoEach"
+        },
+        {
+          "$ref": "#/$defs/wargearWhoUpTo"
+        },
+        {
+          "$ref": "#/$defs/wargearWhoPer"
+        }
+      ]
+    },
+    "wargearAlternative": {
+      "description": "Un des choix d'une Wargear Option : ce qu'une figurine qui la prend reçoit.",
       "type": "object",
       "properties": {
         "id": {
           "type": "string",
           "maxLength": 120
         },
-        "name": {
-          "type": "string",
-          "maxLength": 160
-        },
         "weapons": {
           "type": "array",
           "items": {
-            "type": "string",
-            "maxLength": 140
+            "$ref": "#/$defs/weaponCount"
           }
         },
-        "maxCarriers": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "perModels": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "isDefault": {
-          "type": "boolean"
+        "name": {
+          "type": "string",
+          "maxLength": 160
         },
         "wargearCost": {
           "$ref": "#/$defs/wargearCost"
         },
         "abilities": {
-          "description": "Aptitudes de l'Unit que l'option apporte, par nom : actives seulement pour les figurines qui la prennent.",
+          "description": "Aptitudes de l'Unit qu'elle apporte, par nom : actives seulement pour les figurines qui la prennent.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/name"
           }
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Au plus ce nombre de figurines la prennent, en plus du plafond de son option."
         }
       },
       "required": [
         "id",
-        "name",
-        "weapons",
-        "maxCarriers",
-        "isDefault"
+        "weapons"
       ],
       "additionalProperties": false
     },
-    "optionGroup": {
+    "wargearOption": {
+      "description": "Une Wargear Option : qui (model, who), quoi (replaces ; vide pour « can be equipped with ») et ses Wargear Alternatives.",
       "type": "object",
       "properties": {
         "id": {
           "type": "string",
           "maxLength": 120
         },
-        "name": {
-          "type": "string",
-          "maxLength": 160
+        "model": {
+          "$ref": "#/$defs/name"
         },
-        "tree": {
-          "type": "string",
-          "maxLength": 120
+        "who": {
+          "$ref": "#/$defs/wargearWho"
         },
-        "parent": {
-          "type": "string",
-          "maxLength": 120
-        },
-        "slot": {
-          "type": "string",
-          "maxLength": 120
-        },
-        "pool": {
-          "type": "boolean"
-        },
-        "minPicks": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "maxPicks": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "pickBrackets": {
+        "replaces": {
           "type": "array",
           "items": {
-            "type": "object",
-            "properties": {
-              "atModels": {
-                "type": "integer"
-              },
-              "maxPicks": {
-                "type": "integer"
-              }
-            },
-            "required": [
-              "atModels",
-              "maxPicks"
-            ],
-            "additionalProperties": false
+            "$ref": "#/$defs/weaponCount"
           }
         },
-        "options": {
+        "upTo": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "alternatives": {
           "type": "array",
+          "minItems": 1,
           "items": {
-            "$ref": "#/$defs/weaponOption"
+            "$ref": "#/$defs/wargearAlternative"
           }
         }
       },
       "required": [
         "id",
-        "name",
-        "tree",
-        "parent",
-        "slot",
-        "pool",
-        "minPicks",
-        "maxPicks",
-        "pickBrackets",
-        "options"
+        "model",
+        "who",
+        "replaces",
+        "alternatives"
       ],
       "additionalProperties": false
     },
@@ -594,10 +666,6 @@
           "type": "integer",
           "minimum": 0
         },
-        "defaultModels": {
-          "type": "integer",
-          "minimum": 0
-        },
         "composition": {
           "type": "array",
           "items": {
@@ -623,37 +691,16 @@
             "additionalProperties": false
           }
         },
-        "defaultLoadout": {
+        "modelTypes": {
           "type": "array",
           "items": {
-            "type": "object",
-            "properties": {
-              "weapon": {
-                "$ref": "#/$defs/name"
-              },
-              "kind": {
-                "enum": [
-                  "ranged",
-                  "melee"
-                ]
-              },
-              "count": {
-                "type": "integer",
-                "minimum": 0
-              }
-            },
-            "required": [
-              "weapon",
-              "kind",
-              "count"
-            ],
-            "additionalProperties": false
+            "$ref": "#/$defs/modelType"
           }
         },
-        "optionGroups": {
+        "wargearOptions": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/optionGroup"
+            "$ref": "#/$defs/wargearOption"
           }
         }
       },
@@ -1592,7 +1639,7 @@
       "additionalProperties": false
     },
     "wargearCost": {
-      "description": "La ligne `wargear` de l'Unit (MFM) qui facture l'option, par son nom tel qu'écrit dans le MFM, et combien de fois par figurine. Le montant se lit dans cette ligne, jamais ici.",
+      "description": "La ligne `wargear` de l'Unit (MFM) qui facture la Wargear Alternative, par son nom tel qu'écrit dans le MFM, et combien de fois par figurine. Le montant se lit dans cette ligne, jamais ici.",
       "type": "object",
       "properties": {
         "item": {

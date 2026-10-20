@@ -523,3 +523,39 @@ h1 .home:hover { color: var(--accent); }
 .release-summary { display: grid; gap: 4px; font-size: 13px; }
 .release-summary p { margin: 0; }
 .release-summary .warning-line { color: var(--late); }
+
+/* Rattacher une Contribution : les deux textes côte à côte. */
+.side-by-side .columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 0.75rem 0;
+}
+.side-by-side section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+}
+.contribution-text p {
+  margin: 0.25rem 0;
+}
+
+/* La partie équipement d'une Unit en phrases : le tableau du Default Wargear, puis les phrases à trous. */
+.hint-line { margin: 0; color: var(--muted); font-size: 12px; }
+.default-wargear { border-collapse: collapse; font-size: 13px; }
+.default-wargear th,
+.default-wargear td { padding: 3px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+.default-wargear th { color: var(--muted); font-weight: normal; font-size: 12px; }
+.default-wargear .muted,
+.muted { color: var(--muted); }
+.count-cell { width: 7ch; min-width: 7ch; }
+.sentence-card { gap: 8px; }
+.sentence-text { margin: 0; font-weight: 600; }
+.sentence-text ul { margin: 2px 0 0; padding-left: 18px; font-weight: normal; }
+.sentence-blanks,
+.weapon-picks,
+.alternative-head,
+.alternative-more .cost { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.alternatives { display: grid; gap: 6px; padding-left: 12px; border-left: 2px solid var(--border); }
+.alternative-more { display: grid; gap: 6px; padding: 6px 0 2px 12px; }
+.sentence.attention .sentence-card { border-color: var(--late); }

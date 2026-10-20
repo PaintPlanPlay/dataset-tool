@@ -10,9 +10,10 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import type { AllyRule, ArmyFile, BattleSize, CoreFile, KeywordFilter, Modifier, ReferenceTarget, RuleOption, SampleList, SampleSection, SampleUnit, Stratagem, Unit, WargearCost, WargearCount, Weapon, WeaponOption } from '@paintplanplay/dataset-schema';
+import type { AllyRule, ArmyFile, BattleSize, CoreFile, KeywordFilter, Modifier, ReferenceTarget, RuleOption, SampleList, SampleSection, SampleUnit, Stratagem, Unit, WargearCost, WargearCount, WargearOption, Weapon } from '@paintplanplay/dataset-schema';
 import { validateDef } from '@paintplanplay/dataset-schema/validate';
 import { CORE_ROOT, parseTarget } from './corrections/apply.ts';
+import { sameValue } from './corrections/lifecycle.ts';
 import { toJson } from './dataset.ts';
 import { homes, type Homes } from './home.ts';
 import { inspectString } from './notext.ts';
@@ -32,7 +33,7 @@ export interface AuthoredSampleUnit {
  * Adresses : `<unitId>::ability:<nom>`, `<armyId>::rule:<detachmentId>|<ruleId>`,
  * `<armyId>::enhancement:<detachmentId>|<enhancementId>`, `<armyId>::stratagem:<id>`,
  * `<armyId>::armyrule:<id>`, `core::stratagem:<id>`,
- * `<unitId>::option:<groupId>|<optionId>`.
+ * `<unitId>::option:<groupId>|<optionId>`, `<unitId>::wargear:<wargearOptionId>`.
  */
 export interface AuthoredEffect {
   target: string;
@@ -50,8 +51,25 @@ export interface AuthoredEffect {
   wargearCost?: WargearCost | null;
   /** Pour une Wargear Option : les aptitudes de l'Unit qu'elle apporte, par nom. */
   abilities?: string[];
-  /** Une Wargear Option absente de BSData, créée dans son groupe d'options sous l'identifiant de l'adresse. */
-  option?: Omit<WeaponOption, 'id' | 'wargearCost' | 'abilities'>;
+  /**
+   * Une option que BSData n'avait pas, créée dans un groupe d'options quand le
+   * Dataset en publiait. Elle ne crée plus rien : rattachée à la Wargear
+   * Alternative que l'import donne désormais, ou réécrite en phrase.
+   */
+  option?: RetiredOption;
+  /**
+   * Une Wargear Option écrite à la main, en phrase : elle remplace celle que la
+   * traduction de BSData donne sous l'identifiant de l'adresse, ou s'ajoute ;
+   * `null` retire la traduite. Ses Wargear Alternatives n'y portent ni coût ni
+   * aptitudes : ceux-là se posent à l'adresse de chaque alternative.
+   */
+  wargearOption?: WrittenWargearOption | null;
+  /**
+   * Ce que la traduction donnait sous cet identifiant quand la Wargear Option a
+   * été écrite (`null` : rien). Quand elle change, la Contribution est signalée
+   * — BSData a bougé, la phrase écrite à la main est à relire.
+   */
+  wargearUpstream?: WrittenWargearOption | null;
   /** Pour une Enhancement : la Weapon qu'elle apporte à son porteur. */
   weapon?: Weapon;
   /**
@@ -77,6 +95,43 @@ export interface AuthoredEffect {
 
 /** Ce qu'une Contribution donne d'un Stratagem : tout, sauf son identifiant et ce qu'il fait. */
 export type CreatedStratagem = Pick<Stratagem, 'name' | 'detachmentId' | 'cp' | 'phases' | 'playerTurn' | 'timing'> & Partial<Pick<Stratagem, 'trigger' | 'category' | 'target'>>;
+
+/**
+ * Une Wargear Alternative donne-t-elle ce qu'une option de groupe donnait ?
+ * Les mêmes Weapons (une option de choix), ou la même figurine une fois équipée
+ * — son Default Wargear, moins ce que la Wargear Option rend, plus ce que
+ * l'alternative apporte (une configuration de pool : « Nob w/ Big Choppa »).
+ */
+export function sameWeapons(option: string[], alternative: WargearOption['alternatives'][number], wargearOption: WargearOption, unit: Unit): boolean {
+  const given = new Set(alternative.weapons.map((w) => w.weapon));
+  const carried = new Set(unit.modelTypes?.find((t) => t.name === wargearOption.model)?.defaultWargear.map((w) => w.weapon) ?? []);
+  for (const w of wargearOption.replaces) carried.delete(w.weapon);
+  for (const r of given) carried.add(r);
+  const wanted = new Set(option);
+  const equal = (a: Set<string>) => a.size === wanted.size && [...a].every((r) => wanted.has(r));
+  return wanted.size > 0 && ((given.size > 0 && equal(given)) || equal(carried));
+}
+
+/** Une option de groupe telle qu'une Contribution la créait, avant les phrases (ADR 0024). */
+export interface RetiredOption {
+  name: string;
+  weapons: string[];
+  maxCarriers?: number;
+  perModels?: number;
+  isDefault?: boolean;
+}
+
+/** Une Wargear Option telle qu'une Contribution l'écrit : sa phrase, sans son identifiant ni ce que ses alternatives coûtent. */
+export type WrittenWargearOption = Omit<WargearOption, 'id' | 'alternatives'> & { alternatives: { id: string; name?: string; weapons: WargearOption['alternatives'][number]['weapons'] }[] };
+
+/** La phrase d'une Wargear Option, sans son identifiant ni ce que ses alternatives coûtent ou apportent. */
+export const writtenOf = (o: WargearOption): WrittenWargearOption => ({
+  model: o.model,
+  who: o.who,
+  replaces: o.replaces,
+  ...(o.upTo !== undefined ? { upTo: o.upTo } : {}),
+  alternatives: o.alternatives.map((a) => ({ id: a.id, ...(a.name !== undefined ? { name: a.name } : {}), weapons: a.weapons })),
+});
 
 /** Ce que devient une Contribution à la construction. */
 export interface ContributionVerdict {
@@ -337,6 +392,12 @@ export function authoredEffectProblems(e: AuthoredEffect): string[] {
     if (entity === 'stratagem' && (root === CORE_ROOT) !== (e.stratagem?.detachmentId === null))
       problems.push(root === CORE_ROOT ? 'a Core Stratagem has no Detachment' : 'a Stratagem of an Army names its Detachment');
   }
+  if (entity === 'wargear') {
+    if (e.wargearOption === undefined) problems.push('a written Wargear Option carries its sentence, or null to remove the translated one');
+    else if (e.wargearOption !== null) problems.push(...validateDef('wargearOption', { id: 'x', ...e.wargearOption }).map((f) => `wargearOption${f.path}: ${f.message}`));
+    if (forOption || e.modifiers !== undefined || e.options !== undefined || e.summary !== undefined || e.weapon !== undefined)
+      problems.push('a written Wargear Option carries only its sentence: costs and abilities go on each alternative');
+  } else if (e.wargearOption !== undefined || e.wargearUpstream !== undefined) problems.push('a written sentence belongs to a Wargear Option (`::wargear:`)');
   if (entity === 'option') {
     if (!forOption) problems.push('a Wargear Option Contribution carries a wargear cost, abilities or a created option');
     if (e.modifiers !== undefined || e.options !== undefined || e.summary !== undefined || e.eligibility !== undefined || e.weapon !== undefined)
@@ -351,12 +412,13 @@ export function authoredEffectProblems(e: AuthoredEffect): string[] {
   if (e.wargearCost) problems.push(...validateDef('wargearCost', e.wargearCost).map((f) => `wargearCost${f.path}: ${f.message}`));
   if (e.abilities !== undefined)
     problems.push(...(Array.isArray(e.abilities) && e.abilities.every((a) => typeof a === 'string' && a.trim()) ? [] : ['abilities: names expected']));
-  if (e.option !== undefined) problems.push(...validateDef('weaponOption', { id: 'x', ...e.option }).map((f) => `option${f.path}: ${f.message}`));
+  if (e.option !== undefined && !(typeof e.option?.name === 'string' && Array.isArray(e.option.weapons) && e.option.weapons.every((r) => typeof r === 'string')))
+    problems.push('option: a name and weapon keys are expected');
   if (e.weapon !== undefined) problems.push(...validateDef('weapon', e.weapon).map((f) => `weapon${f.path}: ${f.message}`));
   if (e.eligibility !== undefined) problems.push(...validateDef('keywordFilter', e.eligibility).map((f) => `eligibility${f.path}: ${f.message}`));
   if (e.effect !== undefined) problems.push('an Effect in the retired 40kdc-data format: write it as Modifiers (ADR 0011)');
   else if (
-    !forOption && e.weapon === undefined && e.modifiers === undefined && e.options === undefined && e.summary === undefined && e.eligibility === undefined &&
+    !forOption && e.wargearOption === undefined && e.weapon === undefined && e.modifiers === undefined && e.options === undefined && e.summary === undefined && e.eligibility === undefined &&
     e.rule === undefined && e.stratagem === undefined && ENHANCEMENT_RESTRICTIONS.every((k) => e[k] === undefined)
   )
     problems.push('neither Modifiers nor summary');
@@ -395,7 +457,9 @@ export function applyAuthoredEffects(
   /** Ce que décrit déjà une Contribution, par adresse sous l'Army d'origine. */
   const described = new Map<string, string>();
 
-  for (const written of effects) {
+  // Une Wargear Option écrite à la main d'abord : le coût ou les aptitudes de ses alternatives se posent ensuite.
+  const ordered = [...effects].sort((a, b) => Number(parseTarget(b.target).entity === 'wargear') - Number(parseTarget(a.target).entity === 'wargear'));
+  for (const written of ordered) {
     let e = written;
     const place = placeOf(h, e);
     const canonical = place.canonical;
@@ -448,28 +512,56 @@ export function applyAuthoredEffects(
       Object.assign(el, body);
       hits++;
     };
-    if (entity === 'option') {
-      // Une Wargear Option : créée dans son groupe quand BSData ne l'a pas, puis ce qu'elle apporte.
-      const [groupId, optionId] = name.split('|');
+    let drifted = false;
+    /** Le nom de la Wargear Alternative traduite qui donne ce qu'une option créée à la main donnait. */
+    let replaced: string | undefined;
+    if (entity === 'wargear') {
+      // Une Wargear Option écrite à la main remplace la traduite de même identifiant, s'ajoute, ou la retire.
+      for (const a of armies)
+        for (const u of a.units) {
+          if (u.id !== root) continue;
+          const list = u.wargearOptions ?? [];
+          const i = list.findIndex((o) => o.id === name);
+          const translated = i < 0 ? null : writtenOf(list[i]);
+          if (e.wargearUpstream !== undefined && !sameValue(e.wargearUpstream, translated)) drifted = true;
+          if (e.wargearOption === null) {
+            if (i >= 0) list.splice(i, 1);
+            hits++;
+          } else if (e.wargearOption) {
+            const option: WargearOption = { id: name, ...e.wargearOption };
+            if (i >= 0) list[i] = option;
+            else list.push(option);
+            u.wargearOptions = list;
+            hits++;
+          }
+        }
+    } else if (entity === 'option') {
+      // Une Wargear Alternative : ce qu'elle apporte. Les groupes d'options ne sont plus publiés (ADR 0024).
+      const optionId = name.slice(name.indexOf('|') + 1);
+      // L'alternative garde l'identifiant de l'option d'où elle vient, quel que soit le groupe.
       for (const a of armies)
         for (const u of a.units)
           if (u.id === root)
-            for (const g of u.optionGroups ?? []) {
-              if (g.id !== groupId) continue;
-              let o = g.options.find((x) => x.id === optionId);
-              if (!o && e.option) g.options.push((o = { id: optionId, ...e.option }));
-              if (!o) continue;
-              if (e.option) Object.assign(o, e.option);
-              if (e.abilities !== undefined) {
-                // Une aptitude que l'Unit n'a plus ne se pose pas : elle se signale.
-                const known = e.abilities.filter((n) => u.abilities.some((a) => a.name === n));
-                for (const n of e.abilities) if (!known.includes(n)) missingAbilities.add(n);
-                if (known.length) o.abilities = known;
-                else delete o.abilities;
+            for (const o of u.wargearOptions ?? [])
+              for (const alt of o.alternatives) {
+                if (alt.id !== optionId) continue;
+                if (e.abilities !== undefined) {
+                  const known = e.abilities.filter((n) => u.abilities.some((ab) => ab.name === n));
+                  for (const n of e.abilities) if (!known.includes(n)) missingAbilities.add(n);
+                  if (known.length) alt.abilities = known;
+                  else delete alt.abilities;
+                }
+                hits++;
               }
-              hits++;
-            }
       if (hits && e.wargearCost !== undefined) wargearLinks.set(e.target, e.wargearCost);
+      // Une option créée à la main que l'import donne désormais : la Contribution est à rattacher à la Wargear Alternative traduite.
+      if (e.option)
+        for (const a of armies)
+          for (const u of a.units)
+            if (u.id === root && !replaced)
+              for (const o of u.wargearOptions ?? [])
+                for (const alt of o.alternatives)
+                  if (alt.id !== optionId && sameWeapons(e.option.weapons, alt, o, u)) replaced = alt.name ?? alt.id;
     } else if (entity === 'ability') {
       for (const a of armies) for (const u of a.units) if (u.id === root) for (const ab of u.abilities) if (ab.name === name) take(ab);
     } else if (entity === 'rule' || entity === 'enhancement') {
@@ -516,8 +608,18 @@ export function applyAuthoredEffects(
       contributions.push({ target: e.target, reason: e.reason, state: 'rejected', note: `${hits ? 'created, the rest set aside' : 'the target is not in the Dataset'}: ${refused}` });
     else if (!hits) {
       unresolved.push(e.target);
-      contributions.push({ target: e.target, reason: e.reason, state: 'unresolved', note: 'the target is not in the Dataset' });
-    } else if (missingAbilities.size)
+      // Une option que la Contribution créait dans un groupe : les groupes ne sont plus publiés.
+      const note = !e.option
+        ? 'the target is not in the Dataset'
+        : replaced !== undefined
+          ? `the import now gives this option as « ${replaced} »: reattach the contribution to it`
+          : 'option groups are retired: write this option as a sentence on the unit sheet, then delete this contribution';
+      contributions.push({ target: e.target, reason: e.reason, state: 'unresolved', note });
+    } else if (replaced !== undefined)
+      contributions.push({ target: e.target, reason: e.reason, state: 'flagged', note: `the import now gives this option as « ${replaced} »: reattach the contribution to it` });
+    else if (drifted)
+      contributions.push({ target: e.target, reason: e.reason, state: 'flagged', note: 'BSData changed this Wargear Option since it was written: review the sentence' });
+    else if (missingAbilities.size)
       contributions.push({
         target: e.target,
         reason: e.reason,

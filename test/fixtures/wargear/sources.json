@@ -1,0 +1,4 @@
+[
+  { "id": "bsdata", "repository": "BSData/wh40k-11e", "commit": "0000000000000000000000000000000000000011" },
+  { "id": "mfm", "repository": "BSData/wh40k-11e-mfm", "commit": "0000000000000000000000000000000000000012", "version": "1.5" }
+]

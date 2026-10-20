@@ -12,7 +12,7 @@ keep the meaning the game gives them.
 | **BSData** | the community project publishing datasheets as data. Trusted for profiles, weapons, options and keywords |
 | **Build** | producing the dataset files from a snapshot of the sources, the corrections and the contributions |
 | **Check** | verifying a dataset against the schema and the no-rules-text rule |
-| **Contribution** | something this project writes and owns: what a rule does, a wargear option's cost link, an ally rule, a battle size. Not waiting for any source to catch up |
+| **Contribution** | something this project writes and owns: what a rule does, a wargear alternative's cost link, a wargear option written by hand, an ally rule, a battle size. Not waiting for any source to catch up |
 | **Core** | what holds for every army: core stratagems, battle sizes, ally rules. One file, `core.json`; one sheet in the interface |
 | **Correction** | a small file overriding what one source says about one element, with the reason, and what the source said at the time |
 | **Dataset** | the published data: the files of `wh40k-11e/`, read by the apps |
@@ -48,7 +48,9 @@ keep the meaning the game gives them.
 | **Unsimulated key** | a Modifier key the simulation does not play |
 | **Unreleased change** | a difference between the release the apps read today (the one the manifest points to) and what your copy of the tool would publish now. The dashboard lists them |
 | **Upstream source** | one of the two projects the dataset is built from: BSData and the MFM |
-| **Wargear cost** | the link from a wargear option to the MFM line that bills it |
-| **Wargear option** | one choice of a group of wargear options on a datasheet |
+| **Default Wargear** | what one model of a given type carries before any wargear option is taken ("This model is equipped with") |
+| **Wargear alternative** | one of the choices a wargear option offers: the weapons a model taking it gets, its cost link, the abilities it brings |
+| **Wargear cost** | the link from a wargear alternative to the MFM line that bills it |
+| **Wargear option** | one bullet of a datasheet's *Wargear Options*, as a sentence: who (which models, how many), what (the weapons they give up, or nothing for an addition) and its wargear alternatives |
 | **Weapon profile** | one way of using a weapon: its range, characteristics and keywords |
 | **40kdc-data** | the community project the detachment rules, stratagems and enhancement restrictions were first seeded from; no longer a source |

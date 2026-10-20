@@ -37,3 +37,15 @@ export interface EnhancementWeaponFinding {
   /** Pour une collision : la datasheet qui la porte. */
   unit?: string;
 }
+
+/**
+ * Une Unit dont la traduction n'a pas su lire l'équipement : elle ne publie
+ * aucune Wargear Option, et attend qu'on les écrive à la main.
+ */
+export interface WargearToWrite {
+  army: string;
+  unitId: string;
+  unit: string;
+  /** Ce qui n'a pas pu se lire : le groupe BSData, et pourquoi. */
+  groups: { group: string; why: string }[];
+}

@@ -1,0 +1,19 @@
+name: Space Marines
+slug: space-marines
+version: "1.5"
+firstSeen: 2026-10-01
+detachments: []
+units:
+  - name: Intercessor Squad
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 5, points: 80 }
+          - { models: 10, points: 150 }
+  - name: Captain
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 1, points: 80 }

@@ -142,8 +142,7 @@ section('Tableau de bord : sans Release');
 section('Tableau de bord : toutes les entités');
 {
   const repo = await datasetRepo();
-  type Mutable = ArmyFile & { units: (ArmyFile['units'][number] & { optionGroups?: { id: string; maxPicks: number }[] })[] };
-  repo.edit<Mutable>(ORKS, (a) => {
+  repo.edit<ArmyFile>(ORKS, (a) => {
     const horde = a.detachments.find((d) => d.id === 'war-horde')!;
     horde.dp = 99;
     horde.rules.find((r) => r.id === 'get-stuck-in')!.modifiers = [{ key: 'hit', value: 1, target: 'self' }];
@@ -151,7 +150,7 @@ section('Tableau de bord : toutes les entités');
     a.stratagems.find((s) => s.id === 'ere-we-go')!.cp = 3;
     a.stratagems.push({ ...a.stratagems[0], id: 'gone-strat', name: 'Gone Stratagem' });
     a.armyRules!.find((r) => r.id === 'waaagh')!.summary = 'An old summary.';
-    a.units.find((u) => u.id === 'u-boyz')!.optionGroups!.find((g) => g.id === 'g-special')!.maxPicks = 1;
+    a.units.find((u) => u.id === 'u-boyz')!.wargearOptions!.find((o) => o.id === 'g-special')!.who = { type: 'up-to', models: 1 };
   });
   repo.edit<{ stratagems: { id: string; cp: number }[]; battleSizes: unknown[] }>(`${GS}/core.json`, (c) => {
     c.stratagems.find((s) => s.id === 'command-re-roll')!.cp = 9;
@@ -180,7 +179,7 @@ section('Tableau de bord : toutes les entités');
     check('un Stratagem retiré est marqué retiré', entity('orks', 'stratagem', 'gone-strat')?.status === 'removed');
     const rule = entity('orks', 'armyRule', 'waaagh');
     check('Army Rule : sa Description', rule?.target === 'orks::armyrule:waaagh' && change('orks', 'armyRule', 'waaagh', /description/i)?.before === 'An old summary.', JSON.stringify(rule));
-    check('groupe d\'options d\'équipement', Boolean(change('orks', 'unit', 'u-boyz', /Special Weapons/)), JSON.stringify(entity('orks', 'unit', 'u-boyz')));
+    check('Wargear Option, à son identifiant', Boolean(change('orks', 'unit', 'u-boyz', /^wargear option g-special$/)), JSON.stringify(entity('orks', 'unit', 'u-boyz')));
     const core = u.armies.find((a) => a.id === 'core');
     check('Core : un groupe à part, ses Stratagems et ses Battle Sizes', core?.name === 'Core' && change('core', 'stratagem', 'command-re-roll', /^CP$/)?.before === '9' && change('core', 'core', 'core', /Combat Patrol/)?.after === null, JSON.stringify(core));
   } finally {
@@ -224,11 +223,8 @@ section('Tableau de bord : le bruit');
 section('Tableau de bord : comme les apps l\'affichent');
 {
   const repo = await datasetRepo();
-  type Groups = { optionGroups: { id: string; maxPicks: number; options: { maxCarriers: number }[] }[] };
   repo.edit<ArmyFile>(ORKS, (a) => {
-    const groups = (unitOf(a, 'u-boyz') as unknown as Groups).optionGroups;
-    groups.find((g) => g.id === 'g-special')!.maxPicks = 1;
-    groups.find((g) => g.id === 'g-boyz')!.options[0].maxCarriers = 5;
+    unitOf(a, 'u-boyz').wargearOptions!.find((o) => o.id === 'g-special')!.who = { type: 'up-to', models: 1 };
     a.detachments.find((d) => d.id === 'war-horde')!.rules.find((r) => r.id === 'get-stuck-in')!.modifiers = [
       { key: 'hit', value: 1, target: 'enemy', conditions: [{ key: 'charged' }] },
     ];
@@ -242,15 +238,13 @@ section('Tableau de bord : comme les apps l\'affichent');
     const u = await at<Unreleased>('/api/unreleased');
     const orks = u.armies.find((a) => a.id === 'orks');
     const boyz = orks?.entities.find((e) => e.id === 'u-boyz');
-    const special = boyz?.changes.find((c) => c.field === 'wargear options "Special Weapons"');
+    const special = boyz?.changes.find((c) => c.field === 'wargear option g-special');
     check(
-      'un groupe d\'options se lit comme dans les apps : titre, contrainte, puis chaque option et ses Weapons',
-      special?.before === 'Special Weapons — 1 model\nBoy w/ Big shoota — ➶ Big shoota\nBoy w/ Burna — ➶ Burna' &&
-        special.after === 'Special Weapons — 2 models\nBoy w/ Big shoota — ➶ Big shoota\nBoy w/ Burna — ➶ Burna',
+      'une Wargear Option se lit comme sur la fiche : sa phrase, puis ses alternatives',
+      special?.before === '1 Boy model can have its Choppa and Slugga replaced with one of the following:\n- 1 Big shoota\n- 1 Burna' &&
+        special.after === 'Up to 2 Boy models can each have their Choppa and Slugga replaced with one of the following:\n- 1 Big shoota\n- 1 Burna',
       JSON.stringify(special),
     );
-    const root = boyz?.changes.find((c) => c.field.startsWith('wargear options') && c.field !== special?.field);
-    check('le titre du groupe perd l\'effectif que BSData y met (« 9-19 Boyz » → « Boyz »)', root?.field === 'wargear options "Boyz"' && Boolean(root.before?.includes('· max 5')), JSON.stringify(root));
     const rule = orks?.entities.find((e) => e.id === 'war-horde')?.changes.find((c) => /Get Stuck In/i.test(c.field) && c.field.endsWith('effect'));
     check('une Detachment Rule dit ses Modifiers comme les apps', rule?.before === '+1 to Hit (enemy) — if after charging', JSON.stringify(rule));
     const findings = findRulesText(u.armies);
@@ -445,15 +439,15 @@ section('Le drift report des PR : par Army, en diff');
 {
   const out = await build({ snapshot: openSnapshot(fixture('snapshot')), gameSystem: GS, authored: readAuthored(fixture('dataset'), GS), corrections: readCorrections(fixture('dataset'), GS) });
   const previous = new Map(out.files);
-  const orks = structuredClone(out.files.get(ORKS)) as ArmyFile & { units: { id: string; points: number; optionGroups?: { id: string; maxPicks: number }[] }[] };
+  const orks = structuredClone(out.files.get(ORKS)) as ArmyFile;
   orks.units.find((u) => u.id === 'u-boyz')!.points = 1;
-  orks.units.find((u) => u.id === 'u-boyz')!.optionGroups!.find((g) => g.id === 'g-special')!.maxPicks = 1;
+  orks.units.find((u) => u.id === 'u-boyz')!.wargearOptions!.find((o) => o.id === 'g-special')!.who = { type: 'up-to', models: 1 };
   previous.set(ORKS, orks);
   const realBoyz = unitOf(out.files.get(ORKS) as ArmyFile, 'u-boyz').points;
   const markdown = renderReport(makeReport(out, previous));
   check('une section repliable par Army, avec son nombre de changements', /<details><summary><b>Orks<\/b> · 2 change\(s\)[^<]*<\/summary>/.test(markdown), markdown.slice(0, 1500));
   check('chaque entité en bloc diff, champ par champ', markdown.includes('**Unit · Boyz**') && markdown.includes(`\`\`\`diff\n@@ points @@\n- 1\n+ ${realBoyz}\n`), markdown);
-  check('un groupe d\'options comme les apps le montrent', markdown.includes('- Special Weapons — 1 model\n') && markdown.includes('+ Special Weapons — 2 models\n'));
+  check('une Wargear Option comme sur la fiche', markdown.includes('- 1 Boy model can have its Choppa and Slugga replaced') && markdown.includes('+ Up to 2 Boy models can each have their Choppa and Slugga replaced'));
   check('les sections de constats restent', /## Corrections \(\d+\)/.test(markdown) && /\*\*stale\*\*/.test(markdown));
   const short = renderReport(makeReport(out, previous), { budget: 10 });
   check(

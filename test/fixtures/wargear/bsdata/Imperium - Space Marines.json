@@ -1,0 +1,2291 @@
+{
+ "catalogue": {
+  "id": "sm-wargear",
+  "name": "Imperium - Space Marines",
+  "library": false,
+  "entryLinks": [
+   {
+    "id": "root-8da0-4570-c3c-819f",
+    "name": "Intercessor Squad",
+    "targetId": "8da0-4570-c3c-819f",
+    "type": "selectionEntry"
+   },
+   {
+    "id": "root-6c10-5b51-5bc0-8d2c",
+    "name": "Captain",
+    "targetId": "6c10-5b51-5bc0-8d2c",
+    "type": "selectionEntry"
+   }
+  ],
+  "sharedSelectionEntries": [
+   {
+    "id": "8da0-4570-c3c-819f",
+    "name": "Intercessor Squad",
+    "type": "unit",
+    "constraints": [
+     {
+      "id": "4e38-d0ab-e7e7-02ff",
+      "type": "max",
+      "field": "75bb-ded1-c86d-bdf0",
+      "scope": "self",
+      "value": 3
+     },
+     {
+      "id": "3ec8-d082-bb58-7d32",
+      "type": "max",
+      "field": "716d-91b7-d55a-1022",
+      "scope": "self",
+      "value": 0
+     },
+     {
+      "id": "fd5d-86f5-21ab-40f5",
+      "type": "min",
+      "field": "716d-91b7-d55a-1022",
+      "scope": "self",
+      "value": 0
+     },
+     {
+      "id": "9b89-26b7-0003-b2bc",
+      "type": "max",
+      "field": "selections",
+      "scope": "force",
+      "value": 6
+     },
+     {
+      "id": "ddd9-8d7f-f478-586d",
+      "type": "max",
+      "field": "f759-1bc4-cb3a-f0d2",
+      "scope": "root-entry",
+      "value": 1
+     },
+     {
+      "id": "ccce-d411-a647-f625",
+      "type": "max",
+      "field": "associations",
+      "scope": "self",
+      "value": 1
+     },
+     {
+      "id": "a8cb-02e0-7341-b9e2",
+      "type": "max",
+      "field": "associations",
+      "scope": "self",
+      "value": 1
+     }
+    ],
+    "modifiers": [
+     {
+      "type": "set",
+      "field": "9b89-26b7-0003-b2bc",
+      "value": 4,
+      "conditions": [
+       {
+        "type": "atLeast",
+        "field": "selections",
+        "value": 1,
+        "scope": "force",
+        "childId": "d62d-db22-4893-4bc0"
+       }
+      ]
+     }
+    ],
+    "costs": [
+     {
+      "name": "pts",
+      "typeId": "pts",
+      "value": 85
+     }
+    ],
+    "categoryLinks": [
+     {
+      "name": "Infantry"
+     },
+     {
+      "name": "Battleline"
+     },
+     {
+      "name": "Imperium"
+     },
+     {
+      "name": "Tacticus"
+     },
+     {
+      "name": "Intercessor Squad"
+     },
+     {
+      "name": "Faction: Adeptus Astartes"
+     },
+     {
+      "name": "Explosives"
+     }
+    ],
+    "selectionEntryGroups": [
+     {
+      "id": "e371-90b3-5640-949",
+      "name": "Intercessors",
+      "constraints": [
+       {
+        "id": "45fe-55b5-82d2-906",
+        "type": "min",
+        "field": "selections",
+        "scope": "parent",
+        "value": 5
+       },
+       {
+        "id": "bb0b-ffb5-17e3-45b5",
+        "type": "max",
+        "field": "selections",
+        "scope": "parent",
+        "value": 10
+       }
+      ],
+      "selectionEntries": [
+       {
+        "id": "8ea3-b125-7273-5ffb",
+        "name": "Intercessor Sergeant",
+        "type": "model",
+        "constraints": [
+         {
+          "id": "1a86-79b1-1096-7e5b",
+          "type": "min",
+          "field": "selections",
+          "scope": "parent",
+          "value": 1
+         },
+         {
+          "id": "5c1-635b-773f-5a00",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 1
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Intercessor Sergeant",
+          "typeName": "Unit",
+          "characteristics": [
+           {
+            "name": "M",
+            "$text": "6\""
+           },
+           {
+            "name": "T",
+            "$text": "5"
+           },
+           {
+            "name": "Sv",
+            "$text": "3+"
+           },
+           {
+            "name": "W",
+            "$text": "2"
+           },
+           {
+            "name": "LD",
+            "$text": "6+"
+           },
+           {
+            "name": "OC",
+            "$text": "2"
+           },
+           {
+            "name": "InSv",
+            "$text": ""
+           },
+           {
+            "name": "Base",
+            "$text": "32mm"
+           }
+          ]
+         }
+        ],
+        "selectionEntries": [
+         {
+          "id": "b231-4afe-7568-3505",
+          "name": "Bolt pistol",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Bolt pistol",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "12\""
+             },
+             {
+              "name": "A",
+              "$text": "1"
+             },
+             {
+              "name": "BS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "5"
+             },
+             {
+              "name": "AP",
+              "$text": "-1"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "Close-quarters"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "ef60-66f8-3922-161a",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "ac01-afd-2211-1194",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "6c16-153b-5bcd-fdee",
+          "name": "Terminator Honours upgrade",
+          "type": "upgrade",
+          "constraints": [
+           {
+            "id": "9e72-8dd0-53ad-a61c",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "f4e5-2756-e151-03b8",
+            "type": "min",
+            "field": "selections",
+            "scope": "unit",
+            "value": 0
+           },
+           {
+            "id": "c7b3-7db8-b63c-6dfd",
+            "type": "max",
+            "field": "selections",
+            "scope": "unit",
+            "value": 1
+           }
+          ],
+          "modifiers": [
+           {
+            "type": "set",
+            "field": "f4e5-2756-e151-03b8",
+            "value": 1,
+            "conditions": [
+             {
+              "type": "atLeast",
+              "field": "selections",
+              "value": 1,
+              "scope": "unit",
+              "childId": "f361-6611-0f53-ab2e"
+             }
+            ]
+           }
+          ]
+         }
+        ],
+        "selectionEntryGroups": [
+         {
+          "id": "bcb6-f6d1-cfc6-f4f3",
+          "name": "Weapon 1",
+          "defaultSelectionEntryId": "fd17-cf82-6413-f1d7",
+          "constraints": [
+           {
+            "id": "64e6-5765-3dc1-a94c",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "de91-9a9a-1138-c9a3",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ],
+          "selectionEntries": [
+           {
+            "id": "56fa-651e-457a-fe7f",
+            "name": "Hand flamer",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Hand flamer",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "9\""
+               },
+               {
+                "name": "A",
+                "$text": "3"
+               },
+               {
+                "name": "BS",
+                "$text": "-"
+               },
+               {
+                "name": "S",
+                "$text": "4"
+               },
+               {
+                "name": "AP",
+                "$text": "0"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": "Close-quarters, Torrent"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "c568-61ab-2f7a-149",
+            "name": "Power weapon",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Power weapon",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "4"
+               },
+               {
+                "name": "WS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "5"
+               },
+               {
+                "name": "AP",
+                "$text": "-2"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "fc0e-46ce-c0e5-5fae",
+            "name": "Plasma pistol",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "➤ Plasma pistol - supercharge",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "12\""
+               },
+               {
+                "name": "A",
+                "$text": "1"
+               },
+               {
+                "name": "BS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "8"
+               },
+               {
+                "name": "AP",
+                "$text": "-3"
+               },
+               {
+                "name": "D",
+                "$text": "2"
+               },
+               {
+                "name": "Keywords",
+                "$text": "Hazardous, Close-quarters"
+               }
+              ]
+             },
+             {
+              "name": "➤ Plasma pistol - standard",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "12\""
+               },
+               {
+                "name": "A",
+                "$text": "1"
+               },
+               {
+                "name": "BS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "7"
+               },
+               {
+                "name": "AP",
+                "$text": "-2"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": "Close-quarters"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "4a9c-2893-d570-ab94",
+            "name": "Chainsword",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Chainsword",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "5"
+               },
+               {
+                "name": "WS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "5"
+               },
+               {
+                "name": "AP",
+                "$text": "-1"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": ""
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "fd17-cf82-6413-f1d7",
+            "name": "Bolt Rifle",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "➤ Bolt Rifle - Focused Fire",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "24\""
+               },
+               {
+                "name": "A",
+                "$text": "1"
+               },
+               {
+                "name": "BS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "6"
+               },
+               {
+                "name": "AP",
+                "$text": "-1"
+               },
+               {
+                "name": "D",
+                "$text": "2"
+               },
+               {
+                "name": "Keywords",
+                "$text": "Heavy, Rapid Fire 1"
+               }
+              ]
+             },
+             {
+              "name": "➤ Bolt Rifle - Saturation",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "24\""
+               },
+               {
+                "name": "A",
+                "$text": "2"
+               },
+               {
+                "name": "BS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "5"
+               },
+               {
+                "name": "AP",
+                "$text": "-1"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": "Assault, Rapid Fire 1"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "84d4-0109-c9d8-a4d0",
+            "name": "Thunder Hammer",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Thunder Hammer",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "3"
+               },
+               {
+                "name": "WS",
+                "$text": "4+"
+               },
+               {
+                "name": "S",
+                "$text": "8"
+               },
+               {
+                "name": "AP",
+                "$text": "-2"
+               },
+               {
+                "name": "D",
+                "$text": "3"
+               },
+               {
+                "name": "Keywords",
+                "$text": "Devastating Wounds"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "id": "2f51-71c7-9d80-8e6a",
+          "name": "Weapon 2",
+          "defaultSelectionEntryId": "38-fca-2eb5-af1",
+          "constraints": [
+           {
+            "id": "9ce1-a2f3-e1ad-750d",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "585f-b463-faac-9d31",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ],
+          "selectionEntries": [
+           {
+            "id": "e58b-72d0-cf6d-e771",
+            "name": "Power weapon",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Power weapon",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "4"
+               },
+               {
+                "name": "WS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "5"
+               },
+               {
+                "name": "AP",
+                "$text": "-2"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "d6c-8051-345f-4c7a",
+            "name": "Chainsword",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Chainsword",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "5"
+               },
+               {
+                "name": "WS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "5"
+               },
+               {
+                "name": "AP",
+                "$text": "-1"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": ""
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "6452-4b48-5267-5325",
+            "name": "Power fist",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Power fist",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "3"
+               },
+               {
+                "name": "WS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "8"
+               },
+               {
+                "name": "AP",
+                "$text": "-2"
+               },
+               {
+                "name": "D",
+                "$text": "2"
+               },
+               {
+                "name": "Keywords"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "e859-ef7d-8693-9e20",
+            "name": "Thunder Hammer",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Thunder Hammer",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "3"
+               },
+               {
+                "name": "WS",
+                "$text": "4+"
+               },
+               {
+                "name": "S",
+                "$text": "8"
+               },
+               {
+                "name": "AP",
+                "$text": "-2"
+               },
+               {
+                "name": "D",
+                "$text": "3"
+               },
+               {
+                "name": "Keywords",
+                "$text": "Devastating Wounds"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "38-fca-2eb5-af1",
+            "name": "Knives and Fists",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Knives and Fists",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "3"
+               },
+               {
+                "name": "WS",
+                "$text": "3+"
+               },
+               {
+                "name": "S",
+                "$text": "5"
+               },
+               {
+                "name": "AP",
+                "$text": "0"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": ""
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "id": "420-464f-93cb-e019",
+        "name": "Intercessor",
+        "type": "model",
+        "constraints": [
+         {
+          "id": "f374-3874-5382-40ee",
+          "type": "min",
+          "field": "selections",
+          "scope": "parent",
+          "value": 4
+         },
+         {
+          "id": "77bf-35d2-a671-e590",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 9
+         }
+        ],
+        "modifiers": [
+         {
+          "type": "decrement",
+          "field": "77bf-35d2-a671-e590",
+          "value": 1
+         },
+         {
+          "type": "decrement",
+          "field": "f374-3874-5382-40ee",
+          "value": 1,
+          "conditions": [
+           {
+            "type": "atLeast",
+            "field": "selections",
+            "value": 1,
+            "scope": "8da0-4570-c3c-819f",
+            "childId": "d735-eafd-a8de-fa80"
+           }
+          ]
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Intercessor Squad",
+          "typeName": "Unit",
+          "characteristics": [
+           {
+            "name": "M",
+            "$text": "6\""
+           },
+           {
+            "name": "T",
+            "$text": "5"
+           },
+           {
+            "name": "Sv",
+            "$text": "3+"
+           },
+           {
+            "name": "W",
+            "$text": "2"
+           },
+           {
+            "name": "LD",
+            "$text": "6+"
+           },
+           {
+            "name": "OC",
+            "$text": "2"
+           },
+           {
+            "name": "InSv",
+            "$text": ""
+           },
+           {
+            "name": "Base",
+            "$text": "32mm"
+           }
+          ]
+         }
+        ],
+        "selectionEntries": [
+         {
+          "id": "f2e3-8f5c-71-2f8d",
+          "name": "Knives and Fists",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Knives and Fists",
+            "typeName": "Melee Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "Melee"
+             },
+             {
+              "name": "A",
+              "$text": "3"
+             },
+             {
+              "name": "WS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "5"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": ""
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "7631-2998-ef6d-dbb6",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "a81f-9614-9e96-598f",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "312d-e959-8e7d-4f3a",
+          "name": "Bolt pistol",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Bolt pistol",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "12\""
+             },
+             {
+              "name": "A",
+              "$text": "1"
+             },
+             {
+              "name": "BS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "5"
+             },
+             {
+              "name": "AP",
+              "$text": "-1"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "Close-quarters"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "ef60-66f8-3922-161a",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "ac01-afd-2211-1194",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "a00f-2db9-d388-baf4",
+          "name": "Bolt Rifle",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "➤ Bolt Rifle - Focused Fire",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "24\""
+             },
+             {
+              "name": "A",
+              "$text": "1"
+             },
+             {
+              "name": "BS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "6"
+             },
+             {
+              "name": "AP",
+              "$text": "-1"
+             },
+             {
+              "name": "D",
+              "$text": "2"
+             },
+             {
+              "name": "Keywords",
+              "$text": "Heavy, Rapid Fire 1"
+             }
+            ]
+           },
+           {
+            "name": "➤ Bolt Rifle - Saturation",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "24\""
+             },
+             {
+              "name": "A",
+              "$text": "2"
+             },
+             {
+              "name": "BS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "5"
+             },
+             {
+              "name": "AP",
+              "$text": "-1"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "Assault, Rapid Fire 1"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "36f-b610-4ecd-694c",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "6094-5b82-62bc-a9cd",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "id": "d735-eafd-a8de-fa80",
+        "name": "Intercessor w/ Grenade Launcher",
+        "type": "model",
+        "constraints": [
+         {
+          "id": "75cc-3503-763a-f0bf",
+          "type": "max",
+          "field": "selections",
+          "scope": "parent",
+          "value": 2
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Intercessor Squad",
+          "typeName": "Unit",
+          "characteristics": [
+           {
+            "name": "M",
+            "$text": "6\""
+           },
+           {
+            "name": "T",
+            "$text": "5"
+           },
+           {
+            "name": "Sv",
+            "$text": "3+"
+           },
+           {
+            "name": "W",
+            "$text": "2"
+           },
+           {
+            "name": "LD",
+            "$text": "6+"
+           },
+           {
+            "name": "OC",
+            "$text": "2"
+           },
+           {
+            "name": "InSv",
+            "$text": ""
+           },
+           {
+            "name": "Base",
+            "$text": "32mm"
+           }
+          ]
+         }
+        ],
+        "selectionEntries": [
+         {
+          "id": "6259-9842-fe29-0127",
+          "name": "Knives and Fists",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Knives and Fists",
+            "typeName": "Melee Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "Melee"
+             },
+             {
+              "name": "A",
+              "$text": "3"
+             },
+             {
+              "name": "WS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "5"
+             },
+             {
+              "name": "AP",
+              "$text": "0"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": ""
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "187a-045a-5df0-b974",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "a391-8ce8-423e-768e",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "6c49-d913-160a-6531",
+          "name": "Bolt pistol",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Bolt pistol",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "12\""
+             },
+             {
+              "name": "A",
+              "$text": "1"
+             },
+             {
+              "name": "BS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "5"
+             },
+             {
+              "name": "AP",
+              "$text": "-1"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "Close-quarters"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "fbf2-c34a-57ad-bfd9",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "eebc-77c0-337b-0001",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "1c89-bd18-6ad4-32a5",
+          "name": "Bolt Rifle",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "➤ Bolt Rifle - Focused Fire",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "24\""
+             },
+             {
+              "name": "A",
+              "$text": "1"
+             },
+             {
+              "name": "BS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "6"
+             },
+             {
+              "name": "AP",
+              "$text": "-1"
+             },
+             {
+              "name": "D",
+              "$text": "2"
+             },
+             {
+              "name": "Keywords",
+              "$text": "Heavy, Rapid Fire 1"
+             }
+            ]
+           },
+           {
+            "name": "➤ Bolt Rifle - Saturation",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "24\""
+             },
+             {
+              "name": "A",
+              "$text": "2"
+             },
+             {
+              "name": "BS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "5"
+             },
+             {
+              "name": "AP",
+              "$text": "-1"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "Assault, Rapid Fire 1"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "bba4-0617-d648-e5ad",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "6fac-496c-9ed5-a8cc",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "a0dd-1572-c636-9fd1",
+          "name": "Grenade Launcher",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "➤ Grenade Launcher - Krak",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "24\""
+             },
+             {
+              "name": "A",
+              "$text": "1"
+             },
+             {
+              "name": "BS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "10"
+             },
+             {
+              "name": "AP",
+              "$text": "-2"
+             },
+             {
+              "name": "D",
+              "$text": "3"
+             },
+             {
+              "name": "Keywords",
+              "$text": "Rapid Fire 1"
+             }
+            ]
+           },
+           {
+            "name": "➤ Grenade Launcher - Frag",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "24\""
+             },
+             {
+              "name": "A",
+              "$text": "4"
+             },
+             {
+              "name": "BS",
+              "$text": "3+"
+             },
+             {
+              "name": "S",
+              "$text": "4"
+             },
+             {
+              "name": "AP",
+              "$text": "-1"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "Blast 1"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "95b2-456a-e3e1-46ba-min",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "95b2-456a-e3e1-46ba-max",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "65db-64e4-1d7c-bf83",
+            "type": "max",
+            "field": "selections",
+            "scope": "unit",
+            "value": 2
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "id": "6c10-5b51-5bc0-8d2c",
+    "name": "Captain",
+    "type": "model",
+    "constraints": [
+     {
+      "id": "2c9d-1117-01bc-2bf1",
+      "type": "max",
+      "field": "75bb-ded1-c86d-bdf0",
+      "scope": "self",
+      "value": 6
+     },
+     {
+      "id": "8357-7962-ae40-3759",
+      "type": "max",
+      "field": "716d-91b7-d55a-1022",
+      "scope": "self",
+      "value": 0
+     },
+     {
+      "id": "95ae-60cc-9649-6975",
+      "type": "min",
+      "field": "716d-91b7-d55a-1022",
+      "scope": "self",
+      "value": 0
+     },
+     {
+      "id": "f77a-c9bc-c277-0579",
+      "type": "max",
+      "field": "selections",
+      "scope": "force",
+      "value": 3
+     }
+    ],
+    "modifiers": [
+     {
+      "type": "set",
+      "field": "f77a-c9bc-c277-0579",
+      "value": 2,
+      "conditions": [
+       {
+        "type": "atLeast",
+        "field": "selections",
+        "value": 1,
+        "scope": "force",
+        "childId": "d62d-db22-4893-4bc0"
+       }
+      ]
+     }
+    ],
+    "costs": [
+     {
+      "name": "pts",
+      "typeId": "pts",
+      "value": 90
+     }
+    ],
+    "categoryLinks": [
+     {
+      "name": "Character"
+     },
+     {
+      "name": "Infantry"
+     },
+     {
+      "name": "Captain"
+     },
+     {
+      "name": "Imperium"
+     },
+     {
+      "name": "Tacticus"
+     },
+     {
+      "name": "Faction: Adeptus Astartes"
+     },
+     {
+      "name": "Leader"
+     },
+     {
+      "name": "Explosives"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Captain",
+      "typeName": "Unit",
+      "characteristics": [
+       {
+        "name": "M",
+        "$text": "6\""
+       },
+       {
+        "name": "T",
+        "$text": "5"
+       },
+       {
+        "name": "Sv",
+        "$text": "3+"
+       },
+       {
+        "name": "W",
+        "$text": "5"
+       },
+       {
+        "name": "LD",
+        "$text": "6+"
+       },
+       {
+        "name": "OC",
+        "$text": "1"
+       },
+       {
+        "name": "InSv",
+        "$text": "4+"
+       },
+       {
+        "name": "Base",
+        "$text": "40mm"
+       }
+      ]
+     }
+    ],
+    "selectionEntryGroups": [
+     {
+      "id": "ccdb-b984-df14-9b54",
+      "name": "Wargear",
+      "defaultSelectionEntryId": "c6aa-b3a5-4ff3-e0d3",
+      "constraints": [
+       {
+        "id": "6492-7e31-51b1-5d9f",
+        "type": "min",
+        "field": "selections",
+        "scope": "parent",
+        "value": 1
+       },
+       {
+        "id": "bbf2-9881-fa6d-54bd",
+        "type": "max",
+        "field": "selections",
+        "scope": "parent",
+        "value": 1
+       }
+      ],
+      "selectionEntries": [
+       {
+        "id": "c6aa-b3a5-4ff3-e0d3",
+        "name": "Heavy Bolt Pistol, Master-crafted Bolter, Melee Weapon",
+        "type": "upgrade",
+        "selectionEntries": [
+         {
+          "id": "87a5-6849-3981-d57e",
+          "name": "Heavy Bolt Pistol",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Heavy Bolt Pistol",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "18\""
+             },
+             {
+              "name": "A",
+              "$text": "1"
+             },
+             {
+              "name": "BS",
+              "$text": "2+"
+             },
+             {
+              "name": "S",
+              "$text": "5"
+             },
+             {
+              "name": "AP",
+              "$text": "-1"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "Close-quarters"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "3a7c-516b-81d4-8662",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "7af4-fba3-4f74-a2a",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "d3c2-6cd8-5ac7-87f6",
+          "name": "Master-crafted bolter",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Master-crafted bolter",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "24\""
+             },
+             {
+              "name": "A",
+              "$text": "2"
+             },
+             {
+              "name": "BS",
+              "$text": "2+"
+             },
+             {
+              "name": "S",
+              "$text": "5"
+             },
+             {
+              "name": "AP",
+              "$text": "-1"
+             },
+             {
+              "name": "D",
+              "$text": "2"
+             },
+             {
+              "name": "Keywords",
+              "$text": "Assault, Rapid Fire 1"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "bffe-be4f-c1cd-9f7c",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "cf9-51ba-e5f4-d4be",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         }
+        ],
+        "selectionEntryGroups": [
+         {
+          "id": "1591-a4ae-50fb-3c21",
+          "name": "Melee Weapon",
+          "defaultSelectionEntryId": "74b1-e680-e6f1-2845",
+          "constraints": [
+           {
+            "id": "e89a-16aa-4550-ec08",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "7799-2b9-cba9-f760",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ],
+          "selectionEntries": [
+           {
+            "id": "667f-2fe-d8c8-c6f7",
+            "name": "Power fist",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Power fist",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "5"
+               },
+               {
+                "name": "WS",
+                "$text": "2+"
+               },
+               {
+                "name": "S",
+                "$text": "8"
+               },
+               {
+                "name": "AP",
+                "$text": "-2"
+               },
+               {
+                "name": "D",
+                "$text": "2"
+               },
+               {
+                "name": "Keywords"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "e77-5303-12ad-cbde",
+            "name": "Master-crafted power weapon",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Master-crafted power weapon",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "6"
+               },
+               {
+                "name": "WS",
+                "$text": "2+"
+               },
+               {
+                "name": "S",
+                "$text": "6"
+               },
+               {
+                "name": "AP",
+                "$text": "-2"
+               },
+               {
+                "name": "D",
+                "$text": "2"
+               },
+               {
+                "name": "Keywords",
+                "$text": ""
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "id": "1fd4-9cd4-eda6-baad",
+        "name": "Heavy Bolt Pistol, Master-crafted power weapon and 1 Relic Shield",
+        "type": "upgrade",
+        "selectionEntries": [
+         {
+          "id": "c552-195a-d3a4-54c",
+          "name": "Master-crafted power weapon",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Master-crafted power weapon",
+            "typeName": "Melee Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "Melee"
+             },
+             {
+              "name": "A",
+              "$text": "6"
+             },
+             {
+              "name": "WS",
+              "$text": "2+"
+             },
+             {
+              "name": "S",
+              "$text": "6"
+             },
+             {
+              "name": "AP",
+              "$text": "-2"
+             },
+             {
+              "name": "D",
+              "$text": "2"
+             },
+             {
+              "name": "Keywords",
+              "$text": ""
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "abea-59a4-d47-d6d3",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "f0e6-b0ee-9c0c-7a4",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "3009-ebd0-faf7-259f",
+          "name": "Relic Shield",
+          "type": "upgrade",
+          "constraints": [
+           {
+            "id": "e90a-2083-fbf6-e60",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "4c3b-8a09-7129-a0d4",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "id": "5b84-c97d-68b5-d546",
+          "name": "Heavy Bolt Pistol",
+          "type": "upgrade",
+          "profiles": [
+           {
+            "name": "Heavy Bolt Pistol",
+            "typeName": "Ranged Weapons",
+            "characteristics": [
+             {
+              "name": "Range",
+              "$text": "18\""
+             },
+             {
+              "name": "A",
+              "$text": "1"
+             },
+             {
+              "name": "BS",
+              "$text": "2+"
+             },
+             {
+              "name": "S",
+              "$text": "5"
+             },
+             {
+              "name": "AP",
+              "$text": "-1"
+             },
+             {
+              "name": "D",
+              "$text": "1"
+             },
+             {
+              "name": "Keywords",
+              "$text": "Close-quarters"
+             }
+            ]
+           }
+          ],
+          "constraints": [
+           {
+            "id": "10df-58d5-14e3-3410",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "beb5-ec3c-447e-832a",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "id": "94ae-c877-fc3a-a82a",
+        "name": "Pistol and Melee Weapon",
+        "type": "upgrade",
+        "selectionEntryGroups": [
+         {
+          "id": "fdce-66b7-9c68-d1f0",
+          "name": "Pistol",
+          "constraints": [
+           {
+            "id": "f1c1-ec44-4449-3284-min",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "f1c1-ec44-4449-3284-max",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ],
+          "selectionEntries": [
+           {
+            "id": "be25-b3d6-a644-d3d6",
+            "name": "Plasma pistol",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "➤ Plasma pistol - supercharge",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "12\""
+               },
+               {
+                "name": "A",
+                "$text": "1"
+               },
+               {
+                "name": "BS",
+                "$text": "2+"
+               },
+               {
+                "name": "S",
+                "$text": "8"
+               },
+               {
+                "name": "AP",
+                "$text": "-3"
+               },
+               {
+                "name": "D",
+                "$text": "2"
+               },
+               {
+                "name": "Keywords",
+                "$text": "Hazardous, Close-quarters"
+               }
+              ]
+             },
+             {
+              "name": "➤ Plasma pistol - standard",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "12\""
+               },
+               {
+                "name": "A",
+                "$text": "1"
+               },
+               {
+                "name": "BS",
+                "$text": "2+"
+               },
+               {
+                "name": "S",
+                "$text": "7"
+               },
+               {
+                "name": "AP",
+                "$text": "-2"
+               },
+               {
+                "name": "D",
+                "$text": "1"
+               },
+               {
+                "name": "Keywords",
+                "$text": "Close-quarters"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "94ea-a08a-b947-949b",
+            "name": "Neo-volkite Pistol",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Neo-volkite Pistol",
+              "typeName": "Ranged Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "12\""
+               },
+               {
+                "name": "A",
+                "$text": "1"
+               },
+               {
+                "name": "BS",
+                "$text": "2+"
+               },
+               {
+                "name": "S",
+                "$text": "5"
+               },
+               {
+                "name": "AP",
+                "$text": "0"
+               },
+               {
+                "name": "D",
+                "$text": "2"
+               },
+               {
+                "name": "Keywords",
+                "$text": "Devastating Wounds, Pistol"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "id": "3cda-f42-c3ed-57ed",
+          "name": "Melee Weapon",
+          "constraints": [
+           {
+            "id": "191e-3049-f059-1654-min",
+            "type": "min",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           },
+           {
+            "id": "191e-3049-f059-1654-max",
+            "type": "max",
+            "field": "selections",
+            "scope": "parent",
+            "value": 1
+           }
+          ],
+          "selectionEntries": [
+           {
+            "id": "d2a4-170e-4e16-e9e",
+            "name": "Power fist",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Power fist",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "5"
+               },
+               {
+                "name": "WS",
+                "$text": "2+"
+               },
+               {
+                "name": "S",
+                "$text": "8"
+               },
+               {
+                "name": "AP",
+                "$text": "-2"
+               },
+               {
+                "name": "D",
+                "$text": "2"
+               },
+               {
+                "name": "Keywords"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "id": "c964-1cfb-8795-a9a8",
+            "name": "Master-crafted power weapon",
+            "type": "upgrade",
+            "profiles": [
+             {
+              "name": "Master-crafted power weapon",
+              "typeName": "Melee Weapons",
+              "characteristics": [
+               {
+                "name": "Range",
+                "$text": "Melee"
+               },
+               {
+                "name": "A",
+                "$text": "6"
+               },
+               {
+                "name": "WS",
+                "$text": "2+"
+               },
+               {
+                "name": "S",
+                "$text": "6"
+               },
+               {
+                "name": "AP",
+                "$text": "-2"
+               },
+               {
+                "name": "D",
+                "$text": "2"
+               },
+               {
+                "name": "Keywords",
+                "$text": ""
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -6,6 +6,8 @@
  */
 import { useEffect, useState } from 'react';
 import { api, type ArmyChanges, type CaughtUp, type Counters, type FindingKind, type EntityChange, type FieldChange, type Origin, type Overview, type SourceShift, type Stage, type Unreleased } from './api.ts';
+import { ReattachDialog } from './Dialogs.tsx';
+import { SCROLL_KEY } from './sheets/WargearSheet.tsx';
 
 const SOURCE: Record<string, string> = { bsdata: 'BSData', mfm: 'MFM' };
 const KIND: Record<EntityChange['kind'], string> = { unit: 'Unit', detachment: 'Detachment', stratagem: 'Stratagem', armyRule: 'Army Rule', core: 'Core' };
@@ -178,6 +180,7 @@ const FINDING: Record<FindingKind, { label: string; hint: string; todo: boolean 
   unsimulated: { label: 'unsimulated keys', hint: 'Modifier keys the simulation does not play: a typo, or a key to teach it', todo: false },
   wargear: { label: 'wargear costs not linked', hint: 'MFM wargear lines no option bills: link them on the unit sheet', todo: false },
   enhancementWeapon: { label: 'Enhancement weapons', hint: 'Weapons BSData gives an Enhancement the Dataset lacks, or a datasheet carries', todo: false },
+  wargearToWrite: { label: 'wargear options to write', hint: 'Units whose wargear the import could not read: they publish no wargear option until you write them on their sheet', todo: false },
 };
 
 /** Les chiffres « à traiter » et « à compléter » ; chacun ouvre sa liste. */
@@ -240,6 +243,7 @@ export function Dashboard({ overview, onOpen, onWrite }: Props) {
   const [stage, setStage] = useState<Stage | ''>('');
   const [origin, setOrigin] = useState<Origin | ''>('');
   const [findings, setFindings] = useState<{ kind: FindingKind; army?: string } | null>(null);
+  const [reattach, setReattach] = useState<string | null>(null);
 
   // L'état global se relit après chaque tâche ou écriture : le tableau de bord suit.
   useEffect(() => {
@@ -336,16 +340,44 @@ export function Dashboard({ overview, onOpen, onWrite }: Props) {
           {shown.map((f, i) => (
             <div className="change" key={i}>
               {f.sheet ? (
-                <button type="button" className="link change-field" onClick={() => onOpen(f.sheet!)}>
+                <button
+                  type="button"
+                  className="link change-field"
+                  onClick={() => {
+                    // Une Unit dont les Wargear Options sont à écrire s'ouvre sur elles.
+                    if (f.kind === 'wargearToWrite')
+                      try {
+                        sessionStorage.setItem(SCROLL_KEY, 'wargear-options');
+                      } catch {
+                        // sans stockage, la fiche s'ouvre en haut
+                      }
+                    onOpen(f.sheet!);
+                  }}
+                >
                   {f.label}
                 </button>
               ) : (
                 <span className="change-field">{f.label}</span>
               )}
               <span className="lines">{f.detail}</span>
+              {f.reattach && (
+                <button type="button" onClick={() => setReattach(f.reattach!)} title="Move it to the element that replaced its target">
+                  Reattach…
+                </button>
+              )}
             </div>
           ))}
         </section>
+      )}
+      {reattach && (
+        <ReattachDialog
+          target={reattach}
+          onClose={() => setReattach(null)}
+          onDone={(to) => {
+            setReattach(null);
+            onWrite(`Contribution reattached to ${to}`);
+          }}
+        />
       )}
       {data.release && !data.note && changes.length === 0 && <p className="empty">Nothing differs from the Release in production.</p>}
       {data.caughtUp.length > 0 && <CaughtUpList items={data.caughtUp} onOpen={onOpen} onRemoved={(r) => onWrite(`${r.length} caught-up Correction(s) removed`)} />}

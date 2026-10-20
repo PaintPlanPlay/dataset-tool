@@ -9,6 +9,8 @@
  */
 import { parseAbilities } from './abilities.ts';
 import { isCoreRule } from '../rules.ts';
+import type { ModelType } from '@paintplanplay/dataset-schema';
+import { translateWargear, typeName, type Translated } from './sentences.ts';
 import { weaponRef, type Ability, type CatalogueUnit, type OptionGroup, type Statline, type Weapon, type WeaponKind, type WeaponOption, type WeaponProfile } from './types.ts';
 
 interface BsNode {
@@ -307,6 +309,26 @@ interface Collected {
    * les Cadian Shock Troops, alors que le pack se joue aussi à 20.
    */
   slots: Map<string, number>;
+  /** Chaque entrée de figurine visitée : son nom et ses bornes, retenue par défaut ou non. */
+  slotInfo: Map<string, { name: string; min: number; max: number }>;
+  /**
+   * Le Default Wargear, au sens strict : arme → emplacements qui la portent
+   * d'office. Plus étroit que `defaults`, qui garde pour l'ancienne forme ce
+   * qu'un choix sans défaut propose et les armes qu'une entrée sans plancher
+   * rend facultatives.
+   */
+  strictDefaults: Map<string, Set<string>>;
+  /** Les entrées d'arme facultatives hors de tout choix : « can be equipped with up to 4 Big Shootas ». */
+  optionalEntries: OptionalEntry[];
+}
+
+/** Une entrée d'arme qu'une figurine peut prendre en plus, jusqu'à `max` fois. */
+export interface OptionalEntry {
+  id: string;
+  name: string;
+  max: number;
+  slotId: string;
+  weapons: string[];
 }
 
 const MAX_DEPTH = 10;
@@ -320,8 +342,8 @@ const MAX_DEPTH = 10;
  * option écartée du sergent, donc jamais compté comme dotation, et le lien du
  * troupier qui la portait vraiment se voyait refuser l'entrée.
  */
-const visitKey = (kind: 'e' | 'i', targetId: string | undefined, slotId: string, preferred: boolean) =>
-  `${kind}:${targetId}|${slotId}|${preferred ? 1 : 0}`;
+const visitKey = (kind: 'e' | 'i', targetId: string | undefined, slotId: string, preferred: boolean, strict = preferred) =>
+  `${kind}:${targetId}|${slotId}|${preferred ? 1 : 0}${strict ? 1 : 0}`;
 
 /** Ce qu'un nœud, un lien ou un groupe dit de son propre effectif. */
 interface Bounds {
@@ -346,6 +368,22 @@ function boundsOf(node: BsNode): Bounds | null {
   const min = of('min');
   if (typeof max !== 'number' && typeof min !== 'number') return null;
   return { min: typeof min === 'number' ? min : 0, max: typeof max === 'number' && max > 0 ? max : null };
+}
+
+/**
+ * L'option qu'un groupe désigne par défaut, si elle est bien l'un de ses
+ * enfants. BSData garde parfois l'identifiant d'une entrée disparue (les
+ * Gretchin) : le groupe n'a alors pas de défaut, et tout ce qu'il contient
+ * d'obligatoire reste porté d'office.
+ */
+function defaultOf(group: BsNode): string | undefined {
+  const id = group.defaultSelectionEntryId;
+  if (!id) return undefined;
+  const children = [...(group.selectionEntries ?? []), ...(group.selectionEntryGroups ?? []), ...(group.entryLinks ?? [])];
+  if (children.some((c) => c.id === id)) return id;
+  // « Replace bolt pistol » dit lui-même ce qu'il remplace : le Bolt pistol est le défaut.
+  const replaced = /^replace\s+(.+)$/i.exec((group.name ?? '').trim())?.[1].toLowerCase();
+  return replaced ? children.find((c) => (c.name ?? '').trim().toLowerCase() === replaced)?.id : undefined;
 }
 
 /** Un groupe partagé d'Enhancements : « Enhancements », « Enhancements - Upgrades ». */
@@ -389,6 +427,11 @@ function collect(
    * « facultatif ».
    */
   namedDefault = false,
+  /**
+   * Toujours dans le Default Wargear au sens strict : ni sous un choix sans
+   * défaut qu'on peut laisser vide, ni sous une entrée d'arme sans plancher.
+   */
+  strict = preferred,
 ) {
   if (depth > MAX_DEPTH) return;
 
@@ -422,9 +465,11 @@ function collect(
      * désigne comme défaut : c'est ce marqueur qui tranche, pas les bornes.
      */
     if (!namedDefault && bounds && bounds.min === 0 && bounds.max !== null) preferred = false;
+    strict = strict && preferred;
     if (node.id) {
       slotId = node.id;
       if (preferred) acc.slots.set(node.id, here === Infinity ? 1 : here);
+      if (slot && !acc.slotInfo.has(node.id)) acc.slotInfo.set(node.id, slot);
     }
   }
 
@@ -445,6 +490,10 @@ function collect(
           const perSlot = acc.defaults.get(k) ?? acc.defaults.set(k, new Map()).get(k)!;
           const count = cap === Infinity ? 1 : cap;
           perSlot.set(slotId, Math.max(perSlot.get(slotId) ?? 0, count));
+        }
+        if (preferred && strict) {
+          const k = weaponKey(w);
+          (acc.strictDefaults.get(k) ?? acc.strictDefaults.set(k, new Set()).get(k)!).add(slotId);
         }
       }
     } else if (t === 'Abilities' && own) {
@@ -480,13 +529,13 @@ function collect(
       if (node.type && !hiddenFor(link, acc.primaryId) && !hiddenFor(target, acc.primaryId)) acc.armyRules.add(target.name.trim());
       continue;
     }
-    const key = visitKey('i', link.targetId, slotId, preferred);
+    const key = visitKey('i', link.targetId, slotId, preferred, strict);
     if (seen.has(key)) continue;
     seen.add(key);
     // La cible est soit un profil isolé, soit un groupe (infoGroup) qui en contient.
     if (target.typeName && target.characteristics)
-      collect({ profiles: [target] }, byId, acc, seen, depth + 1, own, preferred, cap, pending, slotId, namedDefault);
-    else collect(target, byId, acc, seen, depth + 1, own, preferred, cap, pending, slotId, namedDefault);
+      collect({ profiles: [target] }, byId, acc, seen, depth + 1, own, preferred, cap, pending, slotId, namedDefault, strict);
+    else collect(target, byId, acc, seen, depth + 1, own, preferred, cap, pending, slotId, namedDefault, strict);
   }
 
   /*
@@ -495,22 +544,46 @@ function collect(
    * cas des dotations obligatoires, où le groupe n'est qu'un rangement.
    */
   const keeps = (child: BsNode, group: BsNode) =>
-    preferred && (!group.defaultSelectionEntryId || group.defaultSelectionEntryId === child.id);
+    preferred && (!defaultOf(group) || defaultOf(group) === child.id);
+
+  /*
+   * Au sens strict, un choix sans défaut qu'on peut laisser vide (les sponsons
+   * d'un Leman Russ) n'équipe rien d'office ; une entrée d'arme qui annonce un
+   * plafond sans plancher, hors de tout choix, est un ajout facultatif (les
+   * Big Shootas d'un Battlewagon).
+   */
+  const isGroup = !node.type;
+  const budget = isGroup ? boundsOf(node) : null;
+  const leavesEmpty = isGroup && !defaultOf(node) && budget !== null && budget.max !== null && budget.min === 0;
+  const optional = (entry: BsNode, bounds: Bounds | null, target: BsNode | undefined) =>
+    !namedDefault && !budget && entry.type !== 'model' && target?.type !== 'model' && bounds !== null && bounds.max !== null && bounds.min === 0;
+  const stays = (child: BsNode, group: BsNode, entry: BsNode, bounds: Bounds | null, target: BsNode | undefined) => {
+    if (!strict || !keeps(child, group) || leavesEmpty) return false;
+    if (!optional(entry, bounds, target)) return true;
+    const weapons = new Set<string>();
+    branchOf(target ?? entry, byId, new Set(), 0, null, Infinity, weapons);
+    if (weapons.size && entry.id)
+      acc.optionalEntries.push({ id: entry.id, name: (entry.name ?? target?.name ?? '').trim(), max: bounds!.max!, slotId, weapons: [...weapons] });
+    return weapons.size === 0;
+  };
 
   for (const child of node.selectionEntries ?? [])
-    collect(child, byId, acc, seen, depth + 1, own, keeps(child, node), cap, pending, slotId, Boolean(node.defaultSelectionEntryId));
+    collect(child, byId, acc, seen, depth + 1, own, keeps(child, node), cap, pending, slotId, Boolean(defaultOf(node)), stays(child, node, child, boundsOf(child), child));
   for (const grp of node.selectionEntryGroups ?? [])
     // Un groupe qui dit combien il tient annonce le plafond de ses figurines.
-    collect(grp, byId, acc, seen, depth + 1, own, keeps(grp, node), cap, boundsOf(grp) ?? pending, slotId, Boolean(node.defaultSelectionEntryId));
-  for (const g of node.infoGroups ?? []) collect(g, byId, acc, seen, depth + 1, own, preferred, cap, pending, slotId, namedDefault);
+    collect(grp, byId, acc, seen, depth + 1, own, keeps(grp, node), cap, boundsOf(grp) ?? pending, slotId, Boolean(defaultOf(node)), strict && keeps(grp, node) && !leavesEmpty);
+  for (const g of node.infoGroups ?? []) collect(g, byId, acc, seen, depth + 1, own, preferred, cap, pending, slotId, namedDefault, strict);
 
   for (const link of node.entryLinks ?? []) {
     if (!link.targetId) continue;
-    const key = visitKey('e', link.targetId, slotId, preferred);
-    if (seen.has(key)) continue;
-    seen.add(key);
     const target = byId.get(link.targetId);
     if (link.type === 'selectionEntryGroup' && isForeignGear(target?.name)) continue;
+    // Un lien nommé par le défaut du groupe parent reste dans la dotation.
+    const linkPreferred = preferred && (!defaultOf(node) || defaultOf(node) === link.id);
+    const linkStrict = link.type === 'selectionEntryGroup' ? strict && linkPreferred && !leavesEmpty : stays(link, node, link, boundsOf(link) ?? (target ? boundsOf(target) : null), target);
+    const key = visitKey('e', link.targetId, slotId, preferred, linkStrict);
+    if (seen.has(key)) continue;
+    seen.add(key);
     // Un lien vers un groupe partagé sort de la datasheet : on garde les armes, pas les aptitudes.
     if (target)
       collect(
@@ -520,13 +593,13 @@ function collect(
         seen,
         depth + 1,
         own && link.type !== 'selectionEntryGroup',
-        // Un lien nommé par le défaut du groupe parent reste dans la dotation.
-        preferred && (!node.defaultSelectionEntryId || node.defaultSelectionEntryId === link.id),
+        linkPreferred,
         cap,
         // Le lien porte le nombre d'exemplaires : « max 1 » pour le sergent.
         boundsOf(link) ?? pending,
         slotId,
-        Boolean(node.defaultSelectionEntryId),
+        Boolean(defaultOf(node)),
+        linkStrict,
       );
   }
 }
@@ -649,6 +722,35 @@ function pickBracketsOf(grp: BsNode, base: number, maxId: string | undefined) {
   return out.sort((a, b) => a.atModels - b.atModels);
 }
 
+/**
+ * La limite par Unit qu'une option porte en elle-même : une contrainte « max »
+ * à portée `unit` sur l'option ou l'une de ses entrées, et les paliers qui la
+ * relèvent avec l'effectif (« set 2 if at least 10 models »).
+ */
+function unitLimitOf(node: BsNode, byId: Map<string, BsNode>, depth = 0): { max: number; brackets: { atModels: number; max: number }[] } | null {
+  if (depth > 3) return null;
+  const own = (node.constraints ?? []).find((c) => c.type === 'max' && c.scope === 'unit' && (c.field === 'selections' || c.field === undefined) && c.value > 0);
+  if (own) {
+    const brackets: { atModels: number; max: number }[] = [];
+    for (const mod of node.modifiers ?? []) {
+      if (mod.field !== own.id || typeof mod.value !== 'number' || (mod.type !== 'set' && mod.type !== 'increment')) continue;
+      const cond = (mod.conditions ?? []).find((c) => (c.type === 'atLeast' || c.type === 'greaterThan') && c.field === 'selections');
+      if (cond) brackets.push({ atModels: cond.type === 'greaterThan' ? cond.value + 1 : cond.value, max: mod.type === 'set' ? mod.value : own.value + mod.value });
+    }
+    return { max: own.value, brackets: brackets.sort((a, b) => a.atModels - b.atModels) };
+  }
+  for (const child of [...(node.selectionEntries ?? []), ...(node.selectionEntryGroups ?? [])]) {
+    const found = unitLimitOf(child, byId, depth + 1);
+    if (found) return found;
+  }
+  for (const link of node.entryLinks ?? []) {
+    const target = link.targetId ? byId.get(link.targetId) : undefined;
+    const found = unitLimitOf(link, byId, depth + 1) ?? (target ? unitLimitOf(target, byId, depth + 1) : null);
+    if (found) return found;
+  }
+  return null;
+}
+
 /** Toutes les armes d'une branche, et le plafond de porteurs qu'elle annonce. */
 function branchOf(
   node: BsNode,
@@ -671,6 +773,16 @@ function branchOf(
     if (!/Weapons/i.test(p.typeName ?? '')) continue;
     const w = toWeapon(p);
     if (w?.name) into.add(refOf(w));
+  }
+  // Un profil d'arme désigné par un lien d'information, comme `collect()` le lit.
+  for (const link of node.infoLinks ?? []) {
+    const target = link.targetId ? byId.get(link.targetId) : undefined;
+    if (!target) continue;
+    if (target.typeName && target.characteristics) {
+      if (!/Weapons/i.test(target.typeName)) continue;
+      const w = toWeapon(target);
+      if (w?.name) into.add(refOf(w));
+    } else if (link.type === 'infoGroup') cap = branchOf(target, byId, seen, depth + 1, pending, cap, into);
   }
 
   for (const child of node.selectionEntries ?? []) cap = branchOf(child, byId, seen, depth + 1, pending, cap, into);
@@ -705,9 +817,9 @@ function optionGroupsOf(root: BsNode, byId: Map<string, BsNode>): OptionGroup[] 
   const out: OptionGroup[] = [];
 
   /** Rend l'identifiant du groupe émis, pour que ses descendants sachent d'où ils viennent. */
-  const build = (grp: BsNode, slot: string, cap: number, pending: Bounds | null, tree: string, parent: string) => {
+  const build = (grp: BsNode, slot: string, cap: number, pending: Bounds | null, tree: string, parent: string, fresh = false) => {
     const budget = budgetOf(grp);
-    if (!budget || !grp.id) return undefined;
+    if (!grp.id) return undefined;
 
     const options: WeaponOption[] = [];
     /*
@@ -725,12 +837,14 @@ function optionGroupsOf(root: BsNode, byId: Map<string, BsNode>): OptionGroup[] 
       if (weapons.size === 0) return;
       total += 1;
       if (node.type === 'model') models += 1;
+      const limit = unitLimitOf(node, byId);
       options.push({
         id,
         name: name.trim(),
         weapons: [...weapons],
         maxCarriers: own === Infinity ? 0 : own,
-        isDefault: grp.defaultSelectionEntryId === id,
+        isDefault: defaultOf(grp) === id,
+        ...(limit ? { unitCap: limit.max, ...(limit.brackets.length ? { capBrackets: limit.brackets } : {}) } : {}),
       });
     };
 
@@ -746,6 +860,16 @@ function optionGroupsOf(root: BsNode, byId: Map<string, BsNode>): OptionGroup[] 
      * 11e n'ont qu'une configuration, mais leurs armes spéciales puisent dans
      * leurs figurines, et sans ce parent le pack de vingt en alignait vingt-deux.
      */
+    if (!budget) {
+      /*
+       * Un groupe sans plafond dont chaque configuration porte sa limite par Unit :
+       * les « Special Weapons » des Nobz, un Big Choppa par Unit, deux à dix
+       * figurines. L'ancienne forme l'ignorait ; la nouvelle en fait des phrases.
+       */
+      if (!(models > 0 && models === total && options.length && options.every((o) => o.unitCap !== undefined))) return undefined;
+      out.push({ id: grp.id, name: (grp.name ?? '').trim(), tree: tree || grp.id, parent, slot, pool: true, minPicks: 0, maxPicks: options.reduce((n, o) => n + (o.maxCarriers || o.unitCap!), 0), pickBrackets: [], options, newOnly: true });
+      return grp.id;
+    }
     const hostsNested = models > 0 && models === total && (grp.selectionEntryGroups ?? []).length > 0;
     if (options.length < (hostsNested ? 1 : 2)) return undefined;
     out.push({
@@ -759,6 +883,7 @@ function optionGroupsOf(root: BsNode, byId: Map<string, BsNode>): OptionGroup[] 
       maxPicks: budget.max,
       pickBrackets: pickBracketsOf(grp, budget.max, budget.maxId),
       options,
+      ...(fresh ? { newOnly: true as const } : {}),
     });
     return grp.id;
   };
@@ -772,6 +897,8 @@ function optionGroupsOf(root: BsNode, byId: Map<string, BsNode>): OptionGroup[] 
     cap: number,
     tree: string,
     parent: string,
+    /** Sous un groupe que l'ancienne forme ne lisait pas : ce qu'on y trouve ne sert qu'à la nouvelle. */
+    fresh = false,
   ) => {
     if (depth > MAX_DEPTH) return;
 
@@ -782,25 +909,37 @@ function optionGroupsOf(root: BsNode, byId: Map<string, BsNode>): OptionGroup[] 
       if (node.name) slot = node.name;
     }
 
-    for (const child of node.selectionEntries ?? []) walk(child, seen, depth + 1, pending, slot, cap, tree, parent);
+    for (const child of node.selectionEntries ?? []) walk(child, seen, depth + 1, pending, slot, cap, tree, parent, fresh);
     for (const grp of node.selectionEntryGroups ?? []) {
       const bounds = boundsOf(grp) ?? pending;
-      const made = build(grp, slot, cap, bounds, tree, parent);
-      walk(grp, seen, depth + 1, bounds, slot, cap, tree || (grp.id ?? ''), made ?? parent);
+      const made = build(grp, slot, cap, bounds, tree, parent, fresh);
+      walk(grp, seen, depth + 1, bounds, slot, cap, tree || (grp.id ?? ''), made ?? parent, fresh);
     }
     for (const link of node.entryLinks ?? []) {
       if (!link.targetId) continue;
+      const target = byId.get(link.targetId);
+      const group = link.type === 'selectionEntryGroup';
       /*
-       * Les groupes partagés liés depuis la racine — Croisade, Enhancements,
-       * reliques de détachement — ne sont pas l'équipement de la datasheet. Les
-       * suivre ferait du choix d'une amélioration un choix d'arme.
+       * Les groupes partagés d'Enhancements et de Croisade ne sont pas
+       * l'équipement de la datasheet : les suivre ferait du choix d'une
+       * amélioration un choix d'arme. L'ancienne forme écartait tout groupe lié
+       * depuis la racine ; la nouvelle lit les autres (le « Wargear » partagé
+       * d'un Land Raider).
        */
-      if (link.type === 'selectionEntryGroup' && depth === 0) continue;
+      if (group && depth === 0 && (isForeignGear(target?.name) || isForeignGear(link.name))) continue;
       const k = `${link.targetId}|${slot}`;
       if (seen.has(k)) continue;
       seen.add(k);
-      const target = byId.get(link.targetId);
-      if (target) walk(target, seen, depth + 1, boundsOf(link) ?? pending, slot, cap, tree, parent);
+      if (!target) continue;
+      if (!group) {
+        walk(target, seen, depth + 1, boundsOf(link) ?? pending, slot, cap, tree, parent, fresh);
+        continue;
+      }
+      // Un groupe de choix atteint par un lien en est un aussi : l'ancienne forme ne lisait que ses sous-groupes.
+      const linked: BsNode = { ...target, constraints: link.constraints?.length ? link.constraints : target.constraints, modifiers: [...(target.modifiers ?? []), ...(link.modifiers ?? [])] };
+      const bounds = boundsOf(linked) ?? pending;
+      const made = build(linked, slot, cap, bounds, tree, parent, true);
+      walk(target, seen, depth + 1, bounds, slot, cap, tree || (made ?? ''), made ?? parent, fresh || depth === 0);
     }
   };
 
@@ -844,6 +983,64 @@ function carrierLimits(groups: OptionGroup[], defaults: Map<string, number>): Ma
   return limits;
 }
 
+/**
+ * Ce que la datasheet publie de ses Wargear Options. Une Unit dont un choix
+ * ne se lit pas, ou dont une Weapon n'est ni portée d'office ni offerte par une
+ * option, n'en publie aucune : ses options sont à écrire, plutôt que fausses.
+ */
+function wargearOf(translated: Translated, types: ModelType[], weapons: Weapon[]): Pick<CatalogueUnit, 'wargearOptions' | 'untranslated'> {
+  const offered = new Set([...types.flatMap((t) => t.defaultWargear.map((w) => w.weapon)), ...translated.options.flatMap((o) => o.alternatives.flatMap((a) => a.weapons.map((w) => w.weapon)))]);
+  const lost = weapons.map(weaponRef).filter((r) => !offered.has(r));
+  const untranslated = [...translated.untranslated, ...(lost.length ? [{ group: lost.map((r) => r.slice(r.indexOf('|') + 1)).join(', '), why: 'weapons that no option offers' }] : [])];
+  return untranslated.length ? { wargearOptions: [], untranslated } : { wargearOptions: translated.options };
+}
+
+/** Le type qui complète l'Unit : le plus nombreux. */
+const mainType = (types: ModelType[]) => types.reduce((a, b) => (b.max > a.max ? b : a)).name;
+
+/**
+ * Les types de figurine d'une datasheet et leur Default Wargear, par figurine.
+ *
+ * Les entrées de figurine retenues par défaut disent les types — une
+ * configuration « Nob w/ … » est un Nob — et leurs bornes, combien il y en a.
+ * Une Weapon portée d'office l'est par le type de l'entrée qui la porte ; une
+ * Weapon posée sur l'Unit elle-même, par le type qui la complète.
+ */
+function modelTypesOf(unit: string, sizes: { min: number; max: number }, acc: Collected, kept: FlatProfile[]): ModelType[] {
+  const slots = [...acc.slots.keys()].map((id) => ({ id, info: acc.slotInfo.get(id) })).filter((s) => s.info);
+  const names = [...new Set(slots.map((s) => typeName(s.info!.name)))];
+  const single = names.length <= 1;
+  const types: ModelType[] = (single ? [names[0] ?? unit] : names).map((name) => {
+    if (single) return { name, min: sizes.min, max: sizes.max, defaultWargear: [] };
+    const all = [...acc.slotInfo.values()].filter((i) => typeName(i.name) === name);
+    const mine = slots.filter((s) => typeName(s.info!.name) === name).map((s) => s.info!);
+    const max = Math.min(sizes.max, Math.max(0, ...all.map((i) => i.max))) || sizes.max;
+    return { name, min: Math.min(max, Math.max(0, ...mine.map((i) => i.min))), max, defaultWargear: [] };
+  });
+  /*
+   * BSData décrit souvent la composition d'une seule escouade — 1 Sergeant et
+   * 9 soldats — quand l'Unit se joue jusqu'à 20 : chaque type peut alors
+   * compter autant de fois plus, deux Sergeants à vingt.
+   */
+  const room = types.reduce((n, t) => n + t.max, 0);
+  if (!single && room > 0 && room < sizes.max) {
+    const times = Math.ceil(sizes.max / room);
+    for (const t of types) t.max = Math.min(sizes.max, t.max * times);
+  }
+  const filler = mainType(types);
+  const typeOfSlot = new Map(slots.map((s) => [s.id, single ? types[0].name : typeName(s.info!.name)]));
+  for (const w of kept) {
+    const perSlot = acc.strictDefaults.get(weaponKey(w));
+    if (!perSlot) continue;
+    for (const slotId of perSlot) {
+      const type = types.find((t) => t.name === (typeOfSlot.get(slotId) ?? filler))!;
+      const ref = refOf(w);
+      if (!type.defaultWargear.some((x) => x.weapon === ref)) type.defaultWargear.push({ weapon: ref, count: 1 });
+    }
+  }
+  return types;
+}
+
 /** Extrait les datasheets d'un ensemble de catalogues déjà chargés. */
 /**
  * @param catalogues tous les fichiers nécessaires à la résolution des liens.
@@ -878,7 +1075,7 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
 
       const acc: Collected = {
         models: [], weapons: [], abilities: [], keywords: new Set(), armyRules: new Set(), coreRules: new Set(), armyRuleIds, primaryId,
-        defaults: new Map(), composition: new Map(), slots: new Map(),
+        defaults: new Map(), composition: new Map(), slots: new Map(), slotInfo: new Map(), strictDefaults: new Map(), optionalEntries: [],
       };
       collect(root, byId, acc, new Set([visitKey('e', root.id, '', true)]), 0);
       if (acc.models.length === 0) continue;
@@ -924,7 +1121,7 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
             : here;
         defaultCounts.set(ref, Math.max(defaultCounts.get(ref) ?? 0, full));
       }
-      const limits = carrierLimits(optionGroups, defaultCounts);
+      const limits = carrierLimits(optionGroups.filter((g) => !g.newOnly), defaultCounts);
       const weapons = groupProfiles(kept).map((w) => {
         const cap = limits.get(weaponRef(w));
         return cap ? { ...w, maxCarriers: cap } : w;
@@ -971,6 +1168,28 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
         const ref = refOf(w);
         defaultCarriers.set(ref, Math.max(defaultCarriers.get(ref) ?? 0, Math.min(defaultModels, carriers(perSlot))));
       }
+      const keptGroups = optionGroups
+        .map((g) => ({ ...g, options: g.options.filter((o) => o.weapons.some((r) => keptRefs.has(r))) }))
+        .filter((g, _i, all) => g.options.length >= 2 || (g.pool && g.options.length === 1 && all.some((c) => c.parent === g.id)));
+      const modelTypes = modelTypesOf(name, sizes, acc, kept);
+      const typeOfSlot = (slot: string) => (slot && modelTypes.some((t) => t.name === typeName(slot)) ? typeName(slot) : mainType(modelTypes));
+      const extras = [...new Map(acc.optionalEntries.map((e) => [e.id, e])).values()]
+        .filter((e) => e.weapons.some((r) => keptRefs.has(r)))
+        .map((e) => ({ ...e, model: typeOfSlot(acc.slotInfo.get(e.slotId)?.name ?? '') }));
+      const translated = translateWargear(
+        keptGroups,
+        modelTypes,
+        (g) => {
+          if (g.slot) return typeOfSlot(g.slot);
+          // Un pool se rattache au type de sa configuration par défaut ; un choix imbriqué, à celui de son pool.
+          const pool = g.pool ? g : keptGroups.find((p) => p.id === g.parent);
+          const named = pool?.options.find((o) => o.isDefault) ?? pool?.options[0];
+          return typeOfSlot(named?.name ?? '');
+        },
+        extras,
+        sizes.min,
+      );
+
       const fromLeader = targetsOf('leader');
       const leaderTargets = supportKeyword ? [] : fromLeader;
       const supportTargets = [...targetsOf('support'), ...(supportKeyword ? fromLeader : [])];
@@ -1003,9 +1222,11 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
           .map((m) => ({ name: m.name, ...acc.composition.get(m.name)! })),
         // On ne garde que les choix dont les armes ont survécu à la déduplication —
         // et l'emplacement à une configuration dont d'autres choix puisent les figurines.
-        optionGroups: optionGroups
-          .map((g) => ({ ...g, options: g.options.filter((o) => o.weapons.some((r) => keptRefs.has(r))) }))
-          .filter((g, _i, all) => g.options.length >= 2 || (g.pool && g.options.length === 1 && all.some((c) => c.parent === g.id))),
+        optionGroups: keptGroups
+          .filter((g) => !g.newOnly)
+          .map(({ newOnly: _n, ...g }) => ({ ...g, options: g.options.map(({ unitCap: _c, capBrackets: _b, ...o }) => o) })),
+        modelTypes,
+        ...wargearOf(translated, modelTypes, weapons),
         defaultLoadout: weapons
           .filter((w) => defaultCarriers.has(weaponRef(w)))
           .map((w) => ({ weapon: w.name, kind: w.kind, count: defaultCarriers.get(weaponRef(w))! })),
