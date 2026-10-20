@@ -1017,6 +1017,16 @@ function modelTypesOf(unit: string, sizes: { min: number; max: number }, acc: Co
     const max = Math.min(sizes.max, Math.max(0, ...all.map((i) => i.max))) || sizes.max;
     return { name, min: Math.min(max, Math.max(0, ...mine.map((i) => i.min))), max, defaultWargear: [] };
   });
+  /*
+   * BSData décrit souvent la composition d'une seule escouade — 1 Sergeant et
+   * 9 soldats — quand l'Unit se joue jusqu'à 20 : chaque type peut alors
+   * compter autant de fois plus, deux Sergeants à vingt.
+   */
+  const room = types.reduce((n, t) => n + t.max, 0);
+  if (!single && room > 0 && room < sizes.max) {
+    const times = Math.ceil(sizes.max / room);
+    for (const t of types) t.max = Math.min(sizes.max, t.max * times);
+  }
   const filler = mainType(types);
   const typeOfSlot = new Map(slots.map((s) => [s.id, single ? types[0].name : typeName(s.info!.name)]));
   for (const w of kept) {
