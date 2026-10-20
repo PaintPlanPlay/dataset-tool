@@ -141,7 +141,7 @@ try {
     };
     check('un coût posé sur une option du Warboss reste actif, sur la Wargear Alternative de même identifiant', verdict().get(squig.target) === 'active' && bill('u-warboss', 'e-slugga') === 'Attack squig', String(bill('u-warboss', 'e-slugga')));
     const flagged = ws.current?.contributions?.find((c) => c.target === createdTwin.target);
-    check('une option créée que l\'import donne désormais est signalée, à rattacher', flagged?.state === 'flagged' && /reattach/.test(flagged.note), JSON.stringify(flagged));
+    check('une option créée que l\'import donne désormais ne trouve plus sa cible, et dit à quoi la rattacher', flagged?.state === 'unresolved' && /reattach the contribution to it/.test(flagged.note), JSON.stringify(flagged));
     const board = (await call<Unreleased>('/api/unreleased')).body;
     check('le tableau de bord propose de la rattacher', board.findings.some((f) => f.reattach === createdTwin.target));
     const offer = await candidates(createdTwin.target);

@@ -255,129 +255,6 @@
       ],
       "additionalProperties": false
     },
-    "weaponOption": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "maxLength": 120
-        },
-        "name": {
-          "type": "string",
-          "maxLength": 160
-        },
-        "weapons": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "maxLength": 140
-          }
-        },
-        "maxCarriers": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "perModels": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "isDefault": {
-          "type": "boolean"
-        },
-        "wargearCost": {
-          "$ref": "#/$defs/wargearCost"
-        },
-        "abilities": {
-          "description": "Aptitudes de l'Unit que l'option apporte, par nom : actives seulement pour les figurines qui la prennent.",
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/name"
-          }
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "weapons",
-        "maxCarriers",
-        "isDefault"
-      ],
-      "additionalProperties": false
-    },
-    "optionGroup": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "maxLength": 120
-        },
-        "name": {
-          "type": "string",
-          "maxLength": 160
-        },
-        "tree": {
-          "type": "string",
-          "maxLength": 120
-        },
-        "parent": {
-          "type": "string",
-          "maxLength": 120
-        },
-        "slot": {
-          "type": "string",
-          "maxLength": 120
-        },
-        "pool": {
-          "type": "boolean"
-        },
-        "minPicks": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "maxPicks": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "pickBrackets": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "atModels": {
-                "type": "integer"
-              },
-              "maxPicks": {
-                "type": "integer"
-              }
-            },
-            "required": [
-              "atModels",
-              "maxPicks"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "options": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/weaponOption"
-          }
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "tree",
-        "parent",
-        "slot",
-        "pool",
-        "minPicks",
-        "maxPicks",
-        "pickBrackets",
-        "options"
-      ],
-      "additionalProperties": false
-    },
     "weaponCount": {
       "description": "Une Weapon, en clé « kind|name », et son nombre.",
       "type": "object",
@@ -784,10 +661,6 @@
           "type": "integer",
           "minimum": 0
         },
-        "defaultModels": {
-          "type": "integer",
-          "minimum": 0
-        },
         "composition": {
           "type": "array",
           "items": {
@@ -811,39 +684,6 @@
               "max"
             ],
             "additionalProperties": false
-          }
-        },
-        "defaultLoadout": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "weapon": {
-                "$ref": "#/$defs/name"
-              },
-              "kind": {
-                "enum": [
-                  "ranged",
-                  "melee"
-                ]
-              },
-              "count": {
-                "type": "integer",
-                "minimum": 0
-              }
-            },
-            "required": [
-              "weapon",
-              "kind",
-              "count"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "optionGroups": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/optionGroup"
           }
         },
         "modelTypes": {
@@ -1794,7 +1634,7 @@
       "additionalProperties": false
     },
     "wargearCost": {
-      "description": "La ligne `wargear` de l'Unit (MFM) qui facture l'option, par son nom tel qu'écrit dans le MFM, et combien de fois par figurine. Le montant se lit dans cette ligne, jamais ici.",
+      "description": "La ligne `wargear` de l'Unit (MFM) qui facture la Wargear Alternative, par son nom tel qu'écrit dans le MFM, et combien de fois par figurine. Le montant se lit dans cette ligne, jamais ici.",
       "type": "object",
       "properties": {
         "item": {

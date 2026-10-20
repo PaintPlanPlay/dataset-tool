@@ -16,12 +16,12 @@ const GS = 'wh40k-11e';
 const out = await build({ snapshot: openSnapshot(fixture('snapshot')) });
 const unitOf = (army: string, name: string) => (out.files.get(`${GS}/armies/${army}.json`) as ArmyFile).units.find((u) => u.name === name) as Unit;
 
-section('La nouvelle forme, à côté de l\'ancienne');
+section('La nouvelle forme, seule');
 {
   const invalid = [...out.files].flatMap(([path, data]) => (path.includes('/armies/') ? validateFile('army', data).map((e) => `${path} ${e}`) : []));
-  check('le Dataset valide contre le schéma, les deux formes ensemble', invalid.length === 0, invalid.slice(0, 3).join(' | '));
+  check('le Dataset valide contre le schéma', invalid.length === 0, invalid.slice(0, 3).join(' | '));
   const boss = unitOf('orks', 'Warboss');
-  check('l\'ancienne forme est toujours publiée', Boolean(boss.optionGroups?.length && boss.defaultLoadout?.length));
+  check('l\'ancienne forme n\'est plus publiée', !('optionGroups' in boss) && !('defaultLoadout' in boss));
 }
 
 section('Le Warboss : un groupe avec un défaut, un seul choix');

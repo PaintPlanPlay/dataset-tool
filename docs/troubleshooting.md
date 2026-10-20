@@ -74,7 +74,7 @@ description over 160 characters.
 **"…is not a Unit of this Army"** — a leader or support attachment names a unit
 the army does not have. Pick the name from the autocomplete.
 
-**"…is not a Weapon of this Unit"** — a wargear option equips a weapon the unit
+**"…is not a Weapon of this Unit"** — a wargear option or its default wargear names a weapon the unit
 does not have. Add the weapon first, in **Weapons**.
 
 **"…is not a weapon keyword of the rules"** — an added weapon keyword must come
@@ -136,7 +136,7 @@ The source changed to a value that is neither the old one nor yours. Open the
 sheet, compare with the official document, and either correct again or undo.
 
 **A contribution is marked *flagged***
-Something it names is gone — usually an ability a wargear option brought, that
+Something it names is gone — usually an ability a wargear alternative brought, that
 the unit no longer has. The rest is still applied: re-target it or remove the
 name.
 

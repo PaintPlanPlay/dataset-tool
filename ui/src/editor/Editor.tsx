@@ -17,7 +17,7 @@ import { branchLabel, HIDDEN, humanize, kindOf, type Located, type SchemaSet } f
 import { addedFieldOf, defaultOf, getAt, pointer, same, type Path } from './values.ts';
 
 /** Champs dérivés au build : ils s'affichent, ils ne se saisissent pas. */
-const DERIVED = new Set(['points', 'costBrackets', 'minModels', 'maxModels', 'defaultModels', 'rangeInches', 'source', 'conditional', 'armyRuleIds', 'statuses']);
+const DERIVED = new Set(['points', 'costBrackets', 'minModels', 'maxModels', 'rangeInches', 'source', 'conditional', 'armyRuleIds', 'statuses']);
 
 /** Les points d'une Enhancement viennent du MFM tels quels : ils se corrigent, ils ne se dérivent pas. */
 const derivedAt = (path: Path) => {

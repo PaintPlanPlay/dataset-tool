@@ -63,7 +63,15 @@ type UnitValue = {
   pricing?: { from: number; to: number | null; costs: { models: number; points: number }[] }[];
   leaderTargets: string[];
   keywords: string[];
-  optionGroups?: { id: string; tree: string; parent: string; slot: string; options: { id: string; name: string; weapons: string[]; maxCarriers: number; perModels?: number; isDefault: boolean }[] }[];
+  modelTypes?: { name: string; min: number; max: number; defaultWargear: { weapon: string; count: number }[] }[];
+  wargearOptions?: {
+    id: string;
+    model: string;
+    who: { type: string; models?: number; every?: number };
+    replaces: { weapon: string; count: number }[];
+    upTo?: number;
+    alternatives: { id: string; name?: string; weapons: { weapon: string; count: number }[]; wargearCost?: { item: string; quantity?: number }; abilities?: string[] }[];
+  }[];
 };
 
 try {
@@ -240,37 +248,25 @@ try {
   check('un Mouvement saisi sans « " » s\'écrit avec', legsSave.body.files.map((f) => readJson<Correction>(f.path)).some((c) => c.patch.M === '5"'), JSON.stringify(legsSave.body));
   for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
 
-  section('#94 : groupes d\'options');
+  section('#94 : Wargear Options en phrases');
   const opts = clone(warboss);
-  const group = opts.optionGroups![0];
-  group.options.push({ id: 'new-option', name: 'Nob w/ Kombi-skorcha', weapons: ['ranged|Kombi-skorcha'], maxCarriers: 1, isDefault: false });
+  opts.wargearOptions!.push({ id: 'contrib-1', model: 'Warboss', who: { type: 'per', models: 1, every: 5 }, replaces: [], alternatives: [{ id: 'contrib-1-a', weapons: [{ weapon: 'ranged|Kombi-skorcha', count: 1 }] }] });
   const missingWeapon = await save('u-warboss', opts);
-  check('une option qui référence une Weapon absente de l\'Unit est refusée', missingWeapon.status === 400 && git('status', '--porcelain') === '', JSON.stringify(missingWeapon.body));
-  group.options[group.options.length - 1] = { id: 'new-option', name: 'One in five', weapons: ['ranged|Slugga'], maxCarriers: 1, perModels: 5, isDefault: false };
+  check('une phrase qui nomme une Weapon absente de l\'Unit est refusée', missingWeapon.status === 400 && git('status', '--porcelain') === '', JSON.stringify(missingWeapon.body));
+  opts.wargearOptions![opts.wargearOptions!.length - 1].alternatives[0].weapons = [{ weapon: 'ranged|Slugga', count: 1 }];
   const optSave = await save('u-warboss', opts);
-  const created = readContributions(dir, 'wh40k-11e').find((e) => e.target === `u-warboss::option:${group.id}|new-option`);
+  const created = readContributions(dir, 'wh40k-11e').find((e) => e.target === 'u-warboss::wargear:contrib-1');
   check(
-    'ajouter une option « 1 pour 5 figurines » : une Wargear Option absente de BSData, donc une Contribution (ADR 0010), sans Correction',
-    optSave.body.files.every((f) => f.kind === 'contribution') && created?.option?.perModels === 5 && created.option.name === 'One in five',
+    'écrire une phrase « 1 pour 5 figurines » : une Contribution, sans Correction',
+    optSave.body.files.every((f) => f.kind === 'contribution') && created?.wargearOption?.who.type === 'per' && created.wargearUpstream === null,
     JSON.stringify(optSave.body),
   );
   for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
   await refresh();
-  const tighter = clone(warboss);
-  tighter.optionGroups![0].options[0].maxCarriers = 1;
-  const tighterSave = await save('u-warboss', tighter);
-  const optFile = tighterSave.body.files.map((f) => readJson<Correction>(f.path)).find((c) => 'optionGroups' in c.patch);
-  const savedGroup = (optFile?.patch.optionGroups as UnitValue['optionGroups'])?.[0];
-  check(
-    'régler une option de BSData : Correction sur optionGroups, tree/parent/slot gardés',
-    savedGroup?.options[0].maxCarriers === 1 && savedGroup.tree === group.tree && savedGroup.parent === group.parent && savedGroup.slot === group.slot,
-    JSON.stringify(optFile),
-  );
-  for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
   const unarmed = clone(warboss);
   unarmed.weapons = unarmed.weapons.filter((w) => !(w.kind === 'ranged' && w.name === 'Slugga'));
   const unarmedSave = await save('u-warboss', unarmed);
-  check('retirer une Weapon qu\'une option équipe encore est refusé', unarmedSave.status === 400 && git('status', '--porcelain') === '', JSON.stringify(unarmedSave.body) + git('status', '--porcelain'));
+  check('retirer une Weapon qu\'une phrase donne encore est refusé', unarmedSave.status === 400 && git('status', '--porcelain') === '', JSON.stringify(unarmedSave.body) + git('status', '--porcelain'));
   for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
 
   section('#95 : Abilities et Contributions');
@@ -300,10 +296,10 @@ try {
   );
   for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
 
-  section('#124 : lier une Wargear Option à une ligne du MFM');
+  section('#124 : lier une Wargear Alternative à une ligne du MFM');
   {
-    type Option = NonNullable<UnitValue['optionGroups']>[number]['options'][number] & { wargearCost?: { item: string; quantity?: number }; abilities?: string[] };
-    const optionIn = (u: UnitValue, id: string) => u.optionGroups!.flatMap((g) => g.options).find((o) => o.id === id) as Option;
+    type Alternative = NonNullable<UnitValue['wargearOptions']>[number]['alternatives'][number];
+    const optionIn = (u: UnitValue, id: string) => u.wargearOptions!.flatMap((o) => o.alternatives).find((a) => a.id === id) as Alternative;
     const ext = await sheet('u-exterminator');
     check(
       'la fiche porte les findings de liaison de son Unit',
@@ -311,12 +307,12 @@ try {
       JSON.stringify(ext.wargear),
     );
     const linked = clone(ext.value as UnitValue);
-    optionIn(linked, 'e-ext-lascannon').wargearCost = { item: 'Lascannon' };
-    const linkSave = await save('u-exterminator', linked, 'Le Lascannon de coque est facturé dans l\'app officielle.');
-    const entry = readContributions(dir, 'wh40k-11e').find((e) => e.target === 'u-exterminator::option:g-ext-hull|e-ext-lascannon');
+    optionIn(linked, 'e-ext-hb').wargearCost = { item: 'Heavy bolter' };
+    const linkSave = await save('u-exterminator', linked, 'Le Heavy bolter de coque est facturé dans l\'app officielle.');
+    const entry = readContributions(dir, 'wh40k-11e').find((e) => e.target === 'u-exterminator::option:g-ext-hull|e-ext-hb');
     check(
-      'lier une option : une Contribution, sans Correction',
-      linkSave.status === 201 && linkSave.body.files.every((f) => f.kind === 'contribution') && entry?.wargearCost?.item === 'Lascannon',
+      'lier une alternative : une Contribution, sans Correction',
+      linkSave.status === 201 && linkSave.body.files.every((f) => f.kind === 'contribution') && entry?.wargearCost?.item === 'Heavy bolter',
       JSON.stringify(linkSave.body),
     );
     await refresh();
@@ -324,22 +320,10 @@ try {
     const mark = after.marks.find((m) => m.path.endsWith('/wargearCost'));
     check(
       'le lien s\'applique, se marque comme Contribution, et la ligne n\'est plus signalée',
-      optionIn(after.value as UnitValue, 'e-ext-lascannon').wargearCost?.item === 'Lascannon' && mark?.kind === 'contribution' && !after.wargear.some((f) => f.item === 'Lascannon'),
+      optionIn(after.value as UnitValue, 'e-ext-hb').wargearCost?.item === 'Heavy bolter' && mark?.kind === 'contribution' && !after.wargear.some((f) => f.item === 'Heavy bolter'),
       JSON.stringify(after.marks),
     );
-    check('le lien est une Pending Change', (await pending()).some((p) => p.kind === 'contribution' && p.target === 'u-exterminator::option:g-ext-hull|e-ext-lascannon'));
-
-    const both = clone(after.value as UnitValue);
-    optionIn(both, 'e-ext-2mm').wargearCost = { item: 'Multi-melta', quantity: 1 };
-    optionIn(both, 'e-ext-2hb').maxCarriers = 1;
-    const bothSave = await save('u-exterminator', both, 'Test : un lien et une Correction ensemble.');
-    const groupsFix = bothSave.body.files.find((f) => f.kind === 'correction');
-    check(
-      'régler un lien et une option d\'un coup : le lien en Contribution, l\'option en Correction sans lien',
-      bothSave.status === 201 && Boolean(groupsFix) && !readFileSync(join(dir, groupsFix!.path), 'utf8').includes('wargearCost') &&
-        readContributions(dir, 'wh40k-11e').some((e) => e.target === 'u-exterminator::option:g-ext-sponsons|e-ext-2mm' && e.wargearCost?.quantity === 1),
-      JSON.stringify(bothSave.body),
-    );
+    check('le lien est une Pending Change', (await pending()).some((p) => p.kind === 'contribution' && p.target === 'u-exterminator::option:g-ext-hull|e-ext-hb'));
 
     const mnz = await sheet('u-meganobz');
     const unlinked = clone(mnz.value as UnitValue);
@@ -347,7 +331,7 @@ try {
     const unlinkSave = await save('u-meganobz', unlinked, 'Test : délier.');
     check(
       'délier un lien automatique : une Contribution qui délie',
-      unlinkSave.status === 201 && readContributions(dir, 'wh40k-11e').some((e) => e.target === 'u-meganobz::option:g-meganobz|m-mnz-twin' && e.wargearCost === null),
+      unlinkSave.status === 201 && readContributions(dir, 'wh40k-11e').some((e) => e.target === 'u-meganobz::option:m-mnz-twin|m-mnz-twin' && e.wargearCost === null),
       JSON.stringify(unlinkSave.body),
     );
     const wrong = clone(ext.value as UnitValue);
@@ -357,63 +341,60 @@ try {
     await refresh();
   }
 
-  section('#125 : aptitudes apportées par une Wargear Option');
+  section('#125 : aptitudes apportées par une Wargear Alternative');
   {
-    type Option = NonNullable<UnitValue['optionGroups']>[number]['options'][number] & { abilities?: string[] };
     const wolves = await sheet('u-wolfguard-terminators');
     const draft = clone(wolves.value as UnitValue);
-    (draft.optionGroups!.flatMap((g) => g.options).find((o) => o.id === 'm-wgt-shield') as Option).abilities = ['Storm Shield'];
+    draft.wargearOptions!.flatMap((o) => o.alternatives).find((a) => a.id === 'm-wgt-shield')!.abilities = ['Storm Shield'];
     const saved = await save('u-wolfguard-terminators', draft, 'Le bouclier apporte l\'aptitude Storm Shield.');
     check(
-      'rattacher une aptitude à une option : une Contribution',
+      'rattacher une aptitude à une alternative : une Contribution',
       saved.status === 201 && saved.body.files.every((f) => f.kind === 'contribution') &&
-        readContributions(dir, 'wh40k-11e').some((e) => e.target === 'u-wolfguard-terminators::option:g-wgt|m-wgt-shield' && e.abilities?.join() === 'Storm Shield'),
+        readContributions(dir, 'wh40k-11e').some((e) => e.target === 'u-wolfguard-terminators::option:m-wgt-shield|m-wgt-shield' && e.abilities?.join() === 'Storm Shield'),
       JSON.stringify(saved.body),
     );
     const bad = clone(wolves.value as UnitValue);
-    (bad.optionGroups!.flatMap((g) => g.options).find((o) => o.id === 'm-wgt-shield') as Option).abilities = ['Not Here'];
+    bad.wargearOptions!.flatMap((o) => o.alternatives).find((a) => a.id === 'm-wgt-shield')!.abilities = ['Not Here'];
     check('une aptitude que l\'Unit n\'a pas est refusée', (await save('u-wolfguard-terminators', bad)).status === 400);
     for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
     await refresh();
   }
 
-  section('#126 : créer une Wargear Option par Contribution');
+  section('#126 : une Wargear Alternative sans Weapon, écrite à la main');
   {
-    type Option = NonNullable<UnitValue['optionGroups']>[number]['options'][number] & { wargearCost?: { item: string }; abilities?: string[] };
     const victrix = await sheet('u-victrix');
     const draft = clone(victrix.value as UnitValue);
-    const banner: Option = {
+    const model = draft.modelTypes![0].name;
+    draft.wargearOptions!.push({
       id: 'contrib-1',
-      name: 'Banner of Macragge',
-      weapons: ['ranged|Master-crafted bolt carbine', 'melee|Master-crafted power weapon'],
-      maxCarriers: 1,
-      isDefault: false,
-      wargearCost: { item: 'Banner of Macragge' },
-      abilities: ['Banner of Macragge'],
-    };
-    draft.optionGroups![0].options.push(banner);
+      model,
+      who: { type: 'up-to', models: 1 },
+      replaces: [],
+      alternatives: [{ id: 'contrib-1-a', name: 'Banner of Macragge', weapons: [], wargearCost: { item: 'Banner of Macragge' }, abilities: ['Banner of Macragge'] }],
+    });
     const saved = await save('u-victrix', draft, 'La bannière existe dans l\'app officielle, pas dans BSData.');
-    const entry = readContributions(dir, 'wh40k-11e').find((e) => e.target === 'u-victrix::option:g-victrix|contrib-1');
+    const written = readContributions(dir, 'wh40k-11e');
     check(
-      'créer une option : une seule Contribution, qui porte l\'option, son lien au MFM et son aptitude',
+      'écrire une phrase : la phrase en Contribution, le coût et l\'aptitude de son alternative à son adresse',
       saved.status === 201 && saved.body.files.every((f) => f.kind === 'contribution') &&
-        entry?.option?.name === 'Banner of Macragge' && entry.wargearCost?.item === 'Banner of Macragge' && entry.abilities?.join() === 'Banner of Macragge',
+        written.find((e) => e.target === 'u-victrix::wargear:contrib-1')?.wargearOption?.alternatives[0].name === 'Banner of Macragge' &&
+        written.some((e) => e.target === 'u-victrix::option:contrib-1|contrib-1-a' && e.wargearCost?.item === 'Banner of Macragge' && e.abilities?.join() === 'Banner of Macragge'),
       JSON.stringify(saved.body),
     );
     await refresh();
     const after = await sheet('u-victrix');
     const value = after.value as UnitValue;
-    const at = value.optionGroups![0].options.findIndex((o) => o.id === 'contrib-1');
+    const at = value.wargearOptions!.findIndex((o) => o.id === 'contrib-1');
     check(
-      'l\'option créée est construite, marquée Contribution, et sa ligne n\'est plus orpheline',
-      at >= 0 && after.marks.some((m) => m.path === `/optionGroups/0/options/${at}` && m.kind === 'contribution') && !after.wargear.some((f) => f.item === 'Banner of Macragge'),
+      'la phrase est construite, marquée Contribution, et sa ligne n\'est plus orpheline',
+      at >= 0 && value.wargearOptions![at].alternatives[0].wargearCost?.item === 'Banner of Macragge' && after.marks.some((m) => m.path === `/wargearOptions/${at}` && m.kind === 'contribution') && !after.wargear.some((f) => f.item === 'Banner of Macragge'),
       JSON.stringify(after.marks),
     );
     const removed = clone(value);
-    removed.optionGroups![0].options = removed.optionGroups![0].options.filter((o) => o.id !== 'contrib-1');
-    const removal = await save('u-victrix', removed, 'Test : retirer l\'option créée.');
+    removed.wargearOptions = removed.wargearOptions!.filter((o) => o.id !== 'contrib-1');
+    const removal = await save('u-victrix', removed, 'Test : retirer la phrase écrite.');
     check(
-      'retirer une option créée retire sa Contribution, sans Correction',
+      'retirer une phrase écrite à la main retire ses Contributions, sans Correction',
       removal.status === 201 && removal.body.files.every((f) => f.kind === 'contribution') && !readContributions(dir, 'wh40k-11e').some((e) => e.target.startsWith('u-victrix::')),
       JSON.stringify(removal.body),
     );

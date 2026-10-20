@@ -1,11 +1,11 @@
 /**
- * Le Wargear Cost porté par la Wargear Option (#121), sur le point de test de
- * construction : un instantané figé et des Corrections entrent, un Dataset et
- * ses findings sortent.
+ * Le Wargear Cost porté par la Wargear Alternative (#121, ADR 0024), sur le
+ * point de test de construction : un instantané figé et des Corrections
+ * entrent, un Dataset et ses findings sortent.
  *
  *   npx tsx test/wargear.test.ts
  */
-import type { ArmyFile, Unit, WeaponOption } from '@paintplanplay/dataset-schema';
+import type { ArmyFile, Unit, WargearAlternative } from '@paintplanplay/dataset-schema';
 import { validateFile } from '@paintplanplay/dataset-schema/validate';
 import { build, type BuildOutput } from '../src/build.ts';
 import { makeReport, renderReport } from '../src/report.ts';
@@ -19,8 +19,9 @@ const snapshot = openSnapshot(fixture('snapshot'));
 
 const unitOf = (out: BuildOutput, army: string, name: string) =>
   (out.files.get(`${GS}/armies/${army}.json`) as ArmyFile).units.find((u) => u.name === name) as Unit;
-const optionOf = (u: Unit, name: string) => u.optionGroups!.flatMap((g) => g.options).find((o) => o.name === name) as WeaponOption;
-const cost = (o: WeaponOption | undefined) => (o?.wargearCost ? `${o.wargearCost.item}×${o.wargearCost.quantity ?? 1}` : 'none');
+/** Une Wargear Alternative, par son identifiant (celui de l'option BSData d'où elle vient). */
+const optionOf = (u: Unit, id: string) => u.wargearOptions?.flatMap((o) => o.alternatives).find((a) => a.id === id) as WargearAlternative;
+const cost = (o: WargearAlternative | undefined) => (o?.wargearCost ? `${o.wargearCost.item}×${o.wargearCost.quantity ?? 1}` : 'none');
 const finding = (out: BuildOutput, unit: string, item: string) => out.wargear.find((f) => f.unit === unit && f.item === item);
 
 const plain = await build({ snapshot });
@@ -28,27 +29,27 @@ const plain = await build({ snapshot });
 section('Wargear Cost : liaison automatique');
 {
   const meganobz = unitOf(plain, 'orks', 'Meganobz');
-  check('« Twin Killsaws » (MFM) se lie à l\'option « Meganob w/ Twin Killsaw »', cost(optionOf(meganobz, 'Meganob w/ Twin Killsaw')) === 'Twin Killsaws×1', cost(optionOf(meganobz, 'Meganob w/ Twin Killsaw')));
+  check('« Twin Killsaws » (MFM) se lie à la Wargear Alternative « Meganob w/ Twin Killsaw »', cost(optionOf(meganobz, 'm-mnz-twin')) === 'Twin Killsaws×1', cost(optionOf(meganobz, 'm-mnz-twin')));
   const exterminator = unitOf(plain, 'astra-militarum', 'Leman Russ Exterminator');
-  check('« 2 Multi-meltas » se lie à « Multi-melta » avec une quantité de 2', cost(optionOf(exterminator, '2 Multi-meltas')) === 'Multi-melta×2', cost(optionOf(exterminator, '2 Multi-meltas')));
-  check('« 2 Plasma Cannons » se lie à « Plasma cannon », casse ignorée', cost(optionOf(exterminator, '2 Plasma Cannons')) === 'Plasma cannon×2');
+  check('« 2 Multi-meltas » se lie à « Multi-melta » avec une quantité de 2', cost(optionOf(exterminator, 'e-ext-2mm')) === 'Multi-melta×2', cost(optionOf(exterminator, 'e-ext-2mm')));
+  check('« 2 Plasma Cannons » se lie à « Plasma cannon », casse ignorée', cost(optionOf(exterminator, 'e-ext-2pc')) === 'Plasma cannon×2');
   const victrix = unitOf(plain, 'space-marines', 'Victrix Honour Guard');
-  check('une ligne se lie par le nom d\'une Weapon de l\'option : « Blades of honour » au Chapter Champion', cost(optionOf(victrix, 'Chapter Champion')) === 'Blades of honour×1');
+  check('une ligne se lie par le nom d\'une Weapon de l\'option : « Blades of honour » au Chapter Champion', cost(optionOf(victrix, 'm-champion')) === 'Blades of honour×1');
   const wolves = unitOf(plain, 'space-marines', 'Wolf Guard Terminators');
-  check('la forme « … w/ X » : « Storm Shield » à « Wolf Guard Terminator w/ storm shield »', cost(optionOf(wolves, 'Wolf Guard Terminator w/ storm shield')) === 'Storm Shield×1');
-  check('le montant n\'est jamais recopié dans l\'option', !JSON.stringify(optionOf(meganobz, 'Meganob w/ Twin Killsaw')).includes('"points"'));
+  check('la forme « … w/ X » : « Storm Shield » à « Wolf Guard Terminator w/ storm shield »', cost(optionOf(wolves, 'm-wgt-shield')) === 'Storm Shield×1');
+  check('le montant n\'est jamais recopié dans l\'alternative', !JSON.stringify(optionOf(meganobz, 'm-mnz-twin')).includes('"points"'));
 }
 
 section('Wargear Cost : ce qui ne se lie pas est signalé');
 {
   const exterminator = unitOf(plain, 'astra-militarum', 'Leman Russ Exterminator');
-  check('une ligne qui ne vise qu\'une option par défaut n\'est pas liée', cost(optionOf(exterminator, 'Lascannon')) === 'none');
+  check('une ligne qui ne vise que le Default Wargear n\'est pas liée', !exterminator.wargearOptions?.some((o) => o.alternatives.some((a) => a.wargearCost?.item === 'Lascannon')));
   check('… et elle est signalée', finding(plain, 'Leman Russ Exterminator', 'Lascannon')?.kind === 'default-only', JSON.stringify(finding(plain, 'Leman Russ Exterminator', 'Lascannon')));
   const ambiguous = finding(plain, 'Leman Russ Exterminator', 'Heavy bolter');
   check(
     'une ligne qui vise plusieurs options est ambiguë, et ne lie aucune',
     ambiguous?.kind === 'ambiguous' && ambiguous.options.join() === 'Heavy bolter,2 Heavy Bolters' &&
-      cost(optionOf(exterminator, 'Heavy bolter')) === 'none' && cost(optionOf(exterminator, '2 Heavy Bolters')) === 'none',
+      cost(optionOf(exterminator, 'e-ext-hb')) === 'none' && cost(optionOf(exterminator, 'e-ext-2hb')) === 'none',
     JSON.stringify(ambiguous),
   );
   check('une ligne liée à aucune option est orpheline', finding(plain, 'Leman Russ Exterminator', 'Hunter-killer missile')?.kind === 'orphan');
@@ -74,7 +75,7 @@ section('Wargear Cost : une Correction de la ligne du MFM');
   check(
     'le Killsaw simple passe à 0, le Twin Killsaw reste à +5 et reste lié',
     after.wargear!.find((w) => w.item === 'Killsaw')?.points === 0 && after.wargear!.find((w) => w.item === 'Twin Killsaws')?.points === 5 &&
-      cost(optionOf(after, 'Meganob w/ Twin Killsaw')) === 'Twin Killsaws×1',
+      cost(optionOf(after, 'm-mnz-twin')) === 'Twin Killsaws×1',
   );
 }
 
@@ -87,7 +88,7 @@ section('Wargear Cost : schéma');
 section('Wargear Cost : le rapport');
 {
   const text = renderReport(makeReport(plain, undefined));
-  check('le rapport liste les lignes non liées', /## Wargear costs not linked \(\d+\)/.test(text) && text.includes('`Lascannon`: only a default option matches'));
+  check('le rapport liste les lignes non liées', /## Wargear costs not linked \(\d+\)/.test(text) && text.includes('`Lascannon`: only Default Wargear matches'));
 }
 
 section('Wargear Cost : un lien posé à la main (Contribution)');
@@ -96,8 +97,6 @@ section('Wargear Cost : un lien posé à la main (Contribution)');
   const manual = await build({
     snapshot,
     authored: authored([
-      // Le Lascannon de coque est payant : lié à la main, sur l'option par défaut.
-      { target: 'u-exterminator::option:g-ext-hull|e-ext-lascannon', wargearCost: { item: 'Lascannon' }, reason: 'Le Lascannon de coque est facturé dans l\'app officielle' },
       // Un lien automatique erroné se délie.
       { target: 'u-meganobz::option:g-meganobz|m-mnz-twin', wargearCost: null, reason: 'Test : délier' },
       // Un lien manuel prime sur la proposition : « Heavy bolter » facture la coque.
@@ -107,22 +106,25 @@ section('Wargear Cost : un lien posé à la main (Contribution)');
     ]),
   });
   const exterminator = unitOf(manual, 'astra-militarum', 'Leman Russ Exterminator');
-  check('un lien manuel lie le Lascannon de coque, option par défaut', cost(optionOf(exterminator, 'Lascannon')) === 'Lascannon×1');
-  check('… et la ligne n\'est plus signalée', !finding(manual, 'Leman Russ Exterminator', 'Lascannon'));
-  check('un lien manuel prime sur la proposition automatique', cost(optionOf(exterminator, 'Heavy bolter')) === 'Heavy bolter×1' && !finding(manual, 'Leman Russ Exterminator', 'Heavy bolter'));
-  check('délier à la main supprime un lien automatique', cost(optionOf(unitOf(manual, 'orks', 'Meganobz'), 'Meganob w/ Twin Killsaw')) === 'none');
+  check('un lien manuel prime sur la proposition automatique', cost(optionOf(exterminator, 'e-ext-hb')) === 'Heavy bolter×1' && !finding(manual, 'Leman Russ Exterminator', 'Heavy bolter'));
+  check('délier à la main supprime un lien automatique', cost(optionOf(unitOf(manual, 'orks', 'Meganobz'), 'm-mnz-twin')) === 'none');
   const gone = finding(manual, 'Leman Russ Exterminator', 'Heavy flamer');
   check(
     'un lien manuel dont la ligne a disparu est signalé, et ne facture rien',
-    gone?.kind === 'missing-line' && gone.target === 'u-exterminator::option:g-ext-sponsons|e-ext-2hf' && cost(optionOf(exterminator, '2 Heavy Flamers')) === 'none',
+    gone?.kind === 'missing-line' && gone.target === 'u-exterminator::option:g-ext-sponsons|e-ext-2hf' && cost(optionOf(exterminator, 'e-ext-2hf')) === 'none',
     JSON.stringify(gone),
   );
-  check('les liens manuels sont des Contributions actives', manual.contributions.filter((c) => c.target.includes('::option:') && c.state === 'active').length === 4);
+  check('les liens manuels sont des Contributions actives', manual.contributions.filter((c) => c.target.includes('::option:') && c.state === 'active').length === 3);
   const ghost = await build({ snapshot, authored: authored([{ target: 'u-exterminator::option:g-gone|e-gone', wargearCost: { item: 'Lascannon' }, reason: 'Test' }]) });
-  check('un lien vers une option introuvable est signalé', ghost.contributions.some((c) => c.target === 'u-exterminator::option:g-gone|e-gone' && c.state === 'unresolved'));
+  check('un lien vers une alternative introuvable est signalé', ghost.contributions.some((c) => c.target === 'u-exterminator::option:g-gone|e-gone' && c.state === 'unresolved'));
+  const onDefault = await build({ snapshot, authored: authored([{ target: 'u-exterminator::option:g-ext-hull|e-ext-lascannon', wargearCost: { item: 'Lascannon' }, reason: 'Test' }]) });
+  check(
+    'un lien posé sur l\'option par défaut d\'un groupe ne vise plus rien : le Default Wargear n\'est pas une alternative',
+    onDefault.contributions.some((c) => c.target === 'u-exterminator::option:g-ext-hull|e-ext-lascannon' && c.state === 'unresolved'),
+  );
 }
 
-section('Aptitudes apportées par une Wargear Option');
+section('Aptitudes apportées par une Wargear Alternative');
 {
   const authored = (effects: AuthoredEffect[]): AuthoredCore => ({ battleSizes: [], referenceTargets: [], effects });
   const withShield = await build({
@@ -133,54 +135,38 @@ section('Aptitudes apportées par une Wargear Option');
     ]),
   });
   const wolves = unitOf(withShield, 'space-marines', 'Wolf Guard Terminators');
-  const shield = optionOf(wolves, 'Wolf Guard Terminator w/ storm shield');
-  check('l\'aptitude apportée figure sur l\'option', shield.abilities?.join() === 'Storm Shield', JSON.stringify(shield));
-  check('une option qui n\'apporte aucune Weapon distincte reste liée à sa ligne et facturée', cost(shield) === 'Storm Shield×1');
+  const shield = optionOf(wolves, 'm-wgt-shield');
+  check('l\'aptitude apportée figure sur l\'alternative', shield.abilities?.join() === 'Storm Shield', JSON.stringify(shield));
+  check('une alternative qui n\'apporte aucune Weapon reste liée à sa ligne et facturée', cost(shield) === 'Storm Shield×1');
   check('l\'aptitude reste une aptitude de l\'Unit', wolves.abilities.some((a) => a.name === 'Storm Shield'));
   const ghost = withShield.contributions.find((c) => c.target === 'u-meganobz::option:g-meganobz|m-mnz-twin');
   check(
     'une aptitude que l\'Unit n\'a pas est signalée, et n\'est pas posée',
-    ghost?.state === 'flagged' && ghost.note.includes('No Such Ability') && !optionOf(unitOf(withShield, 'orks', 'Meganobz'), 'Meganob w/ Twin Killsaw').abilities,
+    ghost?.state === 'flagged' && ghost.note.includes('No Such Ability') && !optionOf(unitOf(withShield, 'orks', 'Meganobz'), 'm-mnz-twin').abilities,
     JSON.stringify(ghost),
   );
   const problems = [...withShield.files].filter(([p]) => p.includes('/armies/')).flatMap(([, f]) => validateFile('army', f));
   check('le Dataset reste valide', problems.length === 0, problems.join(' | '));
 }
 
-section('Créer une Wargear Option par Contribution');
+section('Une option créée dans un groupe, avant les phrases');
 {
   const authored = (effects: AuthoredEffect[]): AuthoredCore => ({ battleSizes: [], referenceTargets: [], effects });
   const banner: AuthoredEffect = {
     target: 'u-victrix::option:g-victrix|contrib-banner',
-    option: {
-      name: 'Banner of Macragge',
-      weapons: ['ranged|Master-crafted bolt carbine', 'melee|Master-crafted power weapon'],
-      maxCarriers: 1,
-      isDefault: false,
-    },
+    option: { name: 'Banner of Macragge', weapons: ['ranged|Master-crafted bolt carbine', 'melee|Master-crafted power weapon'], maxCarriers: 1, isDefault: false },
     wargearCost: { item: 'Banner of Macragge' },
     abilities: ['Banner of Macragge'],
     reason: 'La bannière existe dans l\'app officielle, pas dans BSData',
   };
-  const created = await build({ snapshot, authored: authored([banner]) });
-  const victrix = unitOf(created, 'space-marines', 'Victrix Honour Guard');
-  const option = optionOf(victrix, 'Banner of Macragge');
+  const old = await build({ snapshot, authored: authored([banner]) });
+  const verdict = old.contributions.find((c) => c.target === banner.target);
   check(
-    'l\'option créée figure dans le Dataset, dans son groupe, avec ses porteurs, ses Weapons et son aptitude',
-    option?.id === 'contrib-banner' && option.maxCarriers === 1 && option.weapons.length === 2 && option.abilities?.join() === 'Banner of Macragge',
-    JSON.stringify(option),
+    'elle ne crée plus rien : elle est à réécrire en phrase',
+    verdict?.state === 'unresolved' && /write this option as a sentence/.test(verdict.note) && !JSON.stringify(unitOf(old, 'space-marines', 'Victrix Honour Guard')).includes('contrib-banner'),
+    JSON.stringify(verdict),
   );
-  check('la ligne « Banner of Macragge » n\'est plus orpheline une fois liée à l\'option créée', cost(option) === 'Banner of Macragge×1' && !finding(created, 'Victrix Honour Guard', 'Banner of Macragge'));
-  check('une option créée est une Contribution active', created.contributions.some((c) => c.target === banner.target && c.state === 'active'));
-  const lost = await build({ snapshot, authored: authored([{ ...banner, target: 'u-victrix::option:g-gone|contrib-banner' }]) });
-  check(
-    'si son groupe disparaît de BSData, un finding le signale',
-    lost.contributions.some((c) => c.target === 'u-victrix::option:g-gone|contrib-banner' && c.state === 'unresolved') &&
-      !optionOf(unitOf(lost, 'space-marines', 'Victrix Honour Guard'), 'Banner of Macragge') &&
-      /## Contributions whose target is gone \(1\)[\s\S]*u-victrix::option:g-gone\|contrib-banner/.test(renderReport(makeReport(lost, undefined))),
-  );
-  const noWeapon = await build({ snapshot, authored: authored([{ ...banner, option: { ...banner.option!, weapons: [] } }]) });
-  check('une Wargear Option peut n\'apporter aucune Weapon', optionOf(unitOf(noWeapon, 'space-marines', 'Victrix Honour Guard'), 'Banner of Macragge')?.weapons.length === 0);
+  check('le rapport la liste avec les Contributions dont la cible a disparu', /## Contributions whose target is gone \(1\)[\s\S]*u-victrix::option:g-victrix\|contrib-banner/.test(renderReport(makeReport(old, undefined))));
 }
 
 section('Une Enhancement qui apporte une Weapon');

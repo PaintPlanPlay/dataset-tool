@@ -75,19 +75,16 @@ function elementsOf(files: Map<string, unknown>, gameSystem: string, root: strin
 
 function unitElements(u: Unit, entity: string): Element[] {
   if (entity === 'ability') return u.abilities.map((a) => ({ target: `${u.id}::ability:${a.name}`, label: a.name }));
-  if (entity === 'option') {
-    const groups = (u.optionGroups ?? []).flatMap((g) => g.options.map((o) => ({ target: `${u.id}::option:${g.id}|${o.id}`, label: `${g.name} › ${o.name}` })));
-    // Les Wargear Alternatives, à l'adresse de leur option d'origine.
-    const known = new Set(groups.map((e) => e.target));
-    const alternatives = (u.wargearOptions ?? []).flatMap((o) =>
+  // Les Wargear Alternatives, à l'adresse de leur option d'origine.
+  if (entity === 'option')
+    return (u.wargearOptions ?? []).flatMap((o) =>
       o.alternatives.map((a) => ({
         target: alternativeTarget(u.id, o, a.id),
         label: a.name ?? a.weapons.map((w) => w.weapon.slice(w.weapon.indexOf('|') + 1)).join(' and '),
         wargear: { unit: u, option: o, alternative: a },
       })),
     );
-    return [...alternatives.filter((a) => !known.has(a.target)), ...groups.map((g) => ({ ...g, wargear: alternatives.find((a) => a.target === g.target)?.wargear }))];
-  }
+  if (entity === 'wargear') return (u.wargearOptions ?? []).map((o) => ({ target: `${u.id}::wargear:${o.id}`, label: o.alternatives.map((a) => a.name ?? a.id).join(' / ') }));
   return [];
 }
 

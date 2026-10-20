@@ -207,9 +207,9 @@ function bounded<T>(items: T[], max: number, render: (item: T) => string): strin
 const short = (sha: string) => sha.slice(0, 7);
 
 const WARGEAR_LABEL: Record<BuildOutput['wargear'][number]['kind'], string> = {
-  orphan: 'no Wargear Option matches',
-  ambiguous: 'several Wargear Options match',
-  'default-only': 'only a default option matches — link it by hand if it is paid',
+  orphan: 'no wargear alternative matches',
+  ambiguous: 'several wargear alternatives match',
+  'default-only': 'only Default Wargear matches — link it by hand on an alternative if it is paid',
   'missing-line': 'linked by hand, but the line is gone: it bills nothing',
 };
 
@@ -341,7 +341,7 @@ export function renderReport(r: DriftReport, options: { budget?: number } = {}):
 
   if (r.unresolvedContributions.length) {
     L.push(`## Contributions whose target is gone (${r.unresolvedContributions.length})`, '');
-    L.push('An upstream change removed what they apply to — a Wargear Option group, a Unit. They are kept, and apply nothing.', '');
+    L.push('An upstream change removed what they apply to — a wargear alternative, a Unit — or they created an option in the retired option groups. They are kept, and apply nothing: reattach them, or rewrite the option as a sentence.', '');
     L.push(...bounded(r.unresolvedContributions, 40, (c) => `- \`${c.target}\` — ${c.reason}`), '');
   }
 
@@ -358,7 +358,7 @@ export function renderReport(r: DriftReport, options: { budget?: number } = {}):
   }
   if (r.wargear.length) {
     L.push(`## Wargear costs not linked (${r.wargear.length})`, '');
-    L.push('An MFM `wargear` line bills nothing until a Wargear Option points to it. Link it by hand in the Dataset Tool, or correct the MFM line.', '');
+    L.push('An MFM `wargear` line bills nothing until a wargear alternative points to it. Link it by hand in the Dataset Tool, or correct the MFM line.', '');
     L.push(...bounded(r.wargear, 80, (f) => `- **${f.unit}** · ${f.army} — \`${f.item}\`: ${WARGEAR_LABEL[f.kind]}${f.options.length ? ` (${f.options.join(', ')})` : ''}`), '');
   }
 

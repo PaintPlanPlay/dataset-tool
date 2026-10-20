@@ -94,7 +94,7 @@ check(
 );
 
 section('Construction : Weapons des groupes partagés d\'Enhancements et de Crusade');
-const carries = (u: Unit, name: string) => u.weapons.some((w) => w.name === name) || (u.defaultLoadout ?? []).some((d) => d.weapon === name);
+const carries = (u: Unit, name: string) => u.weapons.some((w) => w.name === name) || (u.modelTypes ?? []).some((t) => t.defaultWargear.some((w) => w.weapon.endsWith(`|${name}`)));
 check('la Weapon d\'une Enhancement ne va pas sur la datasheet', !carries(warboss, 'Da Gobshot Thunderbuss'), warboss.weapons.map((w) => w.name).join(', '));
 check('un groupe « Enhancements - … » est écarté comme « Enhancements »', !carries(warboss, 'Upgrade Blasta'));
 check('une Weapon de Crusade ne va pas sur la datasheet', !carries(warboss, 'Krusade Blasta'));
@@ -137,13 +137,13 @@ check(
   boyz.weapons.map((w) => w.name).sort().join(',') === 'Big choppa,Big shoota,Burna,Choppa,Slugga' && boyz.keywords.includes('Battleline'),
   boyz.weapons.map((w) => w.name).sort().join(','),
 );
-const host = boyz.optionGroups?.find((g) => g.id === 'g-boyz');
-const special = boyz.optionGroups?.find((g) => g.id === 'g-special');
+const special = boyz.wargearOptions?.find((o) => o.id === 'g-special');
 check(
-  'un emplacement à une seule configuration est publié quand il héberge des armes spéciales',
-  host?.pool === true && host.options.length === 1 && special?.pool === true && special.parent === 'g-boyz' && special.tree === host.tree,
-  JSON.stringify(boyz.optionGroups?.map((g) => [g.id, g.parent, g.tree, g.options.length])),
+  'les armes spéciales d\'un pack puisent dans ses figurines : une phrase à l\'identifiant de leur groupe',
+  special?.model === 'Boy' && special.alternatives.map((a) => a.id).join() === 'm-boy-shoota,m-boy-burna',
+  JSON.stringify(boyz.wargearOptions),
 );
+check('les groupes d\'options ne sont plus publiés', !('optionGroups' in boyz) && !('defaultLoadout' in boyz) && !('defaultModels' in boyz));
 check('une aptitude figure par son nom', warboss.abilities.map((a) => a.name).join(',') === 'Leader,Da Boss Fixture');
 
 section('Construction : Weapons et Weapon Profiles (ADR 0009)');
@@ -156,17 +156,17 @@ check(
 check('aucune Weapon ne porte le nom d\'un profil', !/➤/.test(serialized(first)));
 const choppa = boyz.weapons.find((w) => w.name === 'Choppa');
 check('une arme simple a un seul profil, qui porte son nom', choppa?.profiles.length === 1 && choppa.profiles[0].name === 'Choppa' && choppa.profiles[0].S === 4);
-const gun = warboss.optionGroups?.find((g) => g.id === 'g-warboss-gun');
+const gun = warboss.wargearOptions?.find((o) => o.id === 'g-warboss-gun');
 check(
-  'une option d\'équipement référence la Weapon, jamais un profil',
-  gun?.options.map((o) => o.weapons.join('+')).join(',') === 'ranged|Kombi-rokkit,ranged|Slugga',
-  JSON.stringify(gun?.options.map((o) => o.weapons)),
+  'une Wargear Option référence la Weapon, jamais un profil',
+  gun?.replaces.map((w) => w.weapon).join() === 'ranged|Kombi-rokkit' && gun.alternatives.map((a) => a.weapons.map((w) => w.weapon).join('+')).join() === 'ranged|Slugga',
+  JSON.stringify(gun),
 );
 check(
-  'le loadout par défaut référence la Weapon une seule fois',
-  JSON.stringify(warboss.defaultLoadout?.filter((d) => d.kind === 'ranged')) ===
-    JSON.stringify([{ weapon: 'Kombi-rokkit', kind: 'ranged', count: 1 }, { weapon: 'Stikkbomb', kind: 'ranged', count: 1 }]),
-  JSON.stringify(warboss.defaultLoadout),
+  'le Default Wargear référence la Weapon une seule fois',
+  JSON.stringify(warboss.modelTypes?.[0].defaultWargear.filter((w) => w.weapon.startsWith('ranged|'))) ===
+    JSON.stringify([{ weapon: 'ranged|Kombi-rokkit', count: 1 }, { weapon: 'ranged|Stikkbomb', count: 1 }]),
+  JSON.stringify(warboss.modelTypes),
 );
 
 section('Construction : Faction Keywords');

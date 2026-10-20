@@ -51,7 +51,7 @@ Field by field, this is what the sheet headers of the interface show:
 
 | Sheet | Field | Source |
 |---|---|---|
-| Unit | name, Legends flag, keywords, faction keywords, army rules, models and their characteristics, composition, weapons, wargear options, default loadout | BSData |
+| Unit | name, Legends flag, keywords, faction keywords, army rules, models and their characteristics, composition, weapons, model types and their Default Wargear, wargear options — translated into sentences | BSData |
 | Unit | prices (`pricing`), Assigned Agent prices, paid wargear lines, units led, units supported | MFM |
 | Unit | base points and cost brackets | derived from the MFM prices; BSData when the unit is not in the MFM |
 | Unit | what each ability does | this project |
@@ -94,7 +94,7 @@ Two consequences worth knowing:
    `authored/…/armies/*.json` create the detachment rules and stratagems, set
    enhancement restrictions, and put Modifiers and descriptions on the rules —
    once per element, in every army that publishes it.
-6. **Link paid wargear** to the wargear options that it bills.
+6. **Link paid wargear** to the wargear alternatives that it bills.
 7. **Check for rules text.** One finding and nothing is written.
 
 The build never touches the network: it reads a **snapshot**, a frozen copy of

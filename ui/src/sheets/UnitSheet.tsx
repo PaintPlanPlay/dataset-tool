@@ -5,25 +5,19 @@
  * effectifs) s'affiche sans se saisir.
  */
 import type { ReactNode } from 'react';
-import type { Unit, WeaponOption } from '@paintplanplay/dataset-schema';
+import type { Unit } from '@paintplanplay/dataset-schema';
 import type { WargearFinding } from '../../../src/wargear.ts';
 import { Badges, Field, PointsInput, useEditor, type FieldProps } from '../editor/Editor.tsx';
-import { defaultOf, pointer, type Path } from '../editor/values.ts';
+import { defaultOf, type Path } from '../editor/values.ts';
 import { humanize, type Located } from '../schema.ts';
 import { DefaultWargearTable, WargearOptionsEditor } from './WargearSheet.tsx';
 
-/** L'ordre de la fiche, celui de la maquette : qui la compose, ce qu'elle coûte, ce qu'elle est, ce qu'elle fait, ce qu'elle porte. */
-const SECTIONS = [
-  'pricing', 'wargear', 'keywords', 'factionKeywords', 'armyRules', 'leaderTargets', 'supportTargets',
-  'abilities', 'weapons', 'optionGroups', 'defaultLoadout',
-] as const;
-
 /**
- * Une Unit décrite en phrases : ses Weapons, le tableau de son Default Wargear,
- * ses Wargear Options en phrases, puis les lignes du MFM — les groupes d'options
- * ne se montrent plus.
+ * L'ordre de la fiche : qui la compose, ce qu'elle coûte, ce qu'elle est, ce
+ * qu'elle fait, puis ce qu'elle porte — ses Weapons, le tableau de son Default
+ * Wargear, ses Wargear Options en phrases et les lignes du MFM qui les facturent.
  */
-const SENTENCE_SECTIONS = [
+const SECTIONS = [
   'pricing', 'keywords', 'factionKeywords', 'armyRules', 'leaderTargets', 'supportTargets',
   'abilities', 'weapons', 'modelTypes', 'wargearOptions', 'wargear',
 ] as const;
@@ -42,15 +36,11 @@ interface Props {
  */
 export function unitWidget({ sources, wargear }: Props) {
   return (props: FieldProps): ReactNode | undefined => {
-    const [head, gi, sub, oi] = props.path;
+    const [head] = props.path;
     if (props.path.length === 0) return <UnitLayout at={props.at} unit={props.value as Unit} sources={sources} />;
     if (props.path.length === 1 && head === 'wargear') return <WargearLines findings={wargear} section={props.section ?? ''} />;
     if (props.path.length === 1 && head === 'modelTypes') return <DefaultWargearTable section={props.section ?? ''} />;
     if (props.path.length === 1 && head === 'wargearOptions') return <WargearOptionsEditor section={props.section ?? ''} at={props.at} />;
-    if (head === 'optionGroups' && typeof gi === 'number' && sub === 'options' && props.path.length === 3)
-      return <OptionsList at={props.at} path={props.path} value={(props.value as WeaponOption[] | undefined) ?? []} />;
-    if (head === 'optionGroups' && typeof gi === 'number' && sub === 'options' && typeof oi === 'number' && props.path.length === 4)
-      return <OptionCard at={props.at} path={props.path} option={props.value as WeaponOption} findings={wargear} />;
     return undefined;
   };
 }
@@ -70,13 +60,12 @@ function UnitLayout({ at, unit, sources }: { at: Located; unit: Unit; sources: R
         </div>
         <p className="derived-line" title="Derived at build time from the price grid and the composition">
           {unit.points} pts{brackets && ` · ${brackets}`} · {unit.minModels}–{unit.maxModels} models
-          {unit.defaultModels !== undefined && ` · loadout for ${unit.defaultModels}`}
         </p>
       </section>
 
       <ModelsSection unit={unit} at={at} section={section('models')} />
 
-      {(unit.modelTypes?.length ? SENTENCE_SECTIONS : SECTIONS).map((k) => {
+      {SECTIONS.map((k) => {
         if (k === 'pricing')
           return [
             <PriceGrid key={k} unit={unit} field="pricing" section={section('pricing')} />,
@@ -84,7 +73,7 @@ function UnitLayout({ at, unit, sources }: { at: Located; unit: Unit; sources: R
           ];
         if (k === 'abilities') return <AbilitiesSection key={k} unit={unit} at={child('abilities')} section={section('abilities')} />;
         const value = (unit as unknown as Record<string, unknown>)[k];
-        return <Field key={k} at={child(k)} value={value ?? (k === 'wargear' || k === 'optionGroups' || k === 'defaultLoadout' || k === 'wargearOptions' ? [] : value)} path={[k]} label={humanize(k)} section={section(k)} />;
+        return <Field key={k} at={child(k)} value={value ?? (k === 'wargear' || k === 'wargearOptions' || k === 'modelTypes' ? [] : value)} path={[k]} label={humanize(k)} section={section(k)} />;
       })}
       {ctx.errors.get('') && <p className="note error">{ctx.errors.get('')!.join(' · ')}</p>}
     </div>
@@ -288,20 +277,17 @@ function AbilitiesSection({ unit, at, section }: { unit: Unit; at: Located; sect
   );
 }
 
-/** Les Wargear Options d'une Unit, avec le groupe qui porte chacune. */
-const optionsOf = (unit: Unit) => (unit.optionGroups ?? []).flatMap((g) => g.options.map((o) => ({ group: g, option: o })));
-
 const FINDING_LABEL: Record<WargearFinding['kind'], string> = {
-  orphan: 'not linked — no Wargear Option matches',
-  ambiguous: 'not linked — several Wargear Options match',
-  'default-only': 'not linked — only a default option matches: link it by hand if it is paid',
+  orphan: 'not linked — no wargear alternative matches',
+  ambiguous: 'not linked — several wargear alternatives match',
+  'default-only': 'not linked — only Default Wargear matches: link it by hand on an alternative if it is paid',
   'missing-line': 'linked by hand, but the line is gone',
 };
 
 /**
  * La liste `wargear` du MFM : chaque ligne se corrige comme tout champ du MFM
- * (une Correction), et dit l'option qui la facture — ou qu'aucune ne la
- * facture, et pourquoi.
+ * (une Correction), et dit la Wargear Alternative qui la facture — ou
+ * qu'aucune ne la facture, et pourquoi.
  */
 function WargearLines({ findings, section }: { findings: WargearFinding[]; section: string }) {
   const ctx = useEditor();
@@ -320,10 +306,10 @@ function WargearLines({ findings, section }: { findings: WargearFinding[]; secti
       </h3>
       {lines.length === 0 && <p className="empty">The MFM bills no wargear for this Unit.</p>}
       {lines.map((l, i) => {
-        const linked = [
-          ...optionsOf(unit).filter(({ option }) => option.wargearCost?.item === l.item).map(({ option }) => ({ name: option.name, cost: option.wargearCost })),
-          ...(unit.wargearOptions ?? []).flatMap((o) => o.alternatives).filter((a) => a.wargearCost?.item === l.item).map((a) => ({ name: a.name ?? a.weapons.map((w) => w.weapon.slice(w.weapon.indexOf('|') + 1)).join(' and '), cost: a.wargearCost })),
-        ];
+        const linked = (unit.wargearOptions ?? [])
+          .flatMap((o) => o.alternatives)
+          .filter((a) => a.wargearCost?.item === l.item)
+          .map((a) => ({ name: a.name ?? a.weapons.map((w) => w.weapon.slice(w.weapon.indexOf('|') + 1)).join(' and '), cost: a.wargearCost }));
         const finding = findings.find((f) => f.item === l.item && f.kind !== 'missing-line');
         return (
           <div key={i} className="item wargear-line">
@@ -351,127 +337,3 @@ function WargearLines({ findings, section }: { findings: WargearFinding[]; secti
     </section>
   );
 }
-
-/**
- * Les options d'un groupe. En ajouter une crée une Wargear Option que BSData
- * n'a pas : une Contribution (ADR 0010), qui se règle ensuite comme les autres.
- */
-function OptionsList({ at, path, value }: { at: FieldProps['at']; path: Path; value: WeaponOption[] }) {
-  const ctx = useEditor();
-  const itemAt = { schema: ctx.schemas.resolve(at).schema.items ?? {}, base: at.base };
-  const add = () => {
-    const taken = new Set(value.map((o) => o.id));
-    let n = value.length + 1;
-    while (taken.has(`contrib-${n}`)) n++;
-    ctx.onChange(path, [...value, { id: `contrib-${n}`, name: `New option ${n}`, weapons: [], maxCarriers: 1, isDefault: false }]);
-  };
-  return (
-    <section className="list">
-      <h3 className="list-title">
-        Wargear Options <span className="count">{value.length}</span>
-        <Badges path={path} value={value} />
-        <button type="button" className="add" title="Add a Wargear Option that BSData does not have — a Contribution" onClick={add}>
-          + Wargear Option · Contribution
-        </button>
-      </h3>
-      {value.map((o, i) => (
-        <div key={o.id} className="item">
-          <Field at={itemAt} value={o} path={[...path, i]} />
-          <button type="button" className="remove" title="Remove this option" onClick={() => ctx.onChange(path, value.filter((_x, j) => j !== i))}>
-            −
-          </button>
-        </div>
-      ))}
-    </section>
-  );
-}
-
-/**
- * Une Wargear Option : ce que BSData en dit (nom, Weapons, porteurs, défaut),
- * puis ce qui est à nous — la ligne du MFM qui la facture, sa quantité, le
- * montant qui en résulte (lu dans la ligne, jamais saisi), les aptitudes
- * qu'elle apporte.
- */
-function OptionCard({ at, path, option, findings }: { at: FieldProps['at']; path: Path; option: WeaponOption; findings: WargearFinding[] }) {
-  const ctx = useEditor();
-  const unit = ctx.draft as Unit;
-  const schema = ctx.schemas.resolve(at);
-  const child = (k: string) => ({ schema: schema.schema.properties?.[k] ?? {}, base: schema.base });
-  const lines = unit.wargear ?? [];
-  const cost = option.wargearCost;
-  const line = cost ? lines.find((l) => l.item === cost.item) : undefined;
-  const quantity = cost?.quantity ?? 1;
-  const setCost = (next: WeaponOption['wargearCost']) => ctx.onChange([...path, 'wargearCost'], next);
-  // Une option qu'on vient d'ajouter, ou qu'une Contribution publiée a créée.
-  const loaded = (ctx.original as Unit).optionGroups?.[path[1] as number]?.options.some((o) => o.id === option.id);
-  const created = !loaded || (ctx.marks.get(pointer(path)) ?? []).some((m) => m.kind === 'contribution');
-  const gone = findings.filter((f) => f.kind === 'missing-line' && f.options.includes(option.name));
-  const hinted = findings.filter((f) => f.kind !== 'missing-line' && f.options.includes(option.name));
-  return (
-    <section className="card option-card">
-      <h3 className="card-title">
-        {option.name || 'Wargear Option'}
-        {created && <span className="section-source"> · created · Contribution</span>}
-        <Badges path={path} value={option} />
-      </h3>
-      <div className="card-fields">
-        <Field at={child('name')} value={option.name} path={[...path, 'name']} label="Name" />
-        <Field at={child('maxCarriers')} value={option.maxCarriers} path={[...path, 'maxCarriers']} label="Max carriers" />
-        <Field at={child('perModels')} value={option.perModels} path={[...path, 'perModels']} label="One per N models" />
-        <Field at={child('isDefault')} value={option.isDefault} path={[...path, 'isDefault']} label="Default" />
-      </div>
-      <Field at={child('weapons')} value={option.weapons} path={[...path, 'weapons']} label="Weapons" />
-      <div className="field field-wide option-cost">
-        <span className="field-label">
-          Wargear cost <span className="section-source">· Contribution</span>
-          <Badges path={[...path, 'wargearCost']} value={cost} />
-        </span>
-        <span className="cost">
-          <select value={cost?.item ?? ''} onChange={(e) => setCost(e.target.value ? { item: e.target.value, ...(quantity > 1 ? { quantity } : {}) } : undefined)}>
-            <option value="">— not billed —</option>
-            {cost && !line && <option value={cost.item}>{cost.item} (line gone)</option>}
-            {lines.map((l) => (
-              <option key={l.item} value={l.item}>
-                {l.item} ({l.points} pts)
-              </option>
-            ))}
-          </select>
-          {cost && (
-            <>
-              {' × '}
-              <input
-                type="number"
-                min={1}
-                style={{ width: '5ch' }}
-                title="How many times the line is paid per model: 2 for « 2 Multi-meltas »"
-                value={quantity}
-                onChange={(e) => {
-                  const q = Math.max(1, Number(e.target.value) || 1);
-                  setCost({ item: cost.item, ...(q > 1 ? { quantity: q } : {}) });
-                }}
-              />
-              {' = '}
-              <b title="Read from the MFM line: correct the line, not the option">{line ? `${line.points * quantity} pts per model` : 'nothing billed'}</b>{' '}
-              <button type="button" onClick={() => setCost(undefined)}>
-                unlink
-              </button>
-            </>
-          )}
-        </span>
-        {gone.map((f) => (
-          <span key={f.item} className="note error">
-            « {f.item} » is no longer an MFM line of this Unit: this option bills nothing.
-          </span>
-        ))}
-        {!cost &&
-          hinted.map((f) => (
-            <span key={f.item} className="note warning">
-              MFM line « {f.item} »: {FINDING_LABEL[f.kind]}
-            </span>
-          ))}
-      </div>
-      <Field at={child('abilities')} value={option.abilities ?? []} path={[...path, 'abilities']} label="Abilities it brings" section="Contribution" />
-    </section>
-  );
-}
-

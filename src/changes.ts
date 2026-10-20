@@ -7,8 +7,9 @@
  * puis par entité. Le tableau de bord et le drift report lisent la même chose.
  */
 import type { AllyRule, ArmyFile, CoreFile, Detachment, Enhancement, PriceBand, RuleBody, Stratagem, Unit, Weapon } from '@paintplanplay/dataset-schema';
+import { equippedSentence } from '@paintplanplay/dataset-schema';
 import { CORE_ROOT } from './corrections/apply.ts';
-import { describeEffect, describeGroup, describeModifiers, describeTiming, filterLabel, groupHeading } from './describe.ts';
+import { describeEffect, describeModifiers, describeTiming, describeWargearOption, filterLabel } from './describe.ts';
 import { homes, type Homes } from './home.ts';
 
 /** Où en est un changement : fusionné (attend la prochaine Release), dans une PR ouverte, ou sur cette machine seulement. */
@@ -119,16 +120,8 @@ const ruleFields = (prefix: string, body: RuleBody): Field[] => [
   [`${prefix}description`, body.summary ?? '—', 'contribution'],
 ];
 
-/** Ses groupes d'options, chacun sous son titre ; deux groupes du même titre se numérotent. */
-function groupFields(u: Unit): Field[] {
-  const seen = new Map<string, number>();
-  return (u.optionGroups ?? []).map((g) => {
-    const heading = groupHeading(g);
-    const n = (seen.get(heading) ?? 0) + 1;
-    seen.set(heading, n);
-    return [`wargear options "${heading}"${n > 1 ? ` (${n})` : ''}`, describeGroup(u, g).join('\n')];
-  });
-}
+/** Ses Wargear Options, chacune à son identifiant, dite comme les apps la montrent. */
+const wargearFields = (u: Unit): Field[] => (u.wargearOptions ?? []).map((o) => [`wargear option ${o.id}`, describeWargearOption(u, o)]);
 
 /** Les champs d'une Unit, chacun en texte. */
 function unitFields(u: Unit): Field[] {
@@ -152,8 +145,8 @@ function unitFields(u: Unit): Field[] {
     ['abilities', u.abilities.map((a) => a.name)],
     ...u.abilities.flatMap((a) => ruleFields(`ability "${a.name}" · `, a)),
     ...u.weapons.map((w): Field => [`weapon "${w.name}"`, weaponSignature(w)]),
-    ['default loadout', (u.defaultLoadout ?? []).map((l) => `${l.count}× ${l.weapon}`)],
-    ...groupFields(u),
+    ...(u.modelTypes ?? []).map((t): Field => [`default wargear "${t.name}"`, equippedSentence(u, t)]),
+    ...wargearFields(u),
   ];
 }
 

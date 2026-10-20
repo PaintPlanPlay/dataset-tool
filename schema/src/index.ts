@@ -11,7 +11,7 @@
  */
 
 /** Version du schéma à laquelle un fichier se conforme. */
-export const SCHEMA_VERSION = '2.7.0';
+export const SCHEMA_VERSION = '3.0.0';
 
 /** Un wargame à une édition donnée. Le Dataset est rangé par Game System. */
 export interface GameSystem {
@@ -549,7 +549,7 @@ export interface Profile {
 }
 
 /**
- * Ce qu'une Wargear Option ajoute au coût de l'Unit : la ligne de sa liste
+ * Ce qu'une Wargear Alternative ajoute au coût de l'Unit : la ligne de sa liste
  * `wargear` (MFM) qui la facture, désignée par son nom tel qu'écrit dans le
  * MFM, et combien de fois par figurine — 2 pour « 2 Multi-meltas ». Le montant
  * n'est jamais recopié ici : la liste `wargear` reste la seule source de points.
@@ -558,29 +558,6 @@ export interface WargearCost {
   item: string;
   /** 1 quand elle est absente. */
   quantity?: number;
-}
-
-/**
- * Une Wargear Option : un choix d'un groupe d'options, ce qu'une figurine qui
- * le prend porte, et combien de figurines peuvent le prendre. Elle peut
- * n'apporter aucune Weapon (une bannière, un bouclier).
- */
-export interface WeaponOption {
-  id: string;
-  name: string;
-  /** Weapons équipées, en clés « kind|name » : la Weapon, jamais un de ses profils. */
-  weapons: string[];
-  maxCarriers: number;
-  /** « Une figurine par tranche de N ». */
-  perModels?: number;
-  isDefault: boolean;
-  /** Sa ligne du MFM, quand l'option est payante. Une option par défaut paie aussi. */
-  wargearCost?: WargearCost;
-  /**
-   * Aptitudes de l'Unit qu'elle apporte, par nom. Une aptitude qu'une option au
-   * moins apporte n'est active que pour les figurines qui en prennent une.
-   */
-  abilities?: string[];
 }
 
 /** Une Weapon et son nombre, en clé « kind|name » : la Weapon entière, jamais un de ses profils. */
@@ -653,19 +630,6 @@ export interface WargearOption {
   alternatives: WargearAlternative[];
 }
 
-export interface OptionGroup {
-  id: string;
-  name: string;
-  tree: string;
-  parent: string;
-  slot: string;
-  pool: boolean;
-  minPicks: number;
-  maxPicks: number;
-  pickBrackets: { atModels: number; maxPicks: number }[];
-  options: WeaponOption[];
-}
-
 /** Une tranche du MFM : le prix des exemplaires `from`..`to` d'une même Unit. */
 export interface PriceBand {
   from: number;
@@ -733,12 +697,7 @@ export interface Unit {
   supportTargets: string[];
   minModels: number;
   maxModels: number;
-  /** Effectif auquel se rapportent les compteurs de `defaultLoadout`. */
-  defaultModels?: number;
   composition?: { name: string; min: number; max: number }[];
-  /** Weapons portées d'office, par nom et genre. */
-  defaultLoadout?: { weapon: string; kind: WeaponKind; count: number }[];
-  optionGroups?: OptionGroup[];
   /** Ses types de figurine, chacun avec son Default Wargear. */
   modelTypes?: ModelType[];
   /** Ses Wargear Options, dans l'ordre de la fiche. */

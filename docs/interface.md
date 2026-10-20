@@ -111,11 +111,11 @@ sheet.
   rule several armies publish appears once, under its home army.
 - Rules and wargear options read the way the apps show them, so you judge what
   a player will see: a rule's Modifiers in words (`+1 to Hit (enemy) — if after
-  charging`) and its description; a group of wargear options as its card in the
-  apps — its title, what it allows at the unit's largest size (`2 models`, `one
-  option`, `up to 2`), then each option with its weapons (`Boy w/ Burna — ➶
-  Burna`). If it reads badly here, it reads badly in the apps: fix it before you
-  publish. This is an imitation of the apps' display, kept by hand.
+  charging`) and its description; a wargear option as its sentence on the
+  datasheet (`For every 10 models in this unit, 3 Boy models can each have their
+  Shoota replaced with one of the following: 1 Big Shoota; 1 Burna`), each paid
+  alternative with its cost. If it reads badly here, it reads badly in the apps:
+  fix it before you publish.
 - Each change also says where its new value comes from: **BSData**, the
   **MFM**, a **Correction** or a **Contribution** — for these two, who wrote it
   last (*you, not proposed* for what you have not proposed yet); hover for the
@@ -243,8 +243,7 @@ forces, and its file.
 
 A unit the import could not read publishes no wargear option: it is listed on
 the dashboard under *wargear options to write*, and leaves the list once you
-write one of its options. A unit not yet described in sentences shows its
-option groups instead.
+write one of its options.
 | **Keywords**, **Faction keywords**, **Army rules**, **Leader targets**, **Support targets** | lists, with autocomplete |
 
 [Recipes](recipes.md) walks through each of these.

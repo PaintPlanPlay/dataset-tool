@@ -50,14 +50,7 @@ function normalize(kind: Inspection['kind'], draft: unknown): unknown {
       const { ally: _ally, ...rest } = draft as Record<string, unknown>;
       return normalize(kind, rest);
     }
-    const u = draft as { optionGroups?: { id: string; tree: string; parent: string; slot: string; options: { id: string }[] }[] };
-    if (!u.optionGroups) return draft;
-    const ids = new Set(u.optionGroups.flatMap((g) => [g.id, ...g.options.map((o) => o.id)]).filter(Boolean));
-    const groups = u.optionGroups.map((g) => {
-      const id = g.id || fresh('group', ids);
-      return { ...g, id, tree: g.tree || id, parent: g.parent ?? '', slot: g.slot ?? '', options: g.options.map((o) => ({ ...o, id: o.id || fresh('option', ids) })) };
-    });
-    return same(groups, u.optionGroups) ? draft : { ...u, optionGroups: groups };
+    return draft;
   }
   if (kind === 'detachment') {
     const d = draft as { enhancements?: { id: string; name: string }[] };
@@ -80,12 +73,8 @@ function choicesFor(kind: Inspection['kind'], draft: unknown, s: Suggestions | n
       if (key === 'armyRules') return { options: s?.armyRules ?? [], closed: false };
       if (key === 'leaderTargets' || key === 'supportTargets') return { options: units, closed: true };
       if (key === 'weapons.*.profiles.*.keywords') return { options: [], closed: false, picker: 'weaponKeywords' as const };
-      if (key === 'optionGroups.*.options.*.abilities' || key === 'wargearOptions.*.alternatives.*.abilities')
+      if (key === 'wargearOptions.*.alternatives.*.abilities')
         return { options: ((draft as { abilities?: { name: string }[] }).abilities ?? []).map((a) => a.name), closed: true };
-      if (key === 'optionGroups.*.options.*.weapons') {
-        const weapons = ((draft as { weapons?: { kind: string; name: string }[] }).weapons ?? []).map((w) => `${w.kind}|${w.name}`);
-        return { options: weapons, closed: true };
-      }
     }
     if (kind === 'detachment') {
       if (key === 'enhancements.*.leaderTo' || key === 'enhancements.*.supportTo') return { options: units, closed: true };

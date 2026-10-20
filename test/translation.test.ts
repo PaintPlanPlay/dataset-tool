@@ -62,7 +62,7 @@ section('« k for every N » et limites posées sur les entrées : les armes sp�
   check('ses quatre armes spéciales', (nobz.wargearOptions ?? []).filter((o) => o.who.type === 'per').length === 4);
   check('une alternative sans Weapon se nomme : « Paired Krumpas »', (nobz.wargearOptions ?? []).some((o) => o.alternatives[0].weapons.length === 0 && o.alternatives[0].name === 'Paired Krumpas'));
   check('plafond : 1 à 5 figurines, 2 à 10', wargearCap(nobz, skorcha, 5) === 1 && wargearCap(nobz, skorcha, 10) === 2);
-  check('l\'ancienne forme ne change pas : pas de groupe « Special Weapons »', !nobz.optionGroups?.some((g) => g.name === 'Special Weapons') && !JSON.stringify(nobz.optionGroups).includes('unitCap'));
+  check('rien de la lecture de BSData ne fuit dans le Dataset', !JSON.stringify(nobz).includes('unitCap') && !('optionGroups' in nobz));
 }
 
 section('Un pool qui puise dans un autre, budget commun : les Boyz');

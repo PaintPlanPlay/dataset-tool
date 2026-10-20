@@ -11,7 +11,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { canonicalWeaponKeyword, SIMULATED_CONDITIONS, SIMULATED_MODIFIERS, UNIT_MODIFIERS, type AllyRule, type ArmyFile, type BattleSize, type CoreFile, type Detachment, type Enhancement, type OptionGroup, type Stratagem, type Unit, type WargearOption, type Weapon, type WeaponOption } from '@paintplanplay/dataset-schema';
+import { canonicalWeaponKeyword, SIMULATED_CONDITIONS, SIMULATED_MODIFIERS, UNIT_MODIFIERS, type AllyRule, type ArmyFile, type BattleSize, type CoreFile, type Detachment, type Enhancement, type Stratagem, type Unit, type WargearOption, type Weapon } from '@paintplanplay/dataset-schema';
 import { validateDef, validateFile, type FieldError } from '@paintplanplay/dataset-schema/validate';
 import { ALLY_RULES_FILE, authoredDir, authoredEffectProblems, layoutContributions, readContributionFiles, readContributions, writtenOf, type AuthoredAllyRule, type AuthoredEffect } from '../authored.ts';
 import { homes } from '../home.ts';
@@ -28,7 +28,7 @@ import { ApiError, datasetOf, refreshing } from './api.ts';
 import { inspect, type DatasetView, type Inspection, type Origin } from './provenance.ts';
 import { sheetOfTarget } from './targets.ts';
 import type { Workspace } from './workspace.ts';
-import { alternativeTarget, optionTarget, type WargearFinding } from '../wargear.ts';
+import { alternativeTarget, type WargearFinding } from '../wargear.ts';
 
 type Source = Correction['source'];
 type Value = Record<string, unknown>;
@@ -39,8 +39,8 @@ type Value = Record<string, unknown>;
 const SECTION_SOURCES: Record<Inspection['kind'], Record<string, Origin>> = {
   unit: {
     name: 'bsdata', isLegends: 'bsdata', ally: 'bsdata', keywords: 'bsdata', factionKeywords: 'bsdata', armyRules: 'bsdata',
-    models: 'bsdata', composition: 'bsdata', minModels: 'bsdata', maxModels: 'bsdata', defaultModels: 'bsdata',
-    weapons: 'bsdata', optionGroups: 'bsdata', defaultLoadout: 'bsdata', modelTypes: 'bsdata', wargearOptions: 'bsdata', abilities: 'project',
+    models: 'bsdata', composition: 'bsdata', minModels: 'bsdata', maxModels: 'bsdata',
+    weapons: 'bsdata', modelTypes: 'bsdata', wargearOptions: 'bsdata', abilities: 'project',
     points: 'mfm', costBrackets: 'mfm', pricing: 'mfm', assignedPricing: 'mfm', wargear: 'mfm', leaderTargets: 'mfm', supportTargets: 'mfm',
   },
   detachment: { name: 'mfm', dp: 'mfm', forceDispositions: 'mfm', uniqueTag: 'mfm', rules: 'project', enhancements: 'mfm' },
@@ -55,7 +55,7 @@ const SECTION_SOURCES: Record<Inspection['kind'], Record<string, Origin>> = {
 /** Champs d'Unit corrigés à même l'Unit, par source. Les autres ont leur propre adresse ou sont dérivés. */
 const UNIT_FIELDS: Record<string, Source> = {
   name: 'bsdata', isLegends: 'bsdata', ally: 'bsdata', keywords: 'bsdata', factionKeywords: 'bsdata', armyRules: 'bsdata',
-  composition: 'bsdata', optionGroups: 'bsdata', defaultLoadout: 'bsdata', modelTypes: 'bsdata', pricing: 'mfm', assignedPricing: 'mfm', wargear: 'mfm',
+  composition: 'bsdata', modelTypes: 'bsdata', pricing: 'mfm', assignedPricing: 'mfm', wargear: 'mfm',
 };
 const DETACHMENT_FIELDS: Record<string, Source> = { name: 'mfm', dp: 'mfm', forceDispositions: 'mfm', uniqueTag: 'mfm' };
 const ENHANCEMENT_FIELDS: Record<string, Source> = { name: 'mfm', points: 'mfm', appliesTo: 'mfm', aura: 'mfm', leaderTo: 'mfm', supportTo: 'mfm' };
@@ -63,7 +63,7 @@ const ENHANCEMENT_FIELDS: Record<string, Source> = { name: 'mfm', points: 'mfm',
 const STRATAGEM_FIELDS = ['name', 'detachmentId', 'cp', 'phases', 'playerTurn', 'timing', 'trigger', 'category', 'target'] as const;
 /** Ce qu'une Contribution porte : ce qu'une règle fait, jamais ses chiffres. */
 const RULE_BODY = ['modifiers', 'options', 'eligibility', 'summary'] as const;
-/** Ce qu'une Contribution porte pour une Wargear Option : sa ligne du MFM, ce qu'elle apporte, et l'option elle-même quand on l'a créée. */
+/** Ce qu'une Contribution porte pour une Wargear Alternative : sa ligne du MFM, ce qu'elle apporte (et l'option qu'elle créait dans un groupe, avant les phrases). */
 const OPTION_BODY = ['wargearCost', 'abilities', 'option'] as const;
 /** Ce qu'une Contribution porte pour une Enhancement, en plus de ce que fait sa règle : sa Weapon et ses restrictions. */
 const ENHANCEMENT_BODY = ['weapon', 'requires', 'excludes', 'maxTargets'] as const;
@@ -92,7 +92,7 @@ export interface Sheet extends Inspection {
   /** La source d'autorité de chaque section. */
   sources: Record<string, Origin>;
   marks: Mark[];
-  /** Pour une Unit : ses lignes `wargear` du MFM qu'aucune Wargear Option ne facture, et ses liens manuels qui ne visent plus rien. */
+  /** Pour une Unit : ses lignes `wargear` du MFM qu'aucune Wargear Alternative ne facture, et ses liens manuels qui ne visent plus rien. */
   wargear: WargearFinding[];
 }
 
@@ -114,15 +114,13 @@ function pathOf(kind: Inspection['kind'], value: Value, target: string): string 
     if (entity === 'attachment') return `/${name.startsWith('support|') ? 'supportTargets' : 'leaderTargets'}`;
     if (entity === 'wargear') return at('wargearOptions', indexBy(u.wargearOptions, (o) => o.id, name));
     if (entity === 'option') {
-      const [groupId, optionId] = name.split('|');
-      // La Wargear Alternative de même identifiant, quand l'Unit est décrite en phrases.
+      // La Wargear Alternative de même identifiant : elle garde celui de l'option d'où elle vient.
+      const alternativeId = name.slice(name.indexOf('|') + 1);
       for (const [i, o] of (u.wargearOptions ?? []).entries()) {
-        const j = o.alternatives.findIndex((a) => a.id === optionId);
+        const j = o.alternatives.findIndex((a) => a.id === alternativeId);
         if (j >= 0) return `/wargearOptions/${i}/alternatives/${j}`;
       }
-      const gi = indexBy(u.optionGroups, (g) => g.id, groupId);
-      const oi = gi < 0 ? -1 : indexBy(u.optionGroups![gi].options, (o) => o.id, optionId);
-      return oi < 0 ? null : `/optionGroups/${gi}/options/${oi}`;
+      return null;
     }
   }
   if (kind === 'detachment') {
@@ -168,8 +166,6 @@ export function sheetOf(ws: Workspace, target: string): Sheet {
     const state = contributions.get(e.target)?.state ?? 'active';
     for (const k of [...RULE_BODY, ...ENHANCEMENT_BODY, ...OPTION_BODY.filter((f) => f !== 'option')] as const)
       if (e[k] !== undefined) marks.push({ path: `${base}/${k}`, kind: 'contribution', file: where.get(e.target) ?? '', reason: e.reason, state, value: e[k] });
-    // Une Wargear Option créée est tout entière une Contribution.
-    if (e.option !== undefined) marks.push({ path: base, kind: 'contribution', file: where.get(e.target) ?? '', reason: e.reason, state, value: e.option });
     // Une Wargear Option écrite à la main aussi ; son état dit si BSData a changé depuis.
     if (e.wargearOption) marks.push({ path: base, kind: 'contribution', file: where.get(e.target) ?? '', reason: e.reason, state, value: e.wargearOption, upstream: e.wargearUpstream });
     // Les champs d'un Stratagem, le nom d'une Detachment Rule : à nous aussi.
@@ -307,50 +303,6 @@ function normalizeDraft(kind: Inspection['kind'], current: Value, draft: Value):
   return { ...draft, models: (u.models ?? []).map(normalizeModel), weapons };
 }
 
-/** Les Wargear Options d'une Unit, par adresse. */
-const optionsByTarget = (u: Unit | undefined) =>
-  new Map((u?.optionGroups ?? []).flatMap((g) => g.options.map((o) => [optionTarget(u!.id, g.id, o.id), o] as const)));
-
-/** Ce qu'une option porte en propre : la forme que BSData et ses Corrections décrivent, sans ce qui est à nous. */
-const ownOption = (o: WeaponOption) => without(o as unknown as Value, 'id', 'wargearCost', 'abilities');
-
-/**
- * Les groupes d'options tels qu'une Correction les voit : sans les liens au MFM
- * ni les aptitudes apportées, et sans les options qui sont à nous — celles
- * qu'une Contribution a créées, ou qu'on crée.
- */
-function correctedGroups(u: Unit | undefined, ours: Set<string>): Value | undefined {
-  if (!u) return undefined;
-  const optionGroups: OptionGroup[] | undefined = u.optionGroups?.map((g) => ({
-    ...g,
-    options: g.options
-      .filter((o) => !ours.has(optionTarget(u.id, g.id, o.id)))
-      .map((o) => without(o as unknown as Value, 'wargearCost', 'abilities') as unknown as WeaponOption),
-  }));
-  return { ...(u as unknown as Value), optionGroups };
-}
-
-/**
- * Ce qu'on règle sur une Wargear Option et qui est à nous (ADR 0010) : sa ligne
- * du MFM, les aptitudes qu'elle apporte, et l'option entière quand BSData ne
- * l'a pas. Une option créée qu'on retire emporte sa Contribution.
- */
-function optionContributions(current: Unit, draft: Unit, created: Set<string>): ContributionChange[] {
-  const before = optionsByTarget(current);
-  const after = optionsByTarget(draft);
-  const out: ContributionChange[] = [];
-  for (const [target, now] of after) {
-    const was = before.get(target);
-    const body: Value = {};
-    if (!was || (created.has(target) && !same(ownOption(now), ownOption(was)))) body.option = ownOption(now);
-    if (!same(now.wargearCost, was?.wargearCost)) body.wargearCost = now.wargearCost ?? null;
-    if (!same(now.abilities, was?.abilities)) body.abilities = now.abilities ?? [];
-    if (Object.keys(body).length) out.push({ target, body, current: was as unknown as Value | undefined });
-  }
-  for (const target of before.keys()) if (!after.has(target) && created.has(target)) out.push({ target, body: {}, current: undefined, remove: true });
-  return out;
-}
-
 /**
  * Ce qu'on écrit sur les Wargear Options d'une Unit en phrases, et qui est à
  * nous : une phrase écrite ou corrigée à la main (avec ce que la traduction
@@ -381,19 +333,17 @@ function wargearContributions(current: Unit, draft: Unit, translated: WargearOpt
     // Une phrase écrite à la main sans traduite derrière disparaît avec sa Contribution ; une traduite se retire.
     if (upstream.has(id)) out.push({ target: target(id), body: { wargearOption: null, wargearUpstream: basis(id) }, current: was as unknown as Value });
     else out.push({ target: target(id), body: {}, current: was as unknown as Value, remove: true });
+    // Ce que ses alternatives coûtaient ou apportaient part avec elle.
+    for (const a of was.alternatives) out.push({ target: alternativeTarget(current.id, was, a.id), body: {}, current: a as unknown as Value, remove: true });
   }
   return out;
 }
 
-function unitPlan(current: Unit, upstream: Unit | undefined, draft: Unit, created: Set<string> = new Set(), translated: WargearOption[] = []): Plan {
+function unitPlan(current: Unit, upstream: Unit | undefined, draft: Unit, translated: WargearOption[] = []): Plan {
   const id = current.id;
   const plan: Plan = { corrections: [], contributions: [] };
   plan.contributions.push(...wargearContributions(current, draft, translated));
-  const ours = new Set([...created, ...[...optionsByTarget(draft).keys()].filter((t) => !optionsByTarget(current).has(t))]);
-  plan.corrections.push(
-    ...fieldChanges(id, 'unit', UNIT_FIELDS, correctedGroups(current, ours)!, correctedGroups(upstream, ours), correctedGroups(draft, ours)!),
-  );
-  plan.contributions.push(...optionContributions(current, draft, created));
+  plan.corrections.push(...fieldChanges(id, 'unit', UNIT_FIELDS, current as unknown as Value, upstream as unknown as Value | undefined, draft as unknown as Value));
 
   for (const [field, kind] of [['leaderTargets', 'leader'], ['supportTargets', 'support']] as const) {
     const { added, removed } = pair(current[field], draft[field], (n) => n);
@@ -538,9 +488,6 @@ function danglingReferences(kind: Inspection['kind'], view: DatasetView, army: s
     addedNames('leaderTargets', c.leaderTargets, d.leaderTargets, '');
     addedNames('supportTargets', c.supportTargets, d.supportTargets, '');
     const weapons = new Set((d.weapons ?? []).map(weaponRef));
-    // Ce que l'amont laissait déjà pendre (une Weapon écartée à l'aplatissement) ne se reproche pas au mainteneur.
-    const owned = new Set((c.weapons ?? []).map(weaponRef));
-    const known = new Set((c.optionGroups ?? []).flatMap((g) => g.options.flatMap((o) => o.weapons)).filter((r) => !owned.has(r)));
     // Un lien au MFM désigne une ligne `wargear` de l'Unit, une aptitude apportée une aptitude de l'Unit.
     const lines = new Set((d.wargear ?? []).map((w) => w.item));
     const abilities = new Set((d.abilities ?? []).map((a) => a.name));
@@ -558,16 +505,6 @@ function danglingReferences(kind: Inspection['kind'], view: DatasetView, army: s
         for (const n of a.abilities ?? []) if (!abilities.has(n)) out.push(`/wargearOptions/${oi}/alternatives/${ai}/abilities: "${n}" is not an ability of this Unit`);
       });
     });
-    const before = optionsByTarget(c);
-    (d.optionGroups ?? []).forEach((g, gi) =>
-      g.options.forEach((o, oi) => {
-        for (const r of o.weapons) if (!weapons.has(r) && !known.has(r)) out.push(`/optionGroups/${gi}/options/${oi}/weapons: "${r}" is not a Weapon of this Unit`);
-        const was = before.get(optionTarget(d.id, g.id, o.id));
-        if (o.wargearCost && !same(o.wargearCost, was?.wargearCost) && !lines.has(o.wargearCost.item))
-          out.push(`/optionGroups/${gi}/options/${oi}/wargearCost: "${o.wargearCost.item}" is not an MFM wargear line of this Unit`);
-        for (const a of o.abilities ?? []) if (!abilities.has(a)) out.push(`/optionGroups/${gi}/options/${oi}/abilities: "${a}" is not an ability of this Unit`);
-      }),
-    );
   }
   // Créer ou retirer une règle entière n'est pas une Correction : c'est une entité à nous, qui n'a pas encore sa place.
   if (kind === 'detachment') {
@@ -662,10 +599,9 @@ export async function saveSheet(ws: Workspace, input: SaveInput): Promise<{ file
   if (dangling.length) throw new ApiError(400, 'the sheet names something that does not exist', dangling);
 
   const upstream = (ws.bare ? inspect(ws.bare, null, input.target)?.value : undefined) as Value | undefined;
-  const created = new Set(readEffects(ws).filter((e) => e.option !== undefined).map((e) => e.target));
   const plan =
     found.kind === 'unit'
-      ? unitPlan(current as unknown as Unit, upstream as unknown as Unit, draft as unknown as Unit, created, view.translatedWargear?.[found.target] ?? [])
+      ? unitPlan(current as unknown as Unit, upstream as unknown as Unit, draft as unknown as Unit, view.translatedWargear?.[found.target] ?? [])
       : found.kind === 'detachment'
         ? detachmentPlan(found.army, current as unknown as Detachment, upstream as unknown as Detachment, draft as unknown as Detachment)
         : found.kind === 'stratagem'

@@ -123,10 +123,9 @@ A datasheet.
   "supportTargets": [],
   "minModels": 10,
   "maxModels": 20,
-  "defaultModels": 20,
   "composition": [{ "name": "Nob", "min": 1, "max": 2 }],
-  "defaultLoadout": [{ "weapon": "Choppa", "kind": "melee", "count": 18 }],
-  "optionGroups": [ … ]
+  "modelTypes": [ … ],
+  "wargearOptions": [ … ]
 }
 ```
 
@@ -154,10 +153,7 @@ A datasheet.
 | `leaderTargets` | list of unit names | the units this character can lead | MFM |
 | `supportTargets` | list of unit names | the units it can join as Support | MFM |
 | `minModels`, `maxModels` | whole numbers | the unit's size | derived from `composition` |
-| `defaultModels` | whole number | the size the counts of `defaultLoadout` refer to | BSData |
 | `composition` | list of `{ name, min, max }` | how many of each model | BSData |
-| `defaultLoadout` | list of `{ weapon, kind, count }` | the weapons carried when nothing is chosen | BSData |
-| `optionGroups` | list of [option groups](#option-group) | the wargear choices, as BSData structures them — being replaced by `wargearOptions` | BSData |
 | `modelTypes` | list of [model types](#model-type) | each kind of model in the unit, with its Default Wargear | BSData |
 | `wargearOptions` | list of [wargear options](#wargear-option) | the datasheet's wargear options, as sentences | BSData, translated |
 
@@ -337,54 +333,6 @@ Each **wargear alternative**:
 A list records, for each wargear option, the alternative taken and how many
 models take it; no weapon is replaced more times than models carry it
 (`wargearCap` gives an option's limit at a size).
-
-#### Option group
-
-One wargear choice of the datasheet, with the budget that governs it.
-
-```json
-{
-  "id": "707d-2097-deaa-2601",
-  "name": "Kannon",
-  "tree": "cc1b-a7f1-7f13-4a8c",
-  "parent": "",
-  "slot": "Gunwagon",
-  "pool": false,
-  "minPicks": 1,
-  "maxPicks": 1,
-  "pickBrackets": [],
-  "options": [
-    { "id": "b5e9-fc1b-0635-d1b0", "name": "Kannon", "weapons": ["ranged|Kannon"], "maxCarriers": 0, "isDefault": true },
-    { "id": "bca6-bb6a-ff2d-67ab", "name": "Killkannon", "weapons": ["ranged|Killkannon"], "maxCarriers": 0, "isDefault": false }
-  ]
-}
-```
-
-| Field | Type | Meaning |
-|---|---|---|
-| `id` | identifier | |
-| `name` | name | |
-| `tree` | identifier | the top-level choice this one belongs to — itself when it is at the top. Two groups of the same tree describe the same model from two angles; two trees are two slots that add up |
-| `parent` | identifier, or empty | the choice that contains this one; empty at the top |
-| `slot` | text, or empty | the model that carries the choice (`Boss Nob`); empty when it holds for the whole unit |
-| `pool` | true / false | whether the budget counts **models** (true: the options compete for the same models) or **choices** (false: "one option at a time") |
-| `minPicks` | whole number | options that must be taken |
-| `maxPicks` | whole number | options that can be taken, at the base size |
-| `pickBrackets` | list of `{ atModels, maxPicks }` | "from `atModels` models, the budget becomes `maxPicks`" |
-| `options` | list of wargear options | |
-
-Each **wargear option**:
-
-| Field | Type | Meaning |
-|---|---|---|
-| `id` | identifier | |
-| `name` | name | as on the datasheet |
-| `weapons` | list of weapon keys | what a model that takes it carries. May be empty (a banner, a shield) |
-| `maxCarriers` | whole number | how many models can take it at most; 0 when the source sets no limit |
-| `perModels` | whole number | "one model for every N": the limit then follows the unit's size, and prevails over `maxCarriers` |
-| `isDefault` | true / false | the option held when nothing is chosen |
-| `wargearCost` | `{ item, quantity }` | the line of the unit's `wargear` list that bills this option, by its name as the MFM writes it, and how many times per model (`quantity`, 1 when absent). The amount is never copied here: the `wargear` list is the only source of points. A default option can be paid too |
-| `abilities` | list of names | abilities of the unit that the option brings. An ability brought by at least one option is active only for the models that take one |
 
 ### Detachment
 

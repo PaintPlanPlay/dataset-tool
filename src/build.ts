@@ -79,7 +79,7 @@ export interface BuildOutput {
   textCheck: TextFinding[];
   /** Clés de Modifier que la Simulation ne sait pas jouer : à corriger, dans la saisie ou dans le simulateur. */
   unsimulated: UnsimulatedKey[];
-  /** Les lignes `wargear` du MFM qu'aucune Wargear Option ne facture, et les liens posés à la main qui ne visent plus rien. */
+  /** Les lignes `wargear` du MFM qu'aucune Wargear Alternative ne facture, et les liens posés à la main qui ne visent plus rien. */
   wargear: WargearFinding[];
   /** Les Weapons d'Enhancement que BSData donne sans Enhancement dans le Dataset. */
   enhancementWeapons: EnhancementWeaponFinding[];
@@ -157,10 +157,7 @@ export function toDatasetUnit(u: CatalogueUnit, abilities: Unit['abilities'] = u
     supportTargets: u.supportTargets,
     minModels: u.minModels,
     maxModels: u.maxModels,
-    ...(u.defaultModels !== undefined ? { defaultModels: u.defaultModels } : {}),
     ...(u.composition?.length ? { composition: u.composition } : {}),
-    ...(u.defaultLoadout?.length ? { defaultLoadout: u.defaultLoadout } : {}),
-    ...(u.optionGroups?.length ? { optionGroups: u.optionGroups } : {}),
     ...(u.modelTypes?.length ? { modelTypes: u.modelTypes } : {}),
     ...(u.wargearOptions?.length ? { wargearOptions: u.wargearOptions } : {}),
   };

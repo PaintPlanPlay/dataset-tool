@@ -377,58 +377,99 @@ not a unit of the army is refused.
 
 ---
 
+## Fix what a model carries by default
+
+**Where:** the unit's sheet, section **Default Wargear**: the unit's weapons,
+one column per model type.
+
+A cell is how many of that weapon **one** model of that type carries before any
+wargear option is taken ("This model is equipped with: 1 Kustom Choppa; 1
+Kustom Shoota"). Empty or 0: not carried.
+
+**What is written** — a correction on the unit, source `bsdata`, on its
+`modelTypes`: `patch` has them as they should be, `upstream` as BSData gives
+them.
+
 ## Fix a wargear option
 
-**Where:** the unit's sheet, section **Wargear Options**.
+**Where:** the unit's sheet, section **Wargear Options**. Each option is one
+bullet of the datasheet, written as a sentence; its blanks are menus.
 
-Options come in **groups**. A group is one choice on the datasheet; each option
-of the group is one way to answer it.
-
-| Field of an option | Meaning |
+| Blank | Meaning |
 |---|---|
-| **Name** | as on the datasheet: `Nob w/ Big Choppa` |
-| **Weapons** | the weapons a model that takes the option carries |
-| **Max carriers** | how many models can take it at most |
-| **One per N models** | "one model for every 5": type `5`. Its limit then follows the unit's size |
-| **Default** | the option a model has when nothing is chosen |
+| **who** | *this model* / *any number of models*, *up to k models*, or *k model(s) for every N models* — and, when the unit has several model types, which one |
+| **what** | *replace* — then the weapons a model gives up — or *be equipped with*, for an addition (and how many times one model may take it: "up to 4 Big Shootas") |
+| **with** | one alternative or more, each the weapons a model receives and their numbers (or, for a banner, what it is). Two alternatives make "one of the following" |
 
-| Field of a group | Meaning |
-|---|---|
-| **Min picks** / **Max picks** | how many options of the group must, and can, be taken |
-| **Pick brackets** | "two instead of one from 20 models": at 20 models, 2 picks |
+The sentence above the blanks is what the apps show. A sentence is marked
+*translated from BSData* until you change it.
 
-**What is written** — a correction on the unit, source `bsdata`, with **all**
-its option groups: `patch` has them as they should be, `upstream` as BSData has
-them. It is the largest correction there is; the Nobz one is a good example in
-the dataset (`corrections/wh40k-11e/orks/nobz-unit-optiongroups.json`).
+**What is written** — a contribution, `<unitId>::wargear:<optionId>`, with the
+whole sentence and what the translation gave at the time:
 
-## Link a paid wargear line to an option
+```json
+{
+  "target": "306a-b2ac-aaf1-9a7c::wargear:5d45-ef3f-5da5-f363",
+  "wargearOption": {
+    "model": "Battlewagon",
+    "who": { "type": "each" },
+    "replaces": [],
+    "upTo": 3,
+    "alternatives": [{ "id": "5d45-ef3f-5da5-f363", "name": "Big Shoota", "weapons": [{ "weapon": "ranged|Big Shoota", "count": 1 }] }]
+  },
+  "wargearUpstream": { "model": "Battlewagon", "who": { "type": "each" }, "replaces": [], "upTo": 4, "alternatives": [ … ] },
+  "reason": "The datasheet allows three."
+}
+```
 
-The MFM bills wargear by name (`Twin Killsaws: 5`); BSData describes options
-(`Meganob w/ Twin Killsaw`). The build links a line to an option when their
-names match and **exactly one non-default option** fits. When it cannot, the
+If BSData later changes what it gives under that id, the contribution is
+*flagged*: read the sentence again, and save it to record the new basis.
+
+**A translation that is wrong for many units is a bug of the import**, not a
+contribution to write unit by unit: report it, so the import learns the pattern.
+
+## Add a wargear option BSData does not have
+
+A banner, a shield, a choice BSData forgot — or the options of a unit listed
+under *wargear options to write*.
+
+1. In **Wargear Options**, click **+ Wargear Option · Contribution**.
+2. Fill its blanks: who, what, with what.
+3. Optionally, in the folded line of an alternative: its MFM line, and the
+   **abilities it brings** — abilities of the unit that are then active only for
+   the models that take it.
+4. Save.
+
+**What is written** — a contribution whose `wargearUpstream` is `null`: the
+option exists only because of it. **−** removes it, with what its alternatives
+cost and bring.
+
+## Link a paid wargear line to an alternative
+
+The MFM bills wargear by name (`Twin Killsaws: 5`); BSData describes choices
+(`Meganob w/ Twin Killsaw`). The build links a line to an alternative when
+their names match and **exactly one alternative** fits. When it cannot, the
 line is listed on the unit sheet and in the build report, as one of:
 
 | Finding | Meaning |
 |---|---|
-| no option matches | no option carries that name |
-| several options match | the tool will not guess |
-| only a default option matches | a default option may be paid, or not: you decide |
+| no wargear alternative matches | no alternative carries that name |
+| several wargear alternatives match | the tool will not guess |
+| only Default Wargear matches | the line names a weapon carried by default: link it by hand on an alternative if it is paid |
 | linked by hand, but the line is gone | the link names a line the MFM no longer has |
 
-To link by hand: in the option's card, under **Wargear cost**, choose the MFM
-line in the menu (it starts on *— not billed —*), and set the number after
-**×** — how many times the line is paid per model (`2` for an option named
-"2 Multi-meltas"). The resulting amount is shown, read from the line: you never
-type an amount on an option. **unlink** removes the link.
+To link by hand: open the folded line of the alternative, choose the MFM line
+in **Wargear cost** (it starts on *— not billed —*), and set the number after
+**×** — how many times the line is paid per model (`2` for "2 Multi-meltas").
+You never type an amount: it is read from the line.
 
-**What is written** — a **contribution**, in the file of the unit's army, `authored/wh40k-11e/armies/<army>.json`:
+**What is written** — a **contribution**, at the address of the alternative:
 
 ```json
 {
   "target": "d8c8-ea02-21bf-de0b::option:9fa3-afd7-4ce7-f888|7b2f-1a9b-4188-dd21",
-  "wargearCost": { "item": "Lascannon" },
-  "reason": "The default lascannon is a paid one."
+  "wargearCost": { "item": "Heavy bolter" },
+  "reason": "The hull heavy bolter is a paid one."
 }
 ```
 
@@ -436,32 +477,7 @@ A link set by hand always wins over the automatic one — including to
 **unlink** (`"wargearCost": null`), when the automatic link is wrong.
 
 > When the official app contradicts the MFM (a free Killsaw), do not unlink:
-> correct the MFM **line** in *Wargear costs*.
-
-## Add a wargear option BSData does not have
-
-A banner, a shield, a choice BSData forgot.
-
-1. In **Wargear Options**, in the right group, click **+**.
-2. Name it, list its weapons (possibly none), set its limits.
-3. Optionally: its MFM line, and the **abilities it brings** — abilities of the
-   unit that are then active only for the models that take the option.
-4. Save.
-
-**What is written** — a contribution; the option exists only because of it:
-
-```json
-{
-  "target": "1e27-a6de-3840-a050::option:group-2|contrib-1",
-  "option": {
-    "name": "1 ironstorm missile pod",
-    "weapons": ["ranged|Ironstorm missile pod"],
-    "maxCarriers": 0,
-    "isDefault": false
-  },
-  "reason": "Update the Crusader loadout."
-}
-```
+> correct the MFM **line** in *MFM wargear lines*.
 
 ---
 

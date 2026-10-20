@@ -15,9 +15,8 @@
  * prime toujours, y compris pour délier ; s'il désigne une ligne disparue, il
  * est signalé et ne facture rien.
  *
- * La même règle vaut pour les deux formes du Dataset : les options des groupes
- * de choix, et les Wargear Alternatives des Wargear Options. Les findings
- * suivent les groupes de choix tant qu'ils sont publiés.
+ * Un lien posé à la main vise une Wargear Alternative par l'adresse de
+ * l'option d'où elle vient (`<unitId>::option:<groupId>|<id>`).
  *
  * Le montant n'est jamais recopié : il reste dans la ligne.
  */
@@ -30,12 +29,12 @@ export interface WargearFinding {
   /** La ligne du MFM, par son nom. */
   item: string;
   /**
-   * `orphan` : aucune option ne correspond ; `ambiguous` : plusieurs options non
-   * par défaut ; `default-only` : seule une option par défaut correspond ;
+   * `orphan` : aucune Wargear Alternative ne correspond ; `ambiguous` :
+   * plusieurs ; `default-only` : seul le Default Wargear correspond ;
    * `missing-line` : un lien posé à la main désigne une ligne disparue.
    */
   kind: 'orphan' | 'ambiguous' | 'default-only' | 'missing-line';
-  /** Les options concernées, par nom. */
+  /** Les Wargear Alternatives concernées, par nom (ou les Weapons du Default Wargear). */
   options: string[];
   /** L'adresse de l'option, pour un lien posé à la main. */
   target?: string;
@@ -94,23 +93,6 @@ interface Billable {
   bill(cost: WargearCost | undefined): void;
 }
 
-/** Les options des groupes de choix d'une Unit. */
-function optionBillables(u: Unit): Billable[] {
-  return (u.optionGroups ?? []).flatMap((g) =>
-    g.options.map((o) => ({
-      target: optionTarget(u.id, g.id, o.id),
-      name: o.name,
-      ...namesOf(o.name, o.weapons),
-      isDefault: o.isDefault,
-      cost: () => o.wargearCost,
-      bill: (c: WargearCost | undefined) => {
-        if (c) o.wargearCost = c;
-        else delete o.wargearCost;
-      },
-    })),
-  );
-}
-
 /**
  * Les Wargear Alternatives d'une Unit, et son Default Wargear : une ligne qui
  * ne vise que ce qui est porté d'office se signale sans se lier.
@@ -154,8 +136,7 @@ export function linkWargear(files: Map<string, unknown>, gameSystem: string, man
   const occurrences = armies.flatMap((a) => a.units.map((u) => ({ army: a.id, unit: u }))).sort((x, y) => Number(Boolean(x.unit.ally)) - Number(Boolean(y.unit.ally)));
 
   for (const { army, unit } of occurrences) {
-    const own = linkUnit(unit, optionBillables(unit), manual);
-    linkUnit(unit, alternativeBillables(unit), withPools(unit, manual));
+    const own = linkUnit(unit, alternativeBillables(unit), withPools(unit, manual));
     if (reported.has(unit.id)) continue;
     reported.add(unit.id);
     findings.push(...own.map((f) => ({ army, unitId: unit.id, unit: unit.name, ...f })));
