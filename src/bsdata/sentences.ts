@@ -196,6 +196,9 @@ export function translateWargear(groups: OptionGroup[], types: ModelType[], type
       const replaces = once(held.filter((r) => !o.weapons.includes(r)));
       const alternative: WargearAlternative = { id: o.id, name: brought(o.name, held), weapons: given(o.name, o.weapons.filter((r) => !held.includes(r))) };
       if (shared) {
+        // Une configuration plafonnée en deçà du budget commun : « up to 2 » parmi les trois armes spéciales.
+        const budget = Math.max(g.maxPicks, ...g.pickBrackets.map((b) => b.maxPicks));
+        if (o.maxCarriers > 0 && o.maxCarriers < budget) alternative.max = o.maxCarriers;
         const key = `${type}|${replaces.map((w) => w.weapon).join('+')}`;
         const entry = together.get(key) ?? together.set(key, { model: type, replaces, alternatives: [] }).get(key)!;
         entry.alternatives.push(alternative);

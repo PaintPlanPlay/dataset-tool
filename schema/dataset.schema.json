@@ -396,6 +396,11 @@
           "items": {
             "$ref": "#/$defs/name"
           }
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Au plus ce nombre de figurines la prennent, en plus du plafond de son option."
         }
       },
       "required": [

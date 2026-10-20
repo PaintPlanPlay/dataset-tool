@@ -609,6 +609,8 @@ export interface WargearAlternative {
   wargearCost?: WargearCost;
   /** Aptitudes de l'Unit qu'elle apporte, par nom : actives seulement pour les figurines qui la prennent. */
   abilities?: string[];
+  /** Au plus ce nombre de figurines la prennent, en plus du plafond de son option : « (up to 2) ». */
+  max?: number;
 }
 
 /**

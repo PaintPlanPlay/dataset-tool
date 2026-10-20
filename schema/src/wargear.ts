@@ -16,8 +16,13 @@ const plural = (name: string) => (/s$/i.test(name) ? name : `${name}s`);
 
 const counted = (w: WeaponCount) => `${w.count} ${w.count > 1 ? plural(weaponName(w.weapon)) : weaponName(w.weapon)}`;
 
-/** Ce qu'une Wargear Alternative donne, en clair : « 1 Big Skorcha and 1 Kustom Choppa ». */
-export const alternativeText = (a: WargearAlternative) => (a.weapons.length ? a.weapons.map(counted).join(' and ') : (a.name ?? 'nothing'));
+/** Ce qu'une Wargear Alternative donne, en clair : « 1 Big Skorcha and 1 Kustom Choppa », « 1 Rokkit Launcha (up to 2) ». */
+export const alternativeText = (a: WargearAlternative) =>
+  `${a.weapons.length ? a.weapons.map(counted).join(' and ') : (a.name ?? 'nothing')}${a.max !== undefined ? ` (up to ${a.max})` : ''}`;
+
+/** Combien de figurines peuvent prendre une Wargear Alternative à cet effectif : le plafond de son option, et le sien. */
+export const alternativeCap = (u: Pick<Unit, 'name' | 'minModels' | 'maxModels' | 'modelTypes'>, option: WargearOption, alternative: WargearAlternative, size: number): number =>
+  Math.min(wargearCap(u, option, size), alternative.max ?? Infinity);
 
 /** Les types de figurine d'une Unit ; un seul, à son nom, quand elle n'en déclare pas. */
 export const modelTypesOf = (u: Pick<Unit, 'name' | 'minModels' | 'maxModels' | 'modelTypes'>): ModelType[] =>
