@@ -74,7 +74,7 @@ section('Un pool qui puise dans un autre, budget commun : les Boyz');
     sentences(boyz).includes('For every 10 models in this unit, 3 Boy models can each have their Shoota replaced with one of the following: 1 Big Shoota (up to 2); 1 Rokkit Launcha (up to 2); 1 Burna (up to 2)'),
     sentences(boyz).join(' / '),
   );
-  const special = boyz.wargearOptions?.find((o) => o.alternatives.some((a) => a.name === 'Rokkit Launcha'));
+  const special = boyz.wargearOptions?.find((o) => o.alternatives.some((a) => a.weapons.some((w) => w.weapon === 'ranged|Rokkit Launcha')));
   check('une configuration plafonnée en deçà du budget commun garde son plafond', special?.alternatives.every((a) => a.max === 2) === true && wargearCap(boyz, special!, 20) === 6, JSON.stringify(special));
   check('un sous-choix du Nob est une phrase à part', sentences(boyz).includes('Any number of Nob models can each have their Kustom Choppa replaced with 1 Power Klaw.'));
 }
