@@ -9,6 +9,8 @@
  */
 import { parseAbilities } from './abilities.ts';
 import { isCoreRule } from '../rules.ts';
+import type { ModelType } from '@paintplanplay/dataset-schema';
+import { translateWargear, typeName } from './sentences.ts';
 import { weaponRef, type Ability, type CatalogueUnit, type OptionGroup, type Statline, type Weapon, type WeaponKind, type WeaponOption, type WeaponProfile } from './types.ts';
 
 interface BsNode {
@@ -307,6 +309,8 @@ interface Collected {
    * les Cadian Shock Troops, alors que le pack se joue aussi à 20.
    */
   slots: Map<string, number>;
+  /** Chaque entrée de figurine visitée : son nom et ses bornes, retenue par défaut ou non. */
+  slotInfo: Map<string, { name: string; min: number; max: number }>;
 }
 
 const MAX_DEPTH = 10;
@@ -425,6 +429,7 @@ function collect(
     if (node.id) {
       slotId = node.id;
       if (preferred) acc.slots.set(node.id, here === Infinity ? 1 : here);
+      if (slot && !acc.slotInfo.has(node.id)) acc.slotInfo.set(node.id, slot);
     }
   }
 
@@ -844,6 +849,42 @@ function carrierLimits(groups: OptionGroup[], defaults: Map<string, number>): Ma
   return limits;
 }
 
+/** Le type qui complète l'Unit : le plus nombreux. */
+const mainType = (types: ModelType[]) => types.reduce((a, b) => (b.max > a.max ? b : a)).name;
+
+/**
+ * Les types de figurine d'une datasheet et leur Default Wargear, par figurine.
+ *
+ * Les entrées de figurine retenues par défaut disent les types — une
+ * configuration « Nob w/ … » est un Nob — et leurs bornes, combien il y en a.
+ * Une Weapon portée d'office l'est par le type de l'entrée qui la porte ; une
+ * Weapon posée sur l'Unit elle-même, par le type qui la complète.
+ */
+function modelTypesOf(unit: string, sizes: { min: number; max: number }, acc: Collected, kept: FlatProfile[]): ModelType[] {
+  const slots = [...acc.slots.keys()].map((id) => ({ id, info: acc.slotInfo.get(id) })).filter((s) => s.info);
+  const names = [...new Set(slots.map((s) => typeName(s.info!.name)))];
+  const single = names.length <= 1;
+  const types: ModelType[] = (single ? [names[0] ?? unit] : names).map((name) => {
+    if (single) return { name, min: sizes.min, max: sizes.max, defaultWargear: [] };
+    const all = [...acc.slotInfo.values()].filter((i) => typeName(i.name) === name);
+    const mine = slots.filter((s) => typeName(s.info!.name) === name).map((s) => s.info!);
+    const max = Math.min(sizes.max, Math.max(0, ...all.map((i) => i.max))) || sizes.max;
+    return { name, min: Math.min(max, Math.max(0, ...mine.map((i) => i.min))), max, defaultWargear: [] };
+  });
+  const filler = mainType(types);
+  const typeOfSlot = new Map(slots.map((s) => [s.id, single ? types[0].name : typeName(s.info!.name)]));
+  for (const w of kept) {
+    const perSlot = acc.defaults.get(weaponKey(w));
+    if (!perSlot) continue;
+    for (const slotId of perSlot.keys()) {
+      const type = types.find((t) => t.name === (typeOfSlot.get(slotId) ?? filler))!;
+      const ref = refOf(w);
+      if (!type.defaultWargear.some((x) => x.weapon === ref)) type.defaultWargear.push({ weapon: ref, count: 1 });
+    }
+  }
+  return types;
+}
+
 /** Extrait les datasheets d'un ensemble de catalogues déjà chargés. */
 /**
  * @param catalogues tous les fichiers nécessaires à la résolution des liens.
@@ -878,7 +919,7 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
 
       const acc: Collected = {
         models: [], weapons: [], abilities: [], keywords: new Set(), armyRules: new Set(), coreRules: new Set(), armyRuleIds, primaryId,
-        defaults: new Map(), composition: new Map(), slots: new Map(),
+        defaults: new Map(), composition: new Map(), slots: new Map(), slotInfo: new Map(),
       };
       collect(root, byId, acc, new Set([visitKey('e', root.id, '', true)]), 0);
       if (acc.models.length === 0) continue;
@@ -971,6 +1012,19 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
         const ref = refOf(w);
         defaultCarriers.set(ref, Math.max(defaultCarriers.get(ref) ?? 0, Math.min(defaultModels, carriers(perSlot))));
       }
+      const keptGroups = optionGroups
+        .map((g) => ({ ...g, options: g.options.filter((o) => o.weapons.some((r) => keptRefs.has(r))) }))
+        .filter((g, _i, all) => g.options.length >= 2 || (g.pool && g.options.length === 1 && all.some((c) => c.parent === g.id)));
+      const modelTypes = modelTypesOf(name, sizes, acc, kept);
+      const typeOfSlot = (slot: string) => (slot && modelTypes.some((t) => t.name === typeName(slot)) ? typeName(slot) : mainType(modelTypes));
+      const translated = translateWargear(keptGroups, modelTypes, (g) => {
+        if (g.slot) return typeOfSlot(g.slot);
+        // Un pool se rattache au type de sa configuration par défaut ; un choix imbriqué, à celui de son pool.
+        const pool = g.pool ? g : keptGroups.find((p) => p.id === g.parent);
+        const named = pool?.options.find((o) => o.isDefault) ?? pool?.options[0];
+        return typeOfSlot(named?.name ?? '');
+      });
+
       const fromLeader = targetsOf('leader');
       const leaderTargets = supportKeyword ? [] : fromLeader;
       const supportTargets = [...targetsOf('support'), ...(supportKeyword ? fromLeader : [])];
@@ -1003,9 +1057,10 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
           .map((m) => ({ name: m.name, ...acc.composition.get(m.name)! })),
         // On ne garde que les choix dont les armes ont survécu à la déduplication —
         // et l'emplacement à une configuration dont d'autres choix puisent les figurines.
-        optionGroups: optionGroups
-          .map((g) => ({ ...g, options: g.options.filter((o) => o.weapons.some((r) => keptRefs.has(r))) }))
-          .filter((g, _i, all) => g.options.length >= 2 || (g.pool && g.options.length === 1 && all.some((c) => c.parent === g.id))),
+        optionGroups: keptGroups,
+        modelTypes,
+        wargearOptions: translated.options,
+        ...(translated.untranslated.length ? { untranslated: translated.untranslated } : {}),
         defaultLoadout: weapons
           .filter((w) => defaultCarriers.has(weaponRef(w)))
           .map((w) => ({ weapon: w.name, kind: w.kind, count: defaultCarriers.get(weaponRef(w))! })),

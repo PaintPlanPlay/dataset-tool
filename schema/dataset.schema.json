@@ -378,6 +378,196 @@
       ],
       "additionalProperties": false
     },
+    "weaponCount": {
+      "description": "Une Weapon, en clé « kind|name », et son nombre.",
+      "type": "object",
+      "properties": {
+        "weapon": {
+          "type": "string",
+          "maxLength": 140
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "weapon",
+        "count"
+      ],
+      "additionalProperties": false
+    },
+    "modelType": {
+      "description": "Un type de figurine de l'Unit et son Default Wargear : ce qu'une figurine de ce type porte d'office.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "defaultWargear": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/weaponCount"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "min",
+        "max",
+        "defaultWargear"
+      ],
+      "additionalProperties": false
+    },
+    "wargearWhoEach": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "each"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "wargearWhoUpTo": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "up-to"
+        },
+        "models": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "type",
+        "models"
+      ],
+      "additionalProperties": false
+    },
+    "wargearWhoPer": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "per"
+        },
+        "models": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "every": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "type",
+        "models",
+        "every"
+      ],
+      "additionalProperties": false
+    },
+    "wargearWho": {
+      "description": "Qui peut prendre la Wargear Option, parmi les figurines de son type.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/wargearWhoEach"
+        },
+        {
+          "$ref": "#/$defs/wargearWhoUpTo"
+        },
+        {
+          "$ref": "#/$defs/wargearWhoPer"
+        }
+      ]
+    },
+    "wargearAlternative": {
+      "description": "Un des choix d'une Wargear Option : ce qu'une figurine qui la prend reçoit.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "weapons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/weaponCount"
+          }
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "wargearCost": {
+          "$ref": "#/$defs/wargearCost"
+        },
+        "abilities": {
+          "description": "Aptitudes de l'Unit qu'elle apporte, par nom : actives seulement pour les figurines qui la prennent.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "weapons"
+      ],
+      "additionalProperties": false
+    },
+    "wargearOption": {
+      "description": "Une Wargear Option : qui (model, who), quoi (replaces ; vide pour « can be equipped with ») et ses Wargear Alternatives.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "model": {
+          "$ref": "#/$defs/name"
+        },
+        "who": {
+          "$ref": "#/$defs/wargearWho"
+        },
+        "replaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/weaponCount"
+          }
+        },
+        "upTo": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "alternatives": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/wargearAlternative"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "model",
+        "who",
+        "replaces",
+        "alternatives"
+      ],
+      "additionalProperties": false
+    },
     "priceBand": {
       "type": "object",
       "properties": {
@@ -654,6 +844,18 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/optionGroup"
+          }
+        },
+        "modelTypes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/modelType"
+          }
+        },
+        "wargearOptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/wargearOption"
           }
         }
       },

@@ -157,7 +157,9 @@ A datasheet.
 | `defaultModels` | whole number | the size the counts of `defaultLoadout` refer to | BSData |
 | `composition` | list of `{ name, min, max }` | how many of each model | BSData |
 | `defaultLoadout` | list of `{ weapon, kind, count }` | the weapons carried when nothing is chosen | BSData |
-| `optionGroups` | list of [option groups](#option-group) | the wargear choices | BSData |
+| `optionGroups` | list of [option groups](#option-group) | the wargear choices, as BSData structures them — being replaced by `wargearOptions` | BSData |
+| `modelTypes` | list of [model types](#model-type) | each kind of model in the unit, with its Default Wargear | BSData |
+| `wargearOptions` | list of [wargear options](#wargear-option) | the datasheet's wargear options, as sentences | BSData, translated |
 
 Required: `id`, `name`, `source`, `isLegends`, `keywords`, `factionKeywords`,
 `armyRules`, `models`, `weapons`, `abilities`, `points`, `costBrackets`,
@@ -268,6 +270,73 @@ cost is the base cost, the following ones are the brackets.
 
 A `name`, plus the [body of a rule](#rule): `modifiers`, `options`, `summary`.
 Its text is never published.
+
+#### Model type
+
+One kind of model in the unit — the Warboss, the Nob, the Boss Nob — and its
+**Default Wargear**: what one model of that kind carries before any wargear
+option is taken ("This model is equipped with"). Never a total for the unit:
+it holds at any size.
+
+```json
+{ "name": "Warboss", "min": 1, "max": 1, "defaultWargear": [{ "weapon": "melee|Kustom Choppa", "count": 1 }, { "weapon": "ranged|Kustom Shoota", "count": 1 }] }
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `name` | name | |
+| `min`, `max` | whole numbers | how many models of this kind the unit has, at its smallest and largest size |
+| `defaultWargear` | list of `{ weapon, count }` | weapon keys, and how many one model carries |
+
+How many models of each kind a unit has at a given size: the most numerous
+kind fills the unit; the others take their minimum, then whatever is left up
+to their maximum (`modelsOfTypes` in the schema package).
+
+#### Wargear option
+
+One bullet of the datasheet's *Wargear Options*, as Games Workshop writes it,
+in three parts: **who** (`model`, `who`), **what** (`replaces`, empty for "can
+be equipped with") and **with what** (`alternatives`). Its text is never
+stored: `wargearSentence` writes it from these parts.
+
+```json
+{
+  "id": "ec28-c189-8e38-0c9e",
+  "model": "Warboss",
+  "who": { "type": "each" },
+  "replaces": [{ "weapon": "ranged|Kustom Shoota", "count": 1 }],
+  "alternatives": [
+    { "id": "ad1c-5b8f-7e01-6fed", "name": "Kombi-skorcha", "weapons": [{ "weapon": "ranged|Kombi-skorcha", "count": 1 }] },
+    { "id": "44b5-40a7-7c84-cb9f", "name": "Kombi-rokkit", "weapons": [{ "weapon": "ranged|Kombi-rokkit", "count": 1 }] }
+  ]
+}
+```
+
+reads *This model’s Kustom Shoota can be replaced with one of the following:
+1 Kombi-skorcha; 1 Kombi-rokkit.*
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | identifier | BSData's id of the group it comes from; `contrib-…` when written by hand |
+| `model` | name | the model type whose models take it |
+| `who` | `{ type: "each" }`, `{ type: "up-to", models }` or `{ type: "per", models, every }` | each model of the type ("This model", "Any number of models"), up to `models` of them, or `models` for every `every` models in the unit |
+| `replaces` | list of `{ weapon, count }` | what a model gives up when it takes the option. Empty: "can be equipped with" |
+| `upTo` | whole number | how many times one model can take it ("up to 4 Big Shootas"); 1 when absent |
+| `alternatives` | list of wargear alternatives, at least one | several: "one of the following". The limit holds for all of them together |
+
+Each **wargear alternative**:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | identifier | BSData's id of its entry |
+| `weapons` | list of `{ weapon, count }` | what a model that takes it receives. May be empty (a banner): `name` then says what it is |
+| `name` | text | its upstream name, or what it is when it brings no weapon |
+| `wargearCost` | `{ item, quantity }` | the line of the unit's `wargear` list that bills it, per model taking it. The amount is never copied here |
+| `abilities` | list of names | abilities of the unit it brings: active only for the models that take it |
+
+A list records, for each wargear option, the alternative taken and how many
+models take it; no weapon is replaced more times than models carry it
+(`wargearCap` gives an option's limit at a size).
 
 #### Option group
 

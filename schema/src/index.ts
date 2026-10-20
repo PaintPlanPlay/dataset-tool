@@ -11,7 +11,7 @@
  */
 
 /** Version du schéma à laquelle un fichier se conforme. */
-export const SCHEMA_VERSION = '2.6.0';
+export const SCHEMA_VERSION = '2.7.0';
 
 /** Un wargame à une édition donnée. Le Dataset est rangé par Game System. */
 export interface GameSystem {
@@ -583,6 +583,76 @@ export interface WeaponOption {
   abilities?: string[];
 }
 
+/** Une Weapon et son nombre, en clé « kind|name » : la Weapon entière, jamais un de ses profils. */
+export interface WeaponCount {
+  weapon: string;
+  count: number;
+}
+
+/**
+ * Un type de figurine d'une Unit — le Warboss, le Nob, le Boss Nob — et son
+ * Default Wargear : ce qu'une figurine de ce type porte d'office (« This model
+ * is equipped with »). Jamais un total pour l'Unit : il vaut quel que soit
+ * l'effectif.
+ */
+export interface ModelType {
+  name: string;
+  /** Figurines de ce type au plus petit et au plus grand effectif de l'Unit. */
+  min: number;
+  max: number;
+  /** Default Wargear : par figurine de ce type. */
+  defaultWargear: WeaponCount[];
+}
+
+/**
+ * Qui peut prendre une Wargear Option, parmi les figurines de son type. La
+ * phrase se règle sur le type : « This model » pour une figurine seule,
+ * « Any number of models » sinon.
+ */
+export type WargearWho =
+  /** Chacune des figurines du type. */
+  | { type: 'each' }
+  /** « Up to 2 models ». */
+  | { type: 'up-to'; models: number }
+  /** « For every 5 models in this unit, 1 model » : `models` pour chaque tranche de `every` figurines de l'Unit. */
+  | { type: 'per'; models: number; every: number };
+
+/**
+ * Une Wargear Alternative : un des choix d'une Wargear Option, ce qu'une
+ * figurine qui la prend reçoit. Elle porte le Wargear Cost et les aptitudes
+ * qu'elle apporte.
+ */
+export interface WargearAlternative {
+  id: string;
+  /** Vide : elle n'apporte aucune Weapon (une bannière, un bouclier), et `name` la dit. */
+  weapons: WeaponCount[];
+  /** Son nom amont (« Meganob w/ Twin Killsaw ») ou, sans Weapon, ce qu'elle est. */
+  name?: string;
+  /** Sa ligne du MFM, quand elle est payante. */
+  wargearCost?: WargearCost;
+  /** Aptitudes de l'Unit qu'elle apporte, par nom : actives seulement pour les figurines qui la prennent. */
+  abilities?: string[];
+}
+
+/**
+ * Une Wargear Option : une puce de la fiche, telle que Games Workshop l'écrit.
+ * Qui (`model`, `who`), Quoi (`replaces`, vide pour « can be equipped with »)
+ * et avec quoi (`alternatives`). Son texte n'est jamais stocké : il se
+ * régénère de ces parties (`wargearSentence`).
+ */
+export interface WargearOption {
+  id: string;
+  /** Le type de figurine dont les figurines la prennent : un `ModelType.name`. */
+  model: string;
+  who: WargearWho;
+  /** Ce qu'une figurine rend en la prenant. Vide : « can be equipped with ». */
+  replaces: WeaponCount[];
+  /** Combien de fois une même figurine peut la prendre (« up to 4 Big Shootas ») ; 1 quand il est absent. */
+  upTo?: number;
+  /** Au moins une ; plusieurs : « one of the following ». Le plafond vaut pour toutes ensemble. */
+  alternatives: WargearAlternative[];
+}
+
 export interface OptionGroup {
   id: string;
   name: string;
@@ -669,6 +739,10 @@ export interface Unit {
   /** Weapons portées d'office, par nom et genre. */
   defaultLoadout?: { weapon: string; kind: WeaponKind; count: number }[];
   optionGroups?: OptionGroup[];
+  /** Ses types de figurine, chacun avec son Default Wargear. */
+  modelTypes?: ModelType[];
+  /** Ses Wargear Options, dans l'ordre de la fiche. */
+  wargearOptions?: WargearOption[];
 }
 
 // -------------------------------------------------------------- Corrections
@@ -769,3 +843,4 @@ export function kindOfPath(path: string): FileKind | null {
 }
 
 export * from './weaponKeywords.ts';
+export * from './wargear.ts';

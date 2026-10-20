@@ -156,6 +156,8 @@ export function toDatasetUnit(u: CatalogueUnit, abilities: Unit['abilities'] = u
     ...(u.composition?.length ? { composition: u.composition } : {}),
     ...(u.defaultLoadout?.length ? { defaultLoadout: u.defaultLoadout } : {}),
     ...(u.optionGroups?.length ? { optionGroups: u.optionGroups } : {}),
+    ...(u.modelTypes?.length ? { modelTypes: u.modelTypes } : {}),
+    ...(u.wargearOptions?.length ? { wargearOptions: u.wargearOptions } : {}),
   };
 }
 
