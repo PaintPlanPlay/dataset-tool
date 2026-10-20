@@ -81,7 +81,7 @@ does not have. Add the weapon first, in **Weapons**.
 from the list of the game's weapon abilities. Use the **+ add…** menu.
 
 **"…is not an MFM wargear line of this Unit"** — the option's wargear cost
-names a line that is not in **Wargear costs**. Add the line first.
+names a line that is not in **MFM wargear lines**. Add the line first.
 
 **"the name of an Army Rule comes from BSData: correct it on its Units"** — an
 army rule's name is the one its units list under **Army rules**.

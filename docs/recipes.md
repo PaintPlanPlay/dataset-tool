@@ -96,7 +96,7 @@ The price grid is corrected **whole**: `patch` holds the grid as it should be,
 
 ## Change the cost of paid wargear
 
-**Where:** the unit's sheet, section **Wargear costs · MFM**.
+**Where:** the unit's sheet, section **MFM wargear lines · MFM**.
 
 Each line is a name and an amount, as the MFM writes them (`Zzap Gun: 10`).
 Change the amount, add a line with **+**, or remove one.
