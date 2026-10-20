@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react';
 import { api, type ArmyChanges, type CaughtUp, type Counters, type FindingKind, type EntityChange, type FieldChange, type Origin, type Overview, type SourceShift, type Stage, type Unreleased } from './api.ts';
 import { ReattachDialog } from './Dialogs.tsx';
+import { SCROLL_KEY } from './sheets/WargearSheet.tsx';
 
 const SOURCE: Record<string, string> = { bsdata: 'BSData', mfm: 'MFM' };
 const KIND: Record<EntityChange['kind'], string> = { unit: 'Unit', detachment: 'Detachment', stratagem: 'Stratagem', armyRule: 'Army Rule', core: 'Core' };
@@ -339,7 +340,20 @@ export function Dashboard({ overview, onOpen, onWrite }: Props) {
           {shown.map((f, i) => (
             <div className="change" key={i}>
               {f.sheet ? (
-                <button type="button" className="link change-field" onClick={() => onOpen(f.sheet!)}>
+                <button
+                  type="button"
+                  className="link change-field"
+                  onClick={() => {
+                    // Une Unit dont les Wargear Options sont à écrire s'ouvre sur elles.
+                    if (f.kind === 'wargearToWrite')
+                      try {
+                        sessionStorage.setItem(SCROLL_KEY, 'wargear-options');
+                      } catch {
+                        // sans stockage, la fiche s'ouvre en haut
+                      }
+                    onOpen(f.sheet!);
+                  }}
+                >
                   {f.label}
                 </button>
               ) : (

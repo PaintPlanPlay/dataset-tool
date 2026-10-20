@@ -5,7 +5,7 @@
  * effectifs) s'affiche sans se saisir.
  */
 import type { ReactNode } from 'react';
-import type { Unit } from '@paintplanplay/dataset-schema';
+import { alternativeText, type Unit } from '@paintplanplay/dataset-schema';
 import type { WargearFinding } from '../../../src/wargear.ts';
 import { Badges, Field, PointsInput, useEditor, type FieldProps } from '../editor/Editor.tsx';
 import { defaultOf, type Path } from '../editor/values.ts';
@@ -309,7 +309,7 @@ function WargearLines({ findings, section }: { findings: WargearFinding[]; secti
         const linked = (unit.wargearOptions ?? [])
           .flatMap((o) => o.alternatives)
           .filter((a) => a.wargearCost?.item === l.item)
-          .map((a) => ({ name: a.name ?? a.weapons.map((w) => w.weapon.slice(w.weapon.indexOf('|') + 1)).join(' and '), cost: a.wargearCost }));
+          .map((a) => ({ name: a.name ?? alternativeText(a), cost: a.wargearCost }));
         const finding = findings.find((f) => f.item === l.item && f.kind !== 'missing-line');
         return (
           <div key={i} className="item wargear-line">

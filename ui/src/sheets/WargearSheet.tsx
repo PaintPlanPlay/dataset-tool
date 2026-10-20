@@ -8,12 +8,15 @@
  * Une cellule corrigée est une Correction ; une phrase écrite ou corrigée, une
  * Contribution — l'enregistrement en décide, pas la fiche.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { modelTypesOf, wargearSentence, weaponName, type ModelType, type Unit, type WargearAlternative, type WargearOption, type WargearWho, type WeaponCount } from '@paintplanplay/dataset-schema';
 import { Badges, Field, useEditor, type FieldProps } from '../editor/Editor.tsx';
 import { pointer, type Path } from '../editor/values.ts';
 
 const weaponRef = (w: { kind: string; name: string }) => `${w.kind}|${w.name}`;
+
+/** La section où ouvrir la prochaine fiche, posée par le tableau de bord. */
+export const SCROLL_KEY = 'sheet-scroll-to';
 
 /** Le tableau des Weapons, et ce que chaque type de figurine en porte d'office. */
 export function DefaultWargearTable({ section }: { section: string }) {
@@ -29,6 +32,23 @@ export function DefaultWargearTable({ section }: { section: string }) {
     ctx.onChange(['modelTypes'], next);
   };
   const carried = (t: ModelType, ref: string) => t.defaultWargear.find((w) => w.weapon === ref)?.count ?? 0;
+  // Une Correction porte tout le Default Wargear : chaque cellule dit si elle s'écarte de BSData, ou du chargé.
+  const correction = (ctx.marks.get('/modelTypes') ?? []).find((m) => m.kind === 'correction');
+  const before = (list: unknown, type: string, ref: string) =>
+    ((list as ModelType[] | undefined)?.find((t) => t.name === type)?.defaultWargear.find((w) => w.weapon === ref)?.count ?? 0);
+  const cellBadges = (t: ModelType, ref: string) => {
+    const now = carried(t, ref);
+    const corrected = correction && before(correction.upstream, t.name, ref) !== now;
+    const edited = before((ctx.original as Unit).modelTypes, t.name, ref) !== now;
+    return (
+      <>
+        {edited && <span className="badge edited" title="Edited, not saved yet" />}
+        {corrected && !edited && (
+          <span className={`badge published ${correction!.state}`} title={`Correction (${correction!.state}) — ${correction!.file}\nBSData: ${before(correction!.upstream, t.name, ref)}\nwhy: ${correction!.reason}`} />
+        )}
+      </>
+    );
+  };
   return (
     <section className="list">
       <h3 className="list-title">
@@ -69,6 +89,7 @@ export function DefaultWargearTable({ section }: { section: string }) {
                       placeholder="0"
                       onChange={(e) => set(ti, ref, Math.max(0, Math.floor(Number(e.target.value) || 0)))}
                     />
+                    {cellBadges(t, ref)}
                   </td>
                 ))}
               </tr>
@@ -87,6 +108,17 @@ export function WargearOptionsEditor({ section, at }: { section: string; at: Fie
   const unit = ctx.draft as Unit;
   const options = unit.wargearOptions ?? [];
   const set = (next: WargearOption[]) => ctx.onChange(['wargearOptions'], next);
+  // Ouverte depuis « options à écrire » : la fiche s'ouvre ici.
+  const here = useRef<HTMLElement>(null);
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(SCROLL_KEY) !== 'wargear-options') return;
+      sessionStorage.removeItem(SCROLL_KEY);
+    } catch {
+      return;
+    }
+    here.current?.scrollIntoView({ block: 'start' });
+  }, []);
   const add = () => {
     const taken = new Set(options.map((o) => o.id));
     let n = options.length + 1;
@@ -95,7 +127,7 @@ export function WargearOptionsEditor({ section, at }: { section: string; at: Fie
     set([...options, { id: `contrib-${n}`, model, who: { type: 'each' }, replaces: [], alternatives: [{ id: `contrib-${n}-1`, weapons: [] }] }]);
   };
   return (
-    <section className="list">
+    <section className="list" ref={here}>
       <h3 className="list-title">
         Wargear Options <span className="count">{options.length}</span>
         <span className="section-source"> · {section}</span>

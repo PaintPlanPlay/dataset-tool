@@ -11,7 +11,7 @@
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ArmyFile, CoreFile, Unit, WargearAlternative, WargearOption } from '@paintplanplay/dataset-schema';
+import { alternativeText, type ArmyFile, type CoreFile, type Unit, type WargearAlternative, type WargearOption } from '@paintplanplay/dataset-schema';
 import { authoredEffectProblems, sameWeapons, type AuthoredEffect } from '../authored.ts';
 import { alternativeTarget } from '../wargear.ts';
 import { CORE_ROOT, parseTarget } from '../corrections/apply.ts';
@@ -80,7 +80,7 @@ function unitElements(u: Unit, entity: string): Element[] {
     return (u.wargearOptions ?? []).flatMap((o) =>
       o.alternatives.map((a) => ({
         target: alternativeTarget(u.id, o, a.id),
-        label: a.name ?? a.weapons.map((w) => w.weapon.slice(w.weapon.indexOf('|') + 1)).join(' and '),
+        label: a.name ?? alternativeText(a),
         wargear: { unit: u, option: o, alternative: a },
       })),
     );

@@ -20,7 +20,7 @@
  *
  * Le montant n'est jamais recopié : il reste dans la ligne.
  */
-import type { ArmyFile, Unit, WargearCost, WargearOption } from '@paintplanplay/dataset-schema';
+import { weaponName, type ArmyFile, type Unit, type WargearCost, type WargearOption } from '@paintplanplay/dataset-schema';
 
 export interface WargearFinding {
   army: string;
@@ -76,7 +76,7 @@ function namesOf(name: string, weapons: string[]): { keys: Set<string>; quantity
   const keys = new Set([wargearKey(rest)]);
   const w = /\bw\/\s*(.+)$/i.exec(name);
   if (w) keys.add(wargearKey(w[1]));
-  for (const ref of weapons) keys.add(wargearKey(ref.slice(ref.indexOf('|') + 1)));
+  for (const ref of weapons) keys.add(wargearKey(weaponName(ref)));
   return { keys, quantity };
 }
 
@@ -101,7 +101,7 @@ function alternativeBillables(u: Unit): Billable[] {
   const alternatives = (u.wargearOptions ?? []).flatMap((o) =>
     o.alternatives.map((a): Billable => {
       const weapons = a.weapons.map((w) => w.weapon);
-      const names = namesOf(a.name ?? weapons.map((r) => r.slice(r.indexOf('|') + 1)).join(' and '), weapons);
+      const names = namesOf(a.name ?? weapons.map(weaponName).join(' and '), weapons);
       const lone = a.weapons.length === 1 ? a.weapons[0].count : 1;
       return {
         target: alternativeTarget(u.id, o, a.id),
@@ -118,7 +118,7 @@ function alternativeBillables(u: Unit): Billable[] {
     }),
   );
   const carried = [...new Set((u.modelTypes ?? []).flatMap((t) => t.defaultWargear.map((w) => w.weapon)))].map(
-    (ref): Billable => ({ target: '', name: ref.slice(ref.indexOf('|') + 1), ...namesOf(ref.slice(ref.indexOf('|') + 1), [ref]), isDefault: true, cost: () => undefined, bill: () => undefined }),
+    (ref): Billable => ({ target: '', name: weaponName(ref), ...namesOf(weaponName(ref), [ref]), isDefault: true, cost: () => undefined, bill: () => undefined }),
   );
   return [...alternatives, ...carried];
 }
