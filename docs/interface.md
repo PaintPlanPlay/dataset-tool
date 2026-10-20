@@ -236,9 +236,15 @@ forces, and its file.
 | **Prices** | the MFM price grid: one row per band of copies ("1st to 3rd", "from the 4th"), and in each row the cost per unit size |
 | **Assigned Agent prices** | shown when the MFM lists a second price for the unit as an allied Agent |
 | **Abilities** | each ability by name, with what it does: Modifiers, Options, a description |
-| **Wargear costs** | the MFM lines that bill wargear (`Zzap Gun: 10`), and which option each one bills |
 | **Weapons** | each weapon with all its profiles |
-| **Wargear Options** | the wargear choices, group by group: for each option, its weapons, how many models may take it, whether it is the default, the MFM line that bills it, the abilities it brings. The **+** of a group adds an option BSData does not have — a contribution |
+| **Default Wargear** | a table of the unit's weapons with one column per model type: how many of each weapon one model of that type carries before any wargear option is taken ("This model is equipped with"). A changed cell is a correction |
+| **Wargear Options** | one sentence per option, as on the datasheet, with its blanks as menus: **who** (this model, any number of models, up to *k* models, *k* for every *N* models — and the model type when the unit has several), **what** (replace some weapons, or be equipped with), and **with what**: one or more alternatives, each its weapons and their numbers. Two alternatives make "one of the following". Under each alternative, a folded line holds the MFM line that bills it and the abilities it brings. Each sentence says whether it is *translated from BSData* or a *Contribution* — and *BSData changed since* when the group it replaces moved upstream. **+ Wargear Option** writes one BSData does not have; **−** removes one. Every change is a contribution |
+| **MFM wargear lines** | the MFM lines that bill wargear (`Zzap Gun: 10`), and which alternative each one bills — or why none does |
+
+A unit the import could not read publishes no wargear option: it is listed on
+the dashboard under *wargear options to write*, and leaves the list once you
+write one of its options. A unit not yet described in sentences shows its
+option groups instead.
 | **Keywords**, **Faction keywords**, **Army rules**, **Leader targets**, **Support targets** | lists, with autocomplete |
 
 [Recipes](recipes.md) walks through each of these.

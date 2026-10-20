@@ -23,5 +23,6 @@ await import('./wargear.test.ts');
 await import('./reattach.test.ts');
 await import('./sentences.test.ts');
 await import('./translation.test.ts');
+await import('./wargearSheet.test.ts');
 
 console.log(failed() ? `\n✘ ${failed()} contrôle(s) en échec` : '\n✔ tous les contrôles passent');

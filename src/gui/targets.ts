@@ -5,7 +5,7 @@
  */
 import { parseTarget } from '../corrections/apply.ts';
 
-const UNIT_ENTITIES = new Set(['unit', 'model', 'weapon', 'ability', 'attachment', 'option']);
+const UNIT_ENTITIES = new Set(['unit', 'model', 'weapon', 'ability', 'attachment', 'option', 'wargear']);
 
 export function sheetOfTarget(target: string): string {
   const { root, entity, name } = parseTarget(target);

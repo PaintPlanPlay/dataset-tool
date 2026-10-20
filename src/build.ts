@@ -23,6 +23,7 @@ import {
   type Detachment,
   type Stratagem,
   type Unit,
+  type WargearOption,
 } from '@paintplanplay/dataset-schema';
 import { armyFaction, armyLabel, composeArmy, playableArmies } from './bsdata/army.ts';
 import type { EnhancementWeapon } from './bsdata/flatten.ts';
@@ -84,6 +85,8 @@ export interface BuildOutput {
   enhancementWeapons: EnhancementWeaponFinding[];
   /** Les Units dont les Wargear Options sont à écrire : la traduction n'a pas su lire leur équipement. */
   wargearToWrite: WargearToWrite[];
+  /** Les Wargear Options de chaque Unit telles que la traduction de BSData les donne, avant toute Contribution. */
+  translatedWargear: Record<string, WargearOption[]>;
 }
 
 /**
@@ -406,6 +409,12 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
   };
   files.set(corePath(gameSystem), coreFile);
 
+  // Ce que la traduction donne, avant qu'une Contribution n'écrive une Wargear Option à la main : l'empreinte de la dérive.
+  const translatedWargear: Record<string, WargearOption[]> = {};
+  for (const [path, file] of files)
+    if (path.startsWith(`${gameSystem}/armies/`))
+      for (const u of (file as ArmyFile).units) if (u.wargearOptions?.length && !translatedWargear[u.id]) translatedWargear[u.id] = structuredClone(u.wargearOptions);
+
   // Les Effects et résumés écrits par le projet, par-dessus tout le reste.
   const authoredEffects = applyAuthoredEffects(files, gameSystem, input.authored?.effects ?? []);
   authored.unresolved.push(...authoredEffects.unresolved);
@@ -429,6 +438,10 @@ export async function build(input: BuildInput): Promise<BuildOutput> {
     unsimulated: findUnsimulated(files),
     wargear,
     enhancementWeapons,
-    wargearToWrite: wargearToWrite.sort((a, b) => a.army.localeCompare(b.army) || a.unit.localeCompare(b.unit)),
+    // Une Unit dont une Wargear Option a été écrite à la main n'attend plus qu'on écrive les siennes.
+    wargearToWrite: wargearToWrite
+      .filter((w) => !authoredEffects.contributions.some((c) => c.state !== 'rejected' && c.state !== 'unresolved' && c.target.startsWith(`${w.unitId}::wargear:`)))
+      .sort((a, b) => a.army.localeCompare(b.army) || a.unit.localeCompare(b.unit)),
+    translatedWargear,
   };
 }

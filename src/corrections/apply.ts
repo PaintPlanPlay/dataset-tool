@@ -199,7 +199,12 @@ function applyOne(
       weapons.splice(i, 1);
       // Une arme retirée ne doit pas rester dans la dotation par défaut.
       const kept = new Set(weapons.map(weaponRef));
-      return { ...unit, weapons, defaultLoadout: unit.defaultLoadout?.filter((d) => kept.has(weaponRef({ kind: d.kind, name: d.weapon }))) };
+      return {
+        ...unit,
+        weapons,
+        defaultLoadout: unit.defaultLoadout?.filter((d) => kept.has(weaponRef({ kind: d.kind, name: d.weapon }))),
+        ...(unit.modelTypes ? { modelTypes: unit.modelTypes.map((t) => ({ ...t, defaultWargear: t.defaultWargear.filter((w) => kept.has(w.weapon)) })) } : {}),
+      };
     }
     if (i < 0) {
       const [kind, wname] = name.split('|');

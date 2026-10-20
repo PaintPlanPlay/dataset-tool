@@ -10,9 +10,10 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import type { AllyRule, ArmyFile, BattleSize, CoreFile, KeywordFilter, Modifier, ReferenceTarget, RuleOption, SampleList, SampleSection, SampleUnit, Stratagem, Unit, WargearCost, WargearCount, Weapon, WeaponOption } from '@paintplanplay/dataset-schema';
+import type { AllyRule, ArmyFile, BattleSize, CoreFile, KeywordFilter, Modifier, ReferenceTarget, RuleOption, SampleList, SampleSection, SampleUnit, Stratagem, Unit, WargearCost, WargearCount, WargearOption, Weapon, WeaponOption } from '@paintplanplay/dataset-schema';
 import { validateDef } from '@paintplanplay/dataset-schema/validate';
 import { CORE_ROOT, parseTarget } from './corrections/apply.ts';
+import { sameValue } from './corrections/lifecycle.ts';
 import { toJson } from './dataset.ts';
 import { homes, type Homes } from './home.ts';
 import { inspectString } from './notext.ts';
@@ -32,7 +33,7 @@ export interface AuthoredSampleUnit {
  * Adresses : `<unitId>::ability:<nom>`, `<armyId>::rule:<detachmentId>|<ruleId>`,
  * `<armyId>::enhancement:<detachmentId>|<enhancementId>`, `<armyId>::stratagem:<id>`,
  * `<armyId>::armyrule:<id>`, `core::stratagem:<id>`,
- * `<unitId>::option:<groupId>|<optionId>`.
+ * `<unitId>::option:<groupId>|<optionId>`, `<unitId>::wargear:<wargearOptionId>`.
  */
 export interface AuthoredEffect {
   target: string;
@@ -52,6 +53,19 @@ export interface AuthoredEffect {
   abilities?: string[];
   /** Une Wargear Option absente de BSData, créée dans son groupe d'options sous l'identifiant de l'adresse. */
   option?: Omit<WeaponOption, 'id' | 'wargearCost' | 'abilities'>;
+  /**
+   * Une Wargear Option écrite à la main, en phrase : elle remplace celle que la
+   * traduction de BSData donne sous l'identifiant de l'adresse, ou s'ajoute ;
+   * `null` retire la traduite. Ses Wargear Alternatives n'y portent ni coût ni
+   * aptitudes : ceux-là se posent à l'adresse de chaque alternative.
+   */
+  wargearOption?: WrittenWargearOption | null;
+  /**
+   * Ce que la traduction donnait sous cet identifiant quand la Wargear Option a
+   * été écrite (`null` : rien). Quand elle change, la Contribution est signalée
+   * — BSData a bougé, la phrase écrite à la main est à relire.
+   */
+  wargearUpstream?: WrittenWargearOption | null;
   /** Pour une Enhancement : la Weapon qu'elle apporte à son porteur. */
   weapon?: Weapon;
   /**
@@ -77,6 +91,18 @@ export interface AuthoredEffect {
 
 /** Ce qu'une Contribution donne d'un Stratagem : tout, sauf son identifiant et ce qu'il fait. */
 export type CreatedStratagem = Pick<Stratagem, 'name' | 'detachmentId' | 'cp' | 'phases' | 'playerTurn' | 'timing'> & Partial<Pick<Stratagem, 'trigger' | 'category' | 'target'>>;
+
+/** Une Wargear Option telle qu'une Contribution l'écrit : sa phrase, sans son identifiant ni ce que ses alternatives coûtent. */
+export type WrittenWargearOption = Omit<WargearOption, 'id' | 'alternatives'> & { alternatives: { id: string; name?: string; weapons: WargearOption['alternatives'][number]['weapons'] }[] };
+
+/** La phrase d'une Wargear Option, sans son identifiant ni ce que ses alternatives coûtent ou apportent. */
+export const writtenOf = (o: WargearOption): WrittenWargearOption => ({
+  model: o.model,
+  who: o.who,
+  replaces: o.replaces,
+  ...(o.upTo !== undefined ? { upTo: o.upTo } : {}),
+  alternatives: o.alternatives.map((a) => ({ id: a.id, ...(a.name !== undefined ? { name: a.name } : {}), weapons: a.weapons })),
+});
 
 /** Ce que devient une Contribution à la construction. */
 export interface ContributionVerdict {
@@ -337,6 +363,12 @@ export function authoredEffectProblems(e: AuthoredEffect): string[] {
     if (entity === 'stratagem' && (root === CORE_ROOT) !== (e.stratagem?.detachmentId === null))
       problems.push(root === CORE_ROOT ? 'a Core Stratagem has no Detachment' : 'a Stratagem of an Army names its Detachment');
   }
+  if (entity === 'wargear') {
+    if (e.wargearOption === undefined) problems.push('a written Wargear Option carries its sentence, or null to remove the translated one');
+    else if (e.wargearOption !== null) problems.push(...validateDef('wargearOption', { id: 'x', ...e.wargearOption }).map((f) => `wargearOption${f.path}: ${f.message}`));
+    if (forOption || e.modifiers !== undefined || e.options !== undefined || e.summary !== undefined || e.weapon !== undefined)
+      problems.push('a written Wargear Option carries only its sentence: costs and abilities go on each alternative');
+  } else if (e.wargearOption !== undefined || e.wargearUpstream !== undefined) problems.push('a written sentence belongs to a Wargear Option (`::wargear:`)');
   if (entity === 'option') {
     if (!forOption) problems.push('a Wargear Option Contribution carries a wargear cost, abilities or a created option');
     if (e.modifiers !== undefined || e.options !== undefined || e.summary !== undefined || e.eligibility !== undefined || e.weapon !== undefined)
@@ -356,7 +388,7 @@ export function authoredEffectProblems(e: AuthoredEffect): string[] {
   if (e.eligibility !== undefined) problems.push(...validateDef('keywordFilter', e.eligibility).map((f) => `eligibility${f.path}: ${f.message}`));
   if (e.effect !== undefined) problems.push('an Effect in the retired 40kdc-data format: write it as Modifiers (ADR 0011)');
   else if (
-    !forOption && e.weapon === undefined && e.modifiers === undefined && e.options === undefined && e.summary === undefined && e.eligibility === undefined &&
+    !forOption && e.wargearOption === undefined && e.weapon === undefined && e.modifiers === undefined && e.options === undefined && e.summary === undefined && e.eligibility === undefined &&
     e.rule === undefined && e.stratagem === undefined && ENHANCEMENT_RESTRICTIONS.every((k) => e[k] === undefined)
   )
     problems.push('neither Modifiers nor summary');
@@ -395,7 +427,9 @@ export function applyAuthoredEffects(
   /** Ce que décrit déjà une Contribution, par adresse sous l'Army d'origine. */
   const described = new Map<string, string>();
 
-  for (const written of effects) {
+  // Une Wargear Option écrite à la main d'abord : le coût ou les aptitudes de ses alternatives se posent ensuite.
+  const ordered = [...effects].sort((a, b) => Number(parseTarget(b.target).entity === 'wargear') - Number(parseTarget(a.target).entity === 'wargear'));
+  for (const written of ordered) {
     let e = written;
     const place = placeOf(h, e);
     const canonical = place.canonical;
@@ -448,7 +482,28 @@ export function applyAuthoredEffects(
       Object.assign(el, body);
       hits++;
     };
-    if (entity === 'option') {
+    let drifted = false;
+    if (entity === 'wargear') {
+      // Une Wargear Option écrite à la main remplace la traduite de même identifiant, s'ajoute, ou la retire.
+      for (const a of armies)
+        for (const u of a.units) {
+          if (u.id !== root) continue;
+          const list = u.wargearOptions ?? [];
+          const i = list.findIndex((o) => o.id === name);
+          const translated = i < 0 ? null : writtenOf(list[i]);
+          if (e.wargearUpstream !== undefined && !sameValue(e.wargearUpstream, translated)) drifted = true;
+          if (e.wargearOption === null) {
+            if (i >= 0) list.splice(i, 1);
+            hits++;
+          } else if (e.wargearOption) {
+            const option: WargearOption = { id: name, ...e.wargearOption };
+            if (i >= 0) list[i] = option;
+            else list.push(option);
+            u.wargearOptions = list;
+            hits++;
+          }
+        }
+    } else if (entity === 'option') {
       // Une Wargear Option : créée dans son groupe quand BSData ne l'a pas, puis ce qu'elle apporte.
       const [groupId, optionId] = name.split('|');
       for (const a of armies)
@@ -532,7 +587,9 @@ export function applyAuthoredEffects(
     else if (!hits) {
       unresolved.push(e.target);
       contributions.push({ target: e.target, reason: e.reason, state: 'unresolved', note: 'the target is not in the Dataset' });
-    } else if (missingAbilities.size)
+    } else if (drifted)
+      contributions.push({ target: e.target, reason: e.reason, state: 'flagged', note: 'BSData changed this Wargear Option since it was written: review the sentence' });
+    else if (missingAbilities.size)
       contributions.push({
         target: e.target,
         reason: e.reason,

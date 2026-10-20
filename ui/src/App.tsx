@@ -80,7 +80,7 @@ function choicesFor(kind: Inspection['kind'], draft: unknown, s: Suggestions | n
       if (key === 'armyRules') return { options: s?.armyRules ?? [], closed: false };
       if (key === 'leaderTargets' || key === 'supportTargets') return { options: units, closed: true };
       if (key === 'weapons.*.profiles.*.keywords') return { options: [], closed: false, picker: 'weaponKeywords' as const };
-      if (key === 'optionGroups.*.options.*.abilities')
+      if (key === 'optionGroups.*.options.*.abilities' || key === 'wargearOptions.*.alternatives.*.abilities')
         return { options: ((draft as { abilities?: { name: string }[] }).abilities ?? []).map((a) => a.name), closed: true };
       if (key === 'optionGroups.*.options.*.weapons') {
         const weapons = ((draft as { weapons?: { kind: string; name: string }[] }).weapons ?? []).map((w) => `${w.kind}|${w.name}`);

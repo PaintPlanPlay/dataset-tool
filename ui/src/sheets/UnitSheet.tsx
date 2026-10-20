@@ -10,11 +10,22 @@ import type { WargearFinding } from '../../../src/wargear.ts';
 import { Badges, Field, PointsInput, useEditor, type FieldProps } from '../editor/Editor.tsx';
 import { defaultOf, pointer, type Path } from '../editor/values.ts';
 import { humanize, type Located } from '../schema.ts';
+import { DefaultWargearTable, WargearOptionsEditor } from './WargearSheet.tsx';
 
 /** L'ordre de la fiche, celui de la maquette : qui la compose, ce qu'elle coûte, ce qu'elle est, ce qu'elle fait, ce qu'elle porte. */
 const SECTIONS = [
   'pricing', 'wargear', 'keywords', 'factionKeywords', 'armyRules', 'leaderTargets', 'supportTargets',
   'abilities', 'weapons', 'optionGroups', 'defaultLoadout',
+] as const;
+
+/**
+ * Une Unit décrite en phrases : ses Weapons, le tableau de son Default Wargear,
+ * ses Wargear Options en phrases, puis les lignes du MFM — les groupes d'options
+ * ne se montrent plus.
+ */
+const SENTENCE_SECTIONS = [
+  'pricing', 'keywords', 'factionKeywords', 'armyRules', 'leaderTargets', 'supportTargets',
+  'abilities', 'weapons', 'modelTypes', 'wargearOptions', 'wargear',
 ] as const;
 
 const SOURCE_LABEL: Record<string, string> = { bsdata: 'BSData', mfm: 'MFM', project: 'project' };
@@ -34,6 +45,8 @@ export function unitWidget({ sources, wargear }: Props) {
     const [head, gi, sub, oi] = props.path;
     if (props.path.length === 0) return <UnitLayout at={props.at} unit={props.value as Unit} sources={sources} />;
     if (props.path.length === 1 && head === 'wargear') return <WargearLines findings={wargear} section={props.section ?? ''} />;
+    if (props.path.length === 1 && head === 'modelTypes') return <DefaultWargearTable section={props.section ?? ''} />;
+    if (props.path.length === 1 && head === 'wargearOptions') return <WargearOptionsEditor section={props.section ?? ''} at={props.at} />;
     if (head === 'optionGroups' && typeof gi === 'number' && sub === 'options' && props.path.length === 3)
       return <OptionsList at={props.at} path={props.path} value={(props.value as WeaponOption[] | undefined) ?? []} />;
     if (head === 'optionGroups' && typeof gi === 'number' && sub === 'options' && typeof oi === 'number' && props.path.length === 4)
@@ -63,7 +76,7 @@ function UnitLayout({ at, unit, sources }: { at: Located; unit: Unit; sources: R
 
       <ModelsSection unit={unit} at={at} section={section('models')} />
 
-      {SECTIONS.map((k) => {
+      {(unit.modelTypes?.length ? SENTENCE_SECTIONS : SECTIONS).map((k) => {
         if (k === 'pricing')
           return [
             <PriceGrid key={k} unit={unit} field="pricing" section={section('pricing')} />,
@@ -71,7 +84,7 @@ function UnitLayout({ at, unit, sources }: { at: Located; unit: Unit; sources: R
           ];
         if (k === 'abilities') return <AbilitiesSection key={k} unit={unit} at={child('abilities')} section={section('abilities')} />;
         const value = (unit as unknown as Record<string, unknown>)[k];
-        return <Field key={k} at={child(k)} value={value ?? (k === 'wargear' || k === 'optionGroups' || k === 'defaultLoadout' ? [] : value)} path={[k]} label={humanize(k)} section={section(k)} />;
+        return <Field key={k} at={child(k)} value={value ?? (k === 'wargear' || k === 'optionGroups' || k === 'defaultLoadout' || k === 'wargearOptions' ? [] : value)} path={[k]} label={humanize(k)} section={section(k)} />;
       })}
       {ctx.errors.get('') && <p className="note error">{ctx.errors.get('')!.join(' · ')}</p>}
     </div>
@@ -298,7 +311,7 @@ function WargearLines({ findings, section }: { findings: WargearFinding[]; secti
   return (
     <section className="list">
       <h3 className="list-title">
-        Wargear costs <span className="count">{lines.length}</span>
+        MFM wargear lines <span className="count">{lines.length}</span>
         <span className="section-source"> · {section}</span>
         <Badges path={['wargear']} value={unit.wargear} />
         <button type="button" className="add" title="Add an MFM line" onClick={() => set([...lines, { item: '', points: 0 }])}>
@@ -307,7 +320,10 @@ function WargearLines({ findings, section }: { findings: WargearFinding[]; secti
       </h3>
       {lines.length === 0 && <p className="empty">The MFM bills no wargear for this Unit.</p>}
       {lines.map((l, i) => {
-        const linked = optionsOf(unit).filter(({ option }) => option.wargearCost?.item === l.item);
+        const linked = [
+          ...optionsOf(unit).filter(({ option }) => option.wargearCost?.item === l.item).map(({ option }) => ({ name: option.name, cost: option.wargearCost })),
+          ...(unit.wargearOptions ?? []).flatMap((o) => o.alternatives).filter((a) => a.wargearCost?.item === l.item).map((a) => ({ name: a.name ?? a.weapons.map((w) => w.weapon.slice(w.weapon.indexOf('|') + 1)).join(' and '), cost: a.wargearCost })),
+        ];
         const finding = findings.find((f) => f.item === l.item && f.kind !== 'missing-line');
         return (
           <div key={i} className="item wargear-line">
@@ -319,7 +335,7 @@ function WargearLines({ findings, section }: { findings: WargearFinding[]; secti
               <Badges path={['wargear', i, 'points']} value={l.points} />
             </span>
             {linked.length ? (
-              <span className="linked">→ {linked.map(({ option }) => `${option.name}${(option.wargearCost?.quantity ?? 1) > 1 ? ` ×${option.wargearCost!.quantity}` : ''}`).join(', ')}</span>
+              <span className="linked">→ {linked.map(({ name, cost }) => `${name}${(cost?.quantity ?? 1) > 1 ? ` ×${cost!.quantity}` : ''}`).join(', ')}</span>
             ) : (
               <span className="note warning">
                 {finding ? FINDING_LABEL[finding.kind] : 'not linked'}

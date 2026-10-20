@@ -236,13 +236,18 @@ home army, under the address of that army. It is how the former single
 | `wargearCost` | a wargear option | the MFM line that bills the option: `{ "item": "Lascannon" }`, with `"quantity": 2` when it is paid twice per model. `null` removes an automatic link |
 | `abilities` | a wargear option | abilities of the unit, by name, that the option brings |
 | `option` | a wargear option | a whole option BSData does not have: `name`, `weapons`, `maxCarriers`, `isDefault`, optionally `perModels` |
+| `wargearOption` | a written wargear option | the sentence, written by hand: `model`, `who`, `replaces`, optionally `upTo`, and `alternatives` (each `id`, `weapons`, optionally `name`). It replaces the translated option of the same id, or adds one; `null` removes the translated one. Costs and abilities of its alternatives go on each alternative's own address |
+| `wargearUpstream` | a written wargear option | what the translation gave under this id when the sentence was written (`null`: nothing). When the translation changes, the entry is *flagged*: review the sentence; saving it again records the new basis |
 | `rule` | a detachment rule | a detachment rule no source has: `{ "name": "…" }`. It is created under the identifier of the target, in every army that publishes the detachment |
 | `stratagem` | a stratagem | its structured fields: `name`, `detachmentId` (`null` for a core stratagem), `cp`, `phases`, `playerTurn`, `timing`, optionally `category` and `target`. A stratagem no source has is created under the identifier of the target, in every army that publishes its detachment; one that exists has its fields replaced — a field left out is dropped |
 | `requires`, `excludes`, `maxTargets` | an enhancement | its restrictions: the keyword groups its bearer needs (one group, every keyword in it), the keywords that forbid a bearer, how many units an upgrade equips. Absent: no restriction, one unit |
 
 A rule entry needs at least one of `modifiers`, `options`, `summary`,
 `eligibility`, `rule` or `stratagem`. A wargear option entry carries only `wargearCost`, `abilities`
-or `option`.
+or `option`; a written wargear option, only `wargearOption` and `wargearUpstream`.
+
+The Default Wargear of a unit is upstream data: correcting it is a correction
+of the unit's `modelTypes`, like any BSData field.
 
 **Targets of contributions**
 
@@ -255,6 +260,7 @@ or `option`.
 | a core stratagem | `core::stratagem:<stratagemId>` |
 | an army rule | `<armyId>::armyrule:<ruleId>` |
 | a wargear option — and the wargear alternative of the same id | `<unitId>::option:<groupId>\|<optionId>` |
+| a written wargear option (a sentence) | `<unitId>::wargear:<wargearOptionId>` |
 
 **What a build does with each entry**
 
