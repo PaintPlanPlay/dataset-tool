@@ -45,7 +45,11 @@ export interface Workspace {
   current: DatasetView | null;
   /** Le même sans les Corrections, pour dire ce qu'elles changent ; `null` sans instantané. */
   bare: DatasetView | null;
-  refresh(): Promise<void>;
+  /**
+   * Relire le Dataset. `keepBare` garde la vue sans Corrections, qui n'en dépend
+   * pas : à demander quand seules des Corrections ont changé depuis la dernière.
+   */
+  refresh(options?: { keepBare?: boolean }): Promise<void>;
 }
 
 export interface WorkspaceOptions {
@@ -70,15 +74,16 @@ export async function openWorkspace(options: WorkspaceOptions): Promise<Workspac
     state: { dataset: false, snapshot: false, published: false, provenance: false, armies: 0 },
     current: null,
     bare: null,
-    async refresh() {
+    async refresh({ keepBare = false } = {}) {
       const dataset = existsSync(options.datasetDir);
       const snapshot = existsSync(join(options.snapshotDir, 'sources.json'));
       const published = existsSync(join(options.datasetDir, gameSystem, 'index.json'));
 
       if (dataset && snapshot) {
-        const views = await viewsInWorker({ datasetDir: options.datasetDir, snapshotDir: options.snapshotDir, gameSystem });
+        const keep = keepBare ? ws.bare : null;
+        const views = await viewsInWorker({ datasetDir: options.datasetDir, snapshotDir: options.snapshotDir, gameSystem, bare: !keep });
         ws.current = views.current;
-        ws.bare = views.bare;
+        ws.bare = keep ?? views.bare;
       } else if (published) {
         // Sans instantané : on lit ce qui est publié, sans savoir d'où ça vient.
         ws.current = { gameSystem, files: readDatasetFiles(options.datasetDir, gameSystem), corrections: [], unmatched: [] };
@@ -101,11 +106,13 @@ export interface ViewsRequest {
   datasetDir: string;
   snapshotDir: string;
   gameSystem: string;
+  /** Construire aussi la vue sans Corrections. */
+  bare: boolean;
 }
 
 export interface Views {
   current: DatasetView;
-  bare: DatasetView;
+  bare: DatasetView | null;
 }
 
 /** Deux constructions : avec les Corrections, et sans, pour dire ce qu'elles changent. */
@@ -117,7 +124,10 @@ export async function buildViews(request: ViewsRequest): Promise<Views> {
     ids: readRegistry(datasetDir, gameSystem),
     authored: readAuthored(datasetDir, gameSystem),
   };
-  const [current, bare] = await Promise.all([build({ ...common, corrections: readCorrections(datasetDir, gameSystem) }), build({ ...common, corrections: [] })]);
+  const [current, bare] = await Promise.all([
+    build({ ...common, corrections: readCorrections(datasetDir, gameSystem) }),
+    request.bare ? build({ ...common, corrections: [] }) : null,
+  ]);
   return { current, bare };
 }
 

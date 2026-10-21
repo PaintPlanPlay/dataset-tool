@@ -683,7 +683,7 @@ export async function saveSheet(ws: Workspace, input: SaveInput): Promise<{ file
       writeFileSync(abs, w.content);
     }
   }
-  void rebuild(ws, [found.target]);
+  void rebuild(ws, [found.target], { correctionsOnly: writes.every((w) => w.kind === 'correction') });
   return { files: writes.map((w) => ({ path: w.path, kind: w.kind, action: w.content === null ? 'deleted' : 'written' })) };
 }
 

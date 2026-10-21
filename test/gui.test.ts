@@ -179,6 +179,27 @@ try {
     `${boyzPoints} · ${bossSummary} · ${boyzRebuilt.rebuilding} ${bossRebuilt.rebuilding}`,
   );
 
+  /*
+   * La vue sans Corrections ne dépend pas d'elles (issue #411) : un
+   * enregistrement qui n'écrit que des Corrections ne la reconstruit pas, une
+   * Contribution oui.
+   */
+  section('Interface locale : ne reconstruire que ce qui change');
+  const bareBefore = ws.bare;
+  const boyzThird = structuredClone(boyzAgain);
+  boyzThird.pricing[0].costs[0].points = 66;
+  await post('/api/sheet/save', { target: 'u-boyz', draft: boyzThird, reason: 'Coût de test, troisième.' });
+  const boyzThirdView = await settledSheet('u-boyz');
+  check(
+    'des Corrections seules : la vue avec Corrections les porte, la vue sans est gardée telle quelle',
+    (boyzThirdView.value as typeof boyzValue).pricing[0].costs[0].points === 66 && ws.bare === bareBefore,
+  );
+  const bossThird = structuredClone(bossAgain);
+  bossThird.abilities.find((a) => a.name === 'Da Boss Fixture')!.summary = '+2 to hit in melee.';
+  const bossThirdSaved = await post('/api/sheet/save', { target: 'u-warboss', draft: bossThird, reason: 'Résumé de test, troisième.' });
+  await settledSheet('u-warboss');
+  check('une Contribution : la vue sans Corrections est reconstruite', bossThirdSaved.status === 201 && ws.bare !== bareBefore, JSON.stringify(bossThirdSaved.body));
+
   section("Interface locale : démarrage les mains vides");
   const vide = mkdtempSync(join(tmpdir(), 'dataset-vide-'));
   const wsVide = await openWorkspace({ datasetDir: join(vide, 'dataset'), snapshotDir: join(vide, '.snapshot') });

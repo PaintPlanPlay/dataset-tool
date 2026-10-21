@@ -110,6 +110,8 @@ interface Rebuild {
   again: boolean;
   /** Les fiches touchées par ces écritures. */
   queued: Set<string>;
+  /** L'une d'elles touche autre chose que des Corrections : la vue sans Corrections est à refaire aussi. */
+  full: boolean;
   /** Les fiches que la relecture en cours va contenir. */
   building: Set<string>;
 }
@@ -118,7 +120,7 @@ const rebuilds = new WeakMap<Workspace, Rebuild>();
 
 function rebuildOf(ws: Workspace): Rebuild {
   let r = rebuilds.get(ws);
-  if (!r) rebuilds.set(ws, (r = { running: null, again: false, queued: new Set(), building: new Set() }));
+  if (!r) rebuilds.set(ws, (r = { running: null, again: false, queued: new Set(), full: false, building: new Set() }));
   return r;
 }
 
@@ -129,8 +131,10 @@ function run(ws: Workspace, r: Rebuild): Promise<void> {
         r.again = false;
         r.building = r.queued;
         r.queued = new Set();
+        const keepBare = !r.full;
+        r.full = false;
         try {
-          await ws.refresh();
+          await ws.refresh({ keepBare });
         } catch {
           // La vue reste la dernière qui a réussi.
         } finally {
@@ -144,10 +148,15 @@ function run(ws: Workspace, r: Rebuild): Promise<void> {
   return r.running;
 }
 
-/** Après une écriture : une relecture qui la contienne, avec les fiches qu'elle touche. */
-export function rebuild(ws: Workspace, sheets: string[] = []): Promise<void> {
+/**
+ * Après une écriture : une relecture qui la contienne, avec les fiches qu'elle
+ * touche. `correctionsOnly` quand elle n'a écrit que des Corrections : la vue
+ * sans Corrections reste alors telle quelle.
+ */
+export function rebuild(ws: Workspace, sheets: string[] = [], { correctionsOnly = false } = {}): Promise<void> {
   const r = rebuildOf(ws);
   for (const s of sheets) r.queued.add(s);
+  if (!correctionsOnly) r.full = true;
   r.again = true;
   return run(ws, r);
 }
@@ -157,6 +166,7 @@ export function refreshing(ws: Workspace): Promise<void> {
   const r = rebuildOf(ws);
   if (r.running) return r.running;
   r.again = true;
+  r.full = true;
   return run(ws, r);
 }
 
