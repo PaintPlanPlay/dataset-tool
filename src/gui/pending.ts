@@ -176,7 +176,8 @@ function pairMoves(changes: PendingChange[], before: Map<string, AuthoredEffect>
 }
 
 /** Annule une Pending Change : l'élément revient à son état publié. */
-export function undoPending(ws: Workspace, id: string): void {
+/** Annuler une Pending Change ; rend ce qu'elle était, pour dire quelle fiche relire. */
+export function undoPending(ws: Workspace, id: string): PendingChange {
   if (!isRepository(ws.datasetDir)) throw new ApiError(409, 'the Dataset folder is not a git repository');
   const change = pendingChanges(ws).find((p) => p.id === id);
   if (!change) throw new ApiError(404, `no pending change ${id}`);
@@ -184,10 +185,11 @@ export function undoPending(ws: Workspace, id: string): void {
 
   if (change.id.startsWith('contribution:') || change.id.startsWith('move:')) {
     for (const target of [change.target, ...(change.from ? [change.from] : [])]) undoContribution(ws, target);
-    return;
+    return change;
   }
   if (change.action === 'added') rmSync(abs, { force: true });
   else git(ws.datasetDir, 'checkout', 'HEAD', '--', change.path);
+  return change;
 }
 
 /** L'entrée sort de tous les fichiers où elle est, puis revient, publiée, dans celui qui la portait. */

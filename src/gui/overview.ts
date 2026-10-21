@@ -15,7 +15,7 @@ import { readContributions } from '../authored.ts';
 import { readCorrections } from '../corrections/files.ts';
 import { headCommit } from '../fetch.ts';
 import { readDatasetFiles, toJson } from '../dataset.ts';
-import { ghReady, jobSpecs, publishRight, type JobField } from './api.ts';
+import { ghReady, jobSpecs, publishRight, rebuildState, type JobField, type RebuildFailure } from './api.ts';
 import { isRepository, pendingChanges, pendingFingerprint } from './pending.ts';
 import type { Workspace, WorkspaceState } from './workspace.ts';
 import { findUnsimulated } from '../rules.ts';
@@ -148,6 +148,8 @@ export interface Overview {
   dataset: { branch: string | null; behind: boolean | null };
   /** Pending Changes : ce qui est enregistré et pas encore proposé. */
   pending: number;
+  /** La relecture du Dataset derrière les écritures : en cours, et l'échec de la dernière. */
+  rebuild: { running: boolean; failure: RebuildFailure | null };
   /**
    * Les fichiers du Dataset ne sont pas ceux que cet outil construit : une
    * version antérieure de l'outil les a produits (un nouveau schéma, une
@@ -275,6 +277,7 @@ export async function overview(ws: Workspace, probe: Probe = defaultProbe, built
     buttons,
     dataset: { branch, behind },
     pending,
+    rebuild: rebuildState(ws),
     outdated,
     pullRequest: probe.pullRequest(ws.datasetDir),
     disagreements: ws.current ? disagreements(ws.current, ws.bare).filter((d) => !d.settled).length : 0,

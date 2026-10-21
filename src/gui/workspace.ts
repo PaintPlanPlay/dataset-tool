@@ -14,6 +14,7 @@
  */
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { Worker } from 'node:worker_threads';
 import { build } from '../build.ts';
 import { readAuthored } from '../authored.ts';
 import { readCorrections } from '../corrections/files.ts';
@@ -44,7 +45,11 @@ export interface Workspace {
   current: DatasetView | null;
   /** Le même sans les Corrections, pour dire ce qu'elles changent ; `null` sans instantané. */
   bare: DatasetView | null;
-  refresh(): Promise<void>;
+  /**
+   * Relire le Dataset. `keepBare` garde la vue sans Corrections, qui n'en dépend
+   * pas : à demander quand seules des Corrections ont changé depuis la dernière.
+   */
+  refresh(options?: { keepBare?: boolean }): Promise<void>;
 }
 
 export interface WorkspaceOptions {
@@ -69,25 +74,16 @@ export async function openWorkspace(options: WorkspaceOptions): Promise<Workspac
     state: { dataset: false, snapshot: false, published: false, provenance: false, armies: 0 },
     current: null,
     bare: null,
-    async refresh() {
+    async refresh({ keepBare = false } = {}) {
       const dataset = existsSync(options.datasetDir);
       const snapshot = existsSync(join(options.snapshotDir, 'sources.json'));
       const published = existsSync(join(options.datasetDir, gameSystem, 'index.json'));
 
       if (dataset && snapshot) {
-        // Deux constructions : avec les Corrections, et sans, pour dire ce qu'elles changent.
-        const common = {
-          snapshot: openSnapshot(options.snapshotDir),
-          gameSystem,
-          ids: readRegistry(options.datasetDir, gameSystem),
-          authored: readAuthored(options.datasetDir, gameSystem),
-        };
-        const [current, bare] = await Promise.all([
-          build({ ...common, corrections: readCorrections(options.datasetDir, gameSystem) }),
-          build({ ...common, corrections: [] }),
-        ]);
-        ws.current = current;
-        ws.bare = bare;
+        const keep = keepBare ? ws.bare : null;
+        const views = await viewsInWorker({ datasetDir: options.datasetDir, snapshotDir: options.snapshotDir, gameSystem, bare: !keep });
+        ws.current = views.current;
+        ws.bare = keep ?? views.bare;
       } else if (published) {
         // Sans instantané : on lit ce qui est publié, sans savoir d'où ça vient.
         ws.current = { gameSystem, files: readDatasetFiles(options.datasetDir, gameSystem), corrections: [], unmatched: [] };
@@ -104,4 +100,43 @@ export async function openWorkspace(options: WorkspaceOptions): Promise<Workspac
 
   await ws.refresh();
   return ws;
+}
+
+export interface ViewsRequest {
+  datasetDir: string;
+  snapshotDir: string;
+  gameSystem: string;
+  /** Construire aussi la vue sans Corrections. */
+  bare: boolean;
+}
+
+export interface Views {
+  current: DatasetView;
+  bare: DatasetView | null;
+}
+
+/** Deux constructions : avec les Corrections, et sans, pour dire ce qu'elles changent. */
+export async function buildViews(request: ViewsRequest): Promise<Views> {
+  const { datasetDir, snapshotDir, gameSystem } = request;
+  const common = {
+    snapshot: openSnapshot(snapshotDir),
+    gameSystem,
+    ids: readRegistry(datasetDir, gameSystem),
+    authored: readAuthored(datasetDir, gameSystem),
+  };
+  const [current, bare] = await Promise.all([
+    build({ ...common, corrections: readCorrections(datasetDir, gameSystem) }),
+    request.bare ? build({ ...common, corrections: [] }) : null,
+  ]);
+  return { current, bare };
+}
+
+/** Les mêmes constructions, dans un fil à part : le serveur continue de répondre pendant ce temps. */
+function viewsInWorker(request: ViewsRequest): Promise<Views> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./views.worker.ts', import.meta.url), { workerData: request });
+    worker.once('message', (m: { views?: Views; error?: string }) => (m.views ? resolve(m.views) : reject(new Error(m.error))));
+    worker.once('error', reject);
+    worker.once('exit', (code) => reject(new Error(`the build stopped (exit code ${code})`)));
+  });
 }

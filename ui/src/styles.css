@@ -252,6 +252,9 @@ select:disabled { background: var(--raised); opacity: 1; }
 .empty { color: var(--muted); }
 .hint { padding: 24px; }
 .error { color: var(--late); margin: 0; }
+.rebuilding { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--published); border-radius: 6px; color: var(--published); }
+.sheet-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.sheet-fields:disabled { opacity: 0.6; }
 
 /* --------------------------------------------------------------- édition */
 
@@ -271,6 +274,7 @@ select:disabled { background: var(--raised); opacity: 1; }
 }
 
 .badge.edited { background: var(--edited); }
+.badge.rebuilding { background: var(--published); }
 .badge.published { background: var(--published); cursor: help; }
 .badge.published.stale,
 .badge.published.conflict,
@@ -460,6 +464,7 @@ button.danger { background: var(--late); border-color: var(--late); color: #fff;
 .toast.error { border-left-color: var(--late); }
 .toast-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .toast-detail { color: var(--muted); font-size: 0.9em; overflow-wrap: anywhere; }
+.toast-action { white-space: nowrap; }
 .toast-close { border: none; background: none; color: var(--muted); font-size: 1.2em; line-height: 1; padding: 0 2px; cursor: pointer; }
 .spinner {
   flex: none;

@@ -85,7 +85,7 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
            * répond plus. Après un build ou une proposition, l'état se relit tout
            * de suite : c'est lui qui ouvre Propose my change.
            */
-          if (r.job?.name === 'update' || r.job?.name === 'release') await api.refresh().catch(() => undefined);
+          if (r.job?.name === 'update' || r.job?.name === 'release') await api.refresh(true).catch(() => undefined);
           onChanged();
         }
         wasRunning = now;
