@@ -65,6 +65,31 @@ function findUnit(out: DatasetView, unitId: string): { army: ArmyFile; unit: Uni
   return hits.find((h) => !h.unit.ally) ?? hits[0];
 }
 
+/** Un Disagreement, et s'il est Settled : une Correction a remplacé ce que la source d'autorité avait retenu. */
+export type Disagreement = SourceConflict & { settled: boolean };
+
+/** Les champs d'une Unit qu'un Disagreement porte : le coût se lit dans la grille de prix comme dans les points. */
+const DISAGREEMENT_FIELDS: Record<string, string[]> = { points: ['points', 'pricing', 'costBrackets'] };
+
+/**
+ * Les Disagreements, les ouverts d'abord. Ils se relèvent entre les sources
+ * brutes, avant les Corrections : on dit qu'un désaccord est tranché quand la
+ * vue avec Corrections s'écarte, sur son champ, de la vue sans — quelle que
+ * soit la nouvelle valeur. Sans vue sans Corrections, rien n'est tranché.
+ */
+export function disagreements(current: DatasetView, bare: DatasetView | null): Disagreement[] {
+  const unitIn = (view: DatasetView, c: SourceConflict) =>
+    (armiesOf(view).find((a) => a.id === c.army)?.units.find((u) => u.id === c.id) ?? findUnit(view, c.id)?.unit) as Record<string, unknown> | undefined;
+  const settled = (c: SourceConflict) => {
+    if (!bare || c.entity !== 'unit') return false;
+    const now = unitIn(current, c);
+    const before = unitIn(bare, c);
+    return Boolean(now && before && (DISAGREEMENT_FIELDS[c.field] ?? [c.field]).some((f) => !same(now[f], before[f])));
+  };
+  const all = (current.conflicts ?? []).map((c) => ({ ...c, settled: settled(c) }));
+  return [...all.filter((c) => !c.settled), ...all.filter((c) => c.settled)];
+}
+
 function correctionsFor(out: DatasetView, prefix: string): CorrectionVerdict[] {
   return out.corrections.filter((c) => c.target === prefix || c.target.startsWith(`${prefix}::`) || c.target.startsWith(`${prefix}|`));
 }

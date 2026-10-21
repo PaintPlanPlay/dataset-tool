@@ -20,7 +20,7 @@ import { removeCaughtUp, unreleased } from './unreleased.ts';
 import { pendingChanges, pendingFingerprint, undoPending } from './pending.ts';
 import { checkDraft, deleteCorrection, listCorrections, saveSheet, sheetOf, suggestions } from './sheets.ts';
 import { reattachCandidates, reattachContribution } from './reattach.ts';
-import { inspect, search } from './provenance.ts';
+import { disagreements, inspect, search } from './provenance.ts';
 import type { UiFactory, UiHandle } from './ui.ts';
 import type { Workspace } from './workspace.ts';
 import { findUnsimulated } from '../rules.ts';
@@ -175,7 +175,7 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
       case 'GET /api/unsimulated':
         return send(res, 200, findUnsimulated(datasetOf(ws).files).map((u) => ({ ...u, sheet: sheetOfTarget(u.target) })));
       case 'GET /api/disagreements':
-        return send(res, 200, datasetOf(ws).conflicts ?? []);
+        return send(res, 200, disagreements(datasetOf(ws), ws.bare));
       case 'GET /api/suggest':
         return send(res, 200, suggestions(ws, param('army'), param('unit')));
       case 'GET /api/schema':

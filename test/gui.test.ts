@@ -16,6 +16,7 @@ import { join } from 'node:path';
 import { defaultReleaseUrl, jobSpecs } from '../src/gui/api.ts';
 import { allowedHost, allowedOrigin, privateAddress, startGui } from '../src/gui/server.ts';
 import type { Overview } from '../src/gui/overview.ts';
+import type { SourceConflict } from '../src/findings.ts';
 import type { SearchHit } from '../src/gui/provenance.ts';
 import type { Sheet } from '../src/gui/sheets.ts';
 import { viteUi } from '../src/gui/ui.ts';
@@ -105,6 +106,11 @@ try {
    * vingtaine de secondes sur le vrai Dataset. L'écriture ne doit pas attendre
    * ça : sinon le bouton paraît mort, et le message n'arrive jamais.
    */
+  // Le coût des Boyz : le MFM (75) l'emporte sur BSData (90). Un désaccord ouvert, tant que personne ne l'a tranché.
+  const boyzPointsDisagreement = (list: (SourceConflict & { settled: boolean })[]) => list.find((c) => c.id === 'u-boyz' && c.field === 'points');
+  const disagreementsBefore = (await get<(SourceConflict & { settled: boolean })[]>('/api/disagreements')).body;
+  const openBefore = (await get<Overview>('/api/overview')).body.disagreements;
+
   const debut = Date.now();
   const written = await post<{ files: { path: string }[] }>('/api/sheet/save', { target: 'u-boyz', draft: repriced, reason: 'Coût de test.' });
   const duree = Date.now() - debut;
@@ -140,6 +146,36 @@ try {
   check(
     'retour amont : issue préremplie chez la bonne source, PR enregistrée sur la Correction',
     draft.body.url.startsWith('https://github.com/BSData/wh40k-11e-mfm/issues/new?') && pr.status === 200 && saved.upstreamPr === 'https://github.com/BSData/wh40k-11e-mfm/pull/12',
+  );
+
+  /*
+   * Un désaccord tranché par une Correction (issue #413) : il reste listé, mais
+   * Settled, et ne compte plus parmi ceux à juger — même quand la Correction
+   * met une troisième valeur (99, ni le MFM ni BSData). La Correction retirée,
+   * il redevient ouvert.
+   */
+  section('Interface locale : désaccords tranchés');
+  const disagreementsAfter = (await get<(SourceConflict & { settled: boolean })[]>('/api/disagreements')).body;
+  const openAfter = (await get<Overview>('/api/overview')).body.disagreements;
+  check(
+    'avant la Correction, le désaccord est ouvert',
+    boyzPointsDisagreement(disagreementsBefore)?.settled === false,
+    JSON.stringify(boyzPointsDisagreement(disagreementsBefore)),
+  );
+  check(
+    'une Correction vers une troisième valeur le rend Settled, rangé après les ouverts, et le compteur ne compte que les ouverts',
+    boyzPointsDisagreement(disagreementsAfter)?.settled === true &&
+      disagreementsAfter.findIndex((c) => c.settled) > disagreementsAfter.findLastIndex((c) => !c.settled) &&
+      openAfter === openBefore - 1 &&
+      disagreementsAfter.length === disagreementsBefore.length,
+    `${openBefore} → ${openAfter} · ${disagreementsAfter.map((c) => `${c.id}:${c.field}:${c.settled}`).join(' ')}`,
+  );
+  await post('/api/corrections/delete', { path });
+  await post('/api/refresh', {});
+  const disagreementsReopened = (await get<(SourceConflict & { settled: boolean })[]>('/api/disagreements')).body;
+  check(
+    'la Correction retirée, le désaccord redevient ouvert',
+    boyzPointsDisagreement(disagreementsReopened)?.settled === false && (await get<Overview>('/api/overview')).body.disagreements === openBefore,
   );
 
   section("Interface locale : démarrage les mains vides");

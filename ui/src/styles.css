@@ -413,6 +413,8 @@ button.danger { background: var(--late); border-color: var(--late); color: #fff;
 .correction .reason,
 .correction .note-line { margin: 0; }
 .correction .note-line { color: var(--muted); font-size: 12px; }
+.correction.settled { opacity: 0.65; }
+.correction.settled .state { color: var(--ok); }
 .correction .patch { font-size: 12px; overflow-wrap: anywhere; }
 .correction-actions { display: flex; gap: 10px; align-items: center; }
 .correction-actions small { color: var(--muted); margin-right: auto; }
