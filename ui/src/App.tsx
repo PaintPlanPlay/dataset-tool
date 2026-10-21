@@ -5,7 +5,7 @@
  * avec des modifications demande quoi en faire. Poste de travail uniquement.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api, ApiError, type DraftCheck, type Inspection, type Mark, type Overview, type PendingChange, type Sheet, type Suggestions } from './api.ts';
+import { api, ApiError, type DraftCheck, type Inspection, type Mark, type Overview, type PendingChange, type RebuildFailure, type Sheet, type Suggestions } from './api.ts';
 import { CorrectionsDialog, DisagreementsDialog, LeaveDialog, SaveDialog, UnsimulatedDialog } from './Dialogs.tsx';
 import { Ctx, Field, type EditorContext } from './editor/Editor.tsx';
 import { same, setAt, type Path } from './editor/values.ts';
@@ -162,6 +162,43 @@ export function App() {
   const rebuilds = useRef({ count: 0, toast: 0 });
 
   /**
+   * Une relecture qui a échoué : la vue reste la dernière qui a réussi, et la
+   * notification reste jusqu'à ce qu'on la ferme, avec de quoi annuler les
+   * écritures en cause. Une relecture qui réussit la retire.
+   */
+  const failureToast = useRef(0);
+  const afterWriteRef = useRef<(done?: string) => void>(() => undefined);
+  const undoAll = async (ids: string[]) => {
+    const t = toast.busy('Undoing the changes…');
+    try {
+      for (const id of ids) await api.undo(id);
+      afterWriteRef.current(ids.length > 1 ? 'Changes undone' : 'Change undone');
+      toast.dismiss(t);
+    } catch (e) {
+      toast.error('The change could not be undone', (e as Error).message, t);
+    }
+  };
+  const failed = useCallback((failure: RebuildFailure | null) => {
+    if (!failure) {
+      if (failureToast.current) toast.dismiss(failureToast.current);
+      failureToast.current = 0;
+      return;
+    }
+    api.pending().then((all) => {
+      // Une Contribution partage son fichier avec celles de son Army : on la reconnaît aussi à sa fiche.
+      const culprits = all.filter((p) => failure.paths.includes(p.path) && (p.kind === 'correction' || failure.sheets.includes(p.sheet)));
+      failureToast.current = toast.error(
+        `The Dataset could not be rebuilt after saving ${failure.sheets.join(', ') || 'a change'}`,
+        `${failure.error} — the sheets show the last view that built.`,
+        failureToast.current || undefined,
+        culprits.length
+          ? { label: culprits.length > 1 ? `Undo these ${culprits.length} changes` : 'Undo this change', run: () => void undoAll(culprits.map((p) => p.id)) }
+          : undefined,
+      );
+    }, () => undefined);
+  }, []);
+
+  /**
    * Après une écriture : on n'attend pas la relecture du Dataset, une quinzaine
    * de secondes sur le vrai. Les Pending Changes se relisent tout de suite (git
    * suffit), la fiche écrite se rouvre en lecture seule (`rebuilding`), et l'on
@@ -178,21 +215,18 @@ export function App() {
       api
         .refresh()
         .then(
-          () => {
-            if (--r.count === 0) toast.dismiss(r.toast);
-          },
-          (err: Error) => {
-            if (--r.count === 0) toast.dismiss(r.toast);
-            toast.error('The Dataset could not be rebuilt', err.message);
-          },
+          () => api.overview().then((o) => failed(o.rebuild.failure)),
+          (err: Error) => toast.error('The Dataset could not be rebuilt', err.message, failureToast.current || undefined),
         )
         .finally(() => {
+          if (--r.count === 0) toast.dismiss(r.toast);
           loadOverview();
           if (target.current && !dirtyNow.current) loadSheet(target.current);
         });
     },
-    [onChanged, loadOverview, loadSheet],
+    [onChanged, loadOverview, loadSheet, failed],
   );
+  afterWriteRef.current = afterWrite;
 
   // Chaque modification est contrôlée en direct, avec un délai : schéma et texte de règles.
   useEffect(() => {

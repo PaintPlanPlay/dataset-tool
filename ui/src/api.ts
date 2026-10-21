@@ -16,6 +16,7 @@ import type { JsonSchema } from './schema.ts';
 export type { ButtonName, ButtonState, Overview } from '../../src/gui/overview.ts';
 export type { Inspection, SearchHit } from '../../src/gui/provenance.ts';
 export type { PendingChange } from '../../src/gui/pending.ts';
+export type { RebuildFailure } from '../../src/gui/api.ts';
 export type { CaughtUp, SourceShift, Unreleased } from '../../src/gui/unreleased.ts';
 export type { BoardRow, CompleteKind, Counters, Finding, HandleKind } from '../../src/board.ts';
 export type FindingKind = import('../../src/board.ts').HandleKind | import('../../src/board.ts').CompleteKind;

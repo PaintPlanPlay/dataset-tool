@@ -218,6 +218,9 @@ fifteen seconds on the real dataset. The rebuild runs in the background: open
 the next sheet and keep going. The sheet you just saved shows *Rebuilding…* and
 stays read-only until the rebuild includes it, then opens again by itself.
 Several saves in a row are gathered into the next rebuild.
+If that rebuild fails, a message stays in the corner until you close it: it
+names the sheets, the sheets keep showing the last dataset that built, and its
+**Undo** button takes back the changes that rebuild was carrying.
 
 Leaving a sheet with unsaved edits asks whether to save, discard or stay.
 

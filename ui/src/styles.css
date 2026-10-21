@@ -462,6 +462,7 @@ button.danger { background: var(--late); border-color: var(--late); color: #fff;
 .toast.error { border-left-color: var(--late); }
 .toast-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .toast-detail { color: var(--muted); font-size: 0.9em; overflow-wrap: anywhere; }
+.toast-action { white-space: nowrap; }
 .toast-close { border: none; background: none; color: var(--muted); font-size: 1.2em; line-height: 1; padding: 0 2px; cursor: pointer; }
 .spinner {
   flex: none;

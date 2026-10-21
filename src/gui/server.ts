@@ -152,9 +152,11 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
         return send(res, 200, unreleased(ws, { noise: param('all') === '1', probe }));
       case 'GET /api/pending':
         return send(res, 200, pendingChanges(ws));
-      case 'POST /api/pending/undo':
-        void rebuild(ws, [undoPending(ws, String((await readBody(req)).id ?? '')).sheet]);
+      case 'POST /api/pending/undo': {
+        const undone = undoPending(ws, String((await readBody(req)).id ?? ''));
+        void rebuild(ws, [undone.sheet], { paths: [undone.path] });
         return send(res, 200, { ok: true });
+      }
       case 'GET /api/corrections':
         return send(res, 200, listCorrections(ws, param('sheet'), param('q')));
       case 'POST /api/corrections/remove-caught-up':

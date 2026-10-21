@@ -200,6 +200,40 @@ try {
   await settledSheet('u-warboss');
   check('une Contribution : la vue sans Corrections est reconstruite', bossThirdSaved.status === 201 && ws.bare !== bareBefore, JSON.stringify(bossThirdSaved.body));
 
+  /*
+   * Une relecture qui échoue derrière un enregistrement (issue #412) : l'état
+   * le dit et nomme la fiche, la vue reste la dernière qui a réussi, la fiche
+   * ne reste pas en lecture seule, et la relecture suivante qui réussit efface
+   * l'échec.
+   */
+  section('Interface locale : une relecture qui échoue');
+  const broken = join(dir, 'corrections', 'wh40k-11e', 'orks', 'broken.json');
+  // Lisible, mais que la construction ne sait pas appliquer.
+  writeFileSync(broken, JSON.stringify({ target: 'u-meganobz', source: 'mfm', patch: { pricing: 'cassé' }, reason: 'Cassée.' }));
+  const boyzFourth = structuredClone(boyzThird);
+  boyzFourth.pricing[0].costs[0].points = 55;
+  await post('/api/sheet/save', { target: 'u-boyz', draft: boyzFourth, reason: 'Coût de test, quatrième.' });
+  const boyzAfterFailure = await settledSheet('u-boyz');
+  const failed = (await get<Overview>('/api/overview')).body.rebuild;
+  check(
+    "l'échec est dit, avec la fiche et le fichier écrits par l'enregistrement en cause",
+    Boolean(failed.failure?.sheets.includes('u-boyz')) && Boolean(failed.failure?.paths.some((p) => p.endsWith('boyz-unit-mfm.json'))) && Boolean(failed.failure?.error),
+    JSON.stringify(failed),
+  );
+  check(
+    'la vue reste la dernière qui a réussi, et la fiche ne reste pas en lecture seule',
+    (boyzAfterFailure.value as typeof boyzValue).pricing[0].costs[0].points === 66 && !boyzAfterFailure.rebuilding,
+  );
+  rmSync(broken);
+  await post('/api/refresh', {});
+  const repaired = await get<Overview>('/api/overview');
+  const boyzRepaired = (await get<Sheet>('/api/sheet?target=u-boyz')).body;
+  check(
+    "une relecture qui réussit efface l'échec et porte l'enregistrement",
+    repaired.body.rebuild.failure === null && (boyzRepaired.value as typeof boyzValue).pricing[0].costs[0].points === 55,
+    JSON.stringify(repaired.body.rebuild),
+  );
+
   section("Interface locale : démarrage les mains vides");
   const vide = mkdtempSync(join(tmpdir(), 'dataset-vide-'));
   const wsVide = await openWorkspace({ datasetDir: join(vide, 'dataset'), snapshotDir: join(vide, '.snapshot') });
