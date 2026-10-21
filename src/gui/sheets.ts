@@ -683,7 +683,7 @@ export async function saveSheet(ws: Workspace, input: SaveInput): Promise<{ file
       writeFileSync(abs, w.content);
     }
   }
-  void rebuild(ws, [found.target], { correctionsOnly: writes.every((w) => w.kind === 'correction'), paths: writes.map((w) => w.path) });
+  void rebuild(ws, { sheets: [found.target], paths: writes.map((w) => w.path) }, { correctionsOnly: writes.every((w) => w.kind === 'correction') });
   return { files: writes.map((w) => ({ path: w.path, kind: w.kind, action: w.content === null ? 'deleted' : 'written' })) };
 }
 
@@ -816,7 +816,7 @@ export function deleteCorrection(ws: Workspace, input: { path?: string; target?:
     if (next.length === effects.length) throw new ApiError(404, `no Contribution for ${input.target}`);
     writeContributions(ws, next);
   } else throw new ApiError(400, 'a Correction path or a Contribution target is expected');
-  void rebuild(ws, [sheetOfTarget(target)], input.path ? { paths: [input.path] } : {});
+  void rebuild(ws, { sheets: [sheetOfTarget(target)], paths: input.path ? [input.path] : [] });
 }
 
 // ------------------------------------------------------------ autocomplétion

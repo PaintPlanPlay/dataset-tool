@@ -6,6 +6,7 @@ import type { ButtonName, Overview } from '../../src/gui/overview.ts';
 import type { SearchHit } from '../../src/gui/provenance.ts';
 import type { Job } from '../../src/gui/jobs.ts';
 import type { PendingChange } from '../../src/gui/pending.ts';
+import type { RebuildFailure } from '../../src/gui/api.ts';
 import type { Unreleased } from '../../src/gui/unreleased.ts';
 import type { CorrectionItem, DraftCheck, SavedFile, Sheet, Suggestions } from '../../src/gui/sheets.ts';
 import type { SourceConflict } from '../../src/findings.ts';
@@ -16,7 +17,7 @@ import type { JsonSchema } from './schema.ts';
 export type { ButtonName, ButtonState, Overview } from '../../src/gui/overview.ts';
 export type { Inspection, SearchHit } from '../../src/gui/provenance.ts';
 export type { PendingChange } from '../../src/gui/pending.ts';
-export type { RebuildFailure } from '../../src/gui/api.ts';
+export type { RebuildFailure };
 export type { CaughtUp, SourceShift, Unreleased } from '../../src/gui/unreleased.ts';
 export type { BoardRow, CompleteKind, Counters, Finding, HandleKind } from '../../src/board.ts';
 export type FindingKind = import('../../src/board.ts').HandleKind | import('../../src/board.ts').CompleteKind;
@@ -56,7 +57,8 @@ export const api = {
   search: (q: string, army: string) => call<SearchHit[]>(`/api/search?q=${encodeURIComponent(q)}&army=${encodeURIComponent(army)}`),
   startJob: (name: ButtonName, body: Record<string, string>) => post<{ job: Omit<Job, 'log'> }>(`/api/jobs/${name}`, body),
   jobs: (since: number) => call<JobReport>(`/api/jobs?since=${since}`),
-  refresh: () => post('/api/refresh'),
+  /** Attendre que la vue porte les écritures ; `force` la relit même si une relecture tourne déjà. */
+  refresh: (force = false) => post<{ rebuild: { running: boolean; failure: RebuildFailure | null } }>('/api/refresh', { force }),
   sheet: (target: string) => call<Sheet>(`/api/sheet?target=${encodeURIComponent(target)}`),
   validate: (target: string, draft: unknown) => post<DraftCheck>('/api/sheet/validate', { target, draft }),
   save: (target: string, draft: unknown, reason: string) => post<{ files: SavedFile[] }>('/api/sheet/save', { target, draft, reason }),

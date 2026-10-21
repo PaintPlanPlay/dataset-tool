@@ -224,8 +224,19 @@ try {
     'la vue reste la dernière qui a réussi, et la fiche ne reste pas en lecture seule',
     (boyzAfterFailure.value as typeof boyzValue).pricing[0].costs[0].points === 66 && !boyzAfterFailure.rebuilding,
   );
+  const bossFourth = structuredClone(bossThird);
+  bossFourth.abilities.find((a) => a.name === 'Da Boss Fixture')!.summary = '+3 to hit in melee.';
+  await post('/api/sheet/save', { target: 'u-warboss', draft: bossFourth, reason: 'Résumé de test, quatrième.' });
+  await settledSheet('u-warboss');
+  const failedAgain = (await get<Overview>('/api/overview')).body.rebuild;
+  check(
+    "un échec qui suit un échec garde en cause les écritures faites depuis la dernière relecture réussie",
+    ['u-boyz', 'u-warboss'].every((s) => failedAgain.failure?.sheets.includes(s)),
+    JSON.stringify(failedAgain.failure?.sheets),
+  );
+  // Retiré hors de l'interface : il faut demander une relecture.
   rmSync(broken);
-  await post('/api/refresh', {});
+  await post('/api/refresh', { force: true });
   const repaired = await get<Overview>('/api/overview');
   const boyzRepaired = (await get<Sheet>('/api/sheet?target=u-boyz')).body;
   check(

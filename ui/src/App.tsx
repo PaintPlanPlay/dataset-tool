@@ -160,25 +160,58 @@ export function App() {
   dirtyNow.current = dirty;
   /** Les écritures dont la relecture n'est pas finie, et la notification qui le dit. */
   const rebuilds = useRef({ count: 0, toast: 0 });
+  /** La notification d'une relecture qui a échoué ; `0` sans échec. */
+  const failureToast = useRef(0);
+
+  /*
+   * Les trois fonctions suivantes s'appellent l'une l'autre et ne lisent que
+   * des refs et des fonctions stables : de simples fonctions suffisent, refaites
+   * à chaque rendu, sans useCallback.
+   */
+
+  /**
+   * Après une écriture : on n'attend pas la relecture du Dataset, une quinzaine
+   * de secondes sur le vrai. Les Pending Changes se relisent tout de suite (git
+   * suffit), la fiche écrite se rouvre en lecture seule (`rebuilding`), et l'on
+   * peut passer à la suivante. Quand la relecture finit, tout se relit — sauf
+   * une fiche qu'on a commencé à modifier entre-temps.
+   */
+  const afterWrite = (done = 'Up to date', detail?: string, id?: number) => {
+    api.pending().then(setPending, () => undefined);
+    toast.ok(done, detail, id);
+    onChanged();
+    const r = rebuilds.current;
+    if (r.count++ === 0) r.toast = toast.busy('Rebuilding the Dataset in the background…');
+    api
+      .refresh()
+      .then(
+        (out) => showFailure(out.rebuild.failure),
+        (err: Error) => toast.error('The Dataset could not be rebuilt', err.message),
+      )
+      .finally(() => {
+        if (--r.count === 0) toast.dismiss(r.toast);
+        loadOverview();
+        if (target.current && !dirtyNow.current) loadSheet(target.current);
+      });
+  };
+
+  /** Annuler des Pending Changes, une par une. */
+  const undo = async (ids: string[]) => {
+    const t = toast.busy(ids.length > 1 ? 'Undoing the changes…' : 'Undoing the change…');
+    try {
+      for (const id of ids) await api.undo(id);
+      afterWrite(ids.length > 1 ? 'Changes undone' : 'Change undone', undefined, t);
+    } catch (e) {
+      toast.error('The change could not be undone', (e as Error).message, t);
+    }
+  };
 
   /**
    * Une relecture qui a échoué : la vue reste la dernière qui a réussi, et la
    * notification reste jusqu'à ce qu'on la ferme, avec de quoi annuler les
    * écritures en cause. Une relecture qui réussit la retire.
    */
-  const failureToast = useRef(0);
-  const afterWriteRef = useRef<(done?: string) => void>(() => undefined);
-  const undoAll = async (ids: string[]) => {
-    const t = toast.busy('Undoing the changes…');
-    try {
-      for (const id of ids) await api.undo(id);
-      afterWriteRef.current(ids.length > 1 ? 'Changes undone' : 'Change undone');
-      toast.dismiss(t);
-    } catch (e) {
-      toast.error('The change could not be undone', (e as Error).message, t);
-    }
-  };
-  const failed = useCallback((failure: RebuildFailure | null) => {
+  const showFailure = (failure: RebuildFailure | null) => {
     if (!failure) {
       if (failureToast.current) toast.dismiss(failureToast.current);
       failureToast.current = 0;
@@ -188,45 +221,15 @@ export function App() {
       // Une Contribution partage son fichier avec celles de son Army : on la reconnaît aussi à sa fiche.
       const culprits = all.filter((p) => failure.paths.includes(p.path) && (p.kind === 'correction' || failure.sheets.includes(p.sheet)));
       failureToast.current = toast.error(
-        `The Dataset could not be rebuilt after saving ${failure.sheets.join(', ') || 'a change'}`,
+        `The Dataset could not be rebuilt since saving ${failure.sheets.join(', ') || 'a change'}`,
         `${failure.error} — the sheets show the last view that built.`,
         failureToast.current || undefined,
         culprits.length
-          ? { label: culprits.length > 1 ? `Undo these ${culprits.length} changes` : 'Undo this change', run: () => void undoAll(culprits.map((p) => p.id)) }
+          ? { label: culprits.length > 1 ? `Undo these ${culprits.length} changes` : 'Undo this change', run: () => void undo(culprits.map((p) => p.id)) }
           : undefined,
       );
     }, () => undefined);
-  }, []);
-
-  /**
-   * Après une écriture : on n'attend pas la relecture du Dataset, une quinzaine
-   * de secondes sur le vrai. Les Pending Changes se relisent tout de suite (git
-   * suffit), la fiche écrite se rouvre en lecture seule (`rebuilding`), et l'on
-   * peut passer à la suivante. Quand la relecture finit, tout se relit — sauf
-   * une fiche qu'on a commencé à modifier entre-temps.
-   */
-  const afterWrite = useCallback(
-    (done = 'Up to date', detail?: string, id?: number) => {
-      api.pending().then(setPending, () => undefined);
-      toast.ok(done, detail, id);
-      onChanged();
-      const r = rebuilds.current;
-      if (r.count++ === 0) r.toast = toast.busy('Rebuilding the Dataset in the background…');
-      api
-        .refresh()
-        .then(
-          () => api.overview().then((o) => failed(o.rebuild.failure)),
-          (err: Error) => toast.error('The Dataset could not be rebuilt', err.message, failureToast.current || undefined),
-        )
-        .finally(() => {
-          if (--r.count === 0) toast.dismiss(r.toast);
-          loadOverview();
-          if (target.current && !dirtyNow.current) loadSheet(target.current);
-        });
-    },
-    [onChanged, loadOverview, loadSheet, failed],
-  );
-  afterWriteRef.current = afterWrite;
+  };
 
   // Chaque modification est contrôlée en direct, avec un délai : schéma et texte de règles.
   useEffect(() => {
@@ -313,15 +316,7 @@ export function App() {
         error={overviewError}
         pending={pending}
         onChanged={onChanged}
-        onUndo={async (id) => {
-          const t = toast.busy('Undoing the change…');
-          try {
-            await api.undo(id);
-            afterWrite('Change undone', undefined, t);
-          } catch (e) {
-            toast.error('The change could not be undone', (e as Error).message, t);
-          }
-        }}
+        onUndo={(id) => undo([id])}
         onOpen={open}
         onCorrections={() => setDialog('all')}
         onDisagreements={() => setDialog('disagreements')}

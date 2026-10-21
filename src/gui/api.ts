@@ -94,6 +94,35 @@ function openPullRequest(dir: string, files: string[], title: string): string {
 }
 
 /**
+ * Une relecture qui a échoué, et les écritures faites depuis la dernière qui a
+ * réussi : l'une d'elles est en cause, sans qu'on sache laquelle.
+ */
+export interface RebuildFailure extends Touched {
+  error: string;
+}
+
+/** Ce que touchent des écritures. */
+interface Touched {
+  /** Leurs fiches. */
+  sheets: string[];
+  /** Les fichiers écrits ou retirés, relatifs au dépôt du Dataset. */
+  paths: string[];
+}
+
+/** Ce que touchent des écritures, à mesure qu'elles arrivent. */
+class Writes {
+  sheets = new Set<string>();
+  paths = new Set<string>();
+  add({ sheets, paths }: Touched): void {
+    for (const s of sheets) this.sheets.add(s);
+    for (const p of paths) this.paths.add(p);
+  }
+  list(): Touched {
+    return { sheets: [...this.sheets], paths: [...this.paths] };
+  }
+}
+
+/**
  * Relire le Dataset après une écriture demande deux reconstructions — une
  * quinzaine de secondes sur le vrai Dataset, dans un fil à part. On ne fait pas
  * attendre l'appelant pour ça : il reçoit son résultat tout de suite, et la
@@ -104,27 +133,16 @@ function openPullRequest(dir: string, files: string[], title: string): string {
  * arrivées entre-temps. Les fiches qu'elles touchent attendent la vue
  * (`rebuilding`) jusqu'à ce qu'une relecture les contienne.
  */
-/** Une relecture qui a échoué, et les écritures qu'elle devait porter. */
-export interface RebuildFailure {
-  /** Les fiches de ces écritures. */
-  sheets: string[];
-  /** Les fichiers qu'elles ont écrits ou retirés, relatifs au dépôt du Dataset. */
-  paths: string[];
-  error: string;
-}
-
 interface Rebuild {
   running: Promise<void> | null;
-  /** Une écriture attend une relecture qui n'a pas encore commencé. */
-  again: boolean;
-  /** Les fiches touchées par ces écritures. */
-  queued: Set<string>;
-  /** L'une d'elles touche autre chose que des Corrections : la vue sans Corrections est à refaire aussi. */
-  full: boolean;
-  queuedPaths: Set<string>;
-  /** Les fiches que la relecture en cours va contenir. */
-  building: Set<string>;
-  buildingPaths: Set<string>;
+  /** Une relecture est demandée qui n'a pas encore commencé. */
+  requested: boolean;
+  /** Elle doit refaire aussi la vue sans Corrections : une écriture a touché autre chose que des Corrections. */
+  withBare: boolean;
+  /** Les écritures qu'elle portera. */
+  waiting: Writes;
+  /** Celles que porte la relecture en cours. */
+  building: Writes;
   /** La dernière relecture a échoué ; une relecture qui réussit l'efface. */
   failure: RebuildFailure | null;
 }
@@ -133,33 +151,32 @@ const rebuilds = new WeakMap<Workspace, Rebuild>();
 
 function rebuildOf(ws: Workspace): Rebuild {
   let r = rebuilds.get(ws);
-  if (!r)
-    rebuilds.set(ws, (r = { running: null, again: false, queued: new Set(), queuedPaths: new Set(), full: false, building: new Set(), buildingPaths: new Set(), failure: null }));
+  if (!r) rebuilds.set(ws, (r = { running: null, requested: false, withBare: false, waiting: new Writes(), building: new Writes(), failure: null }));
   return r;
 }
 
-function run(ws: Workspace, r: Rebuild): Promise<void> {
+/** Enchaîner les relectures tant qu'on en demande. */
+function drain(ws: Workspace, r: Rebuild): Promise<void> {
   r.running ??= (async () => {
     try {
-      while (r.again) {
-        r.again = false;
-        r.building = r.queued;
-        r.buildingPaths = r.queuedPaths;
-        r.queued = new Set();
-        r.queuedPaths = new Set();
-        const keepBare = !r.full;
-        r.full = false;
+      while (r.requested) {
+        r.requested = false;
+        r.building = r.waiting;
+        r.waiting = new Writes();
+        const keepBare = !r.withBare;
+        r.withBare = false;
         try {
           await ws.refresh({ keepBare });
           r.failure = null;
         } catch (err) {
           // La vue reste la dernière qui a réussi ; la fiche ne reste pas en lecture seule pour autant.
-          r.failure = { sheets: [...r.building], paths: [...r.buildingPaths], error: (err as Error).message };
+          // Un échec qui suit un échec n'innocente pas les écritures d'avant.
+          if (r.failure) r.building.add(r.failure);
+          r.failure = { ...r.building.list(), error: (err as Error).message };
           // Ce qu'on gardait n'a pas été vérifié contre ces écritures : la prochaine relecture refait tout.
-          r.full = true;
+          r.withBare = true;
         } finally {
-          r.building = new Set();
-          r.buildingPaths = new Set();
+          r.building = new Writes();
         }
       }
     } finally {
@@ -170,26 +187,30 @@ function run(ws: Workspace, r: Rebuild): Promise<void> {
 }
 
 /**
- * Après une écriture : une relecture qui la contienne, avec les fiches qu'elle
- * touche. `correctionsOnly` quand elle n'a écrit que des Corrections : la vue
- * sans Corrections reste alors telle quelle.
+ * Après une écriture : une relecture qui la contienne, avec ce qu'elle touche.
+ * `correctionsOnly` quand elle n'a écrit que des Corrections : la vue sans
+ * Corrections reste alors telle quelle.
  */
-export function rebuild(ws: Workspace, sheets: string[] = [], { correctionsOnly = false, paths = [] as string[] } = {}): Promise<void> {
+export function rebuild(ws: Workspace, touched: Partial<Touched> = {}, { correctionsOnly = false } = {}): Promise<void> {
   const r = rebuildOf(ws);
-  for (const s of sheets) r.queued.add(s);
-  for (const p of paths) r.queuedPaths.add(p);
-  if (!correctionsOnly) r.full = true;
-  r.again = true;
-  return run(ws, r);
+  r.waiting.add({ sheets: touched.sheets ?? [], paths: touched.paths ?? [] });
+  if (!correctionsOnly) r.withBare = true;
+  r.requested = true;
+  return drain(ws, r);
 }
 
-/** Attendre que la vue contienne toutes les écritures — ou, s'il n'y en a aucune en attente, la relire. */
-export function refreshing(ws: Workspace): Promise<void> {
+/**
+ * Attendre que la vue porte toutes les écritures : chacune a déjà demandé sa
+ * relecture, il n'y a qu'à attendre la fin. `force` relit tout, même si une
+ * relecture tourne déjà : ce qui a changé sur le disque sans passer par
+ * l'interface (Update data, une Release) n'y serait pas.
+ */
+export function refreshing(ws: Workspace, { force = false } = {}): Promise<void> {
   const r = rebuildOf(ws);
-  if (r.running) return r.running;
-  r.again = true;
-  r.full = true;
-  return run(ws, r);
+  if (!force) return r.running ?? Promise.resolve();
+  r.requested = true;
+  r.withBare = true;
+  return drain(ws, r);
 }
 
 /** Une relecture tourne-t-elle, et la dernière a-t-elle échoué ? */
@@ -199,7 +220,10 @@ export function rebuildState(ws: Workspace): { running: boolean; failure: Rebuil
 }
 
 /** La fiche attend-elle une relecture qui contienne une écriture faite sur elle ? */
-export const isRebuilding = (ws: Workspace, sheet: string) => rebuildOf(ws).queued.has(sheet) || rebuildOf(ws).building.has(sheet);
+export function isRebuilding(ws: Workspace, sheet: string): boolean {
+  const r = rebuildOf(ws);
+  return r.waiting.sheets.has(sheet) || r.building.sheets.has(sheet);
+}
 
 async function finish(ws: Workspace, path: string, title: string, openPr: boolean | undefined): Promise<WriteResult> {
   const result: WriteResult = { path, prCommands: prCommands([path], title) };

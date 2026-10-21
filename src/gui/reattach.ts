@@ -241,12 +241,12 @@ export function reattachContribution(ws: Workspace, input: ReattachInput): { tar
   const placed = next.find((e) => h.canonical(e.target) === h.canonical(input.to));
   if (!placed) {
     writeContributions(ws, next);
-    void rebuild(ws, [sheetOfTarget(input.from), sheetOfTarget(input.to)]);
+    void rebuild(ws, { sheets: [sheetOfTarget(input.from), sheetOfTarget(input.to)] });
     return { target: input.to };
   }
   const problems = authoredEffectProblems(placed);
   if (problems.length) throw new ApiError(400, `${input.to}: refused`, problems);
   writeContributions(ws, next);
-  void rebuild(ws, [sheetOfTarget(input.from), sheetOfTarget(input.to)]);
+  void rebuild(ws, { sheets: [sheetOfTarget(input.from), sheetOfTarget(input.to)] });
   return { target: placed.target };
 }
