@@ -12,7 +12,7 @@ import { toJson } from './dataset.ts';
 
 export const UPSTREAMS = {
   bsdata: 'BSData/wh40k-11e',
-  mfm: 'BSData/wh40k-11e-mfm',
+  mfm: 'PaintPlanPlay/wh40k-11e-mfm',
 } as const;
 
 const headers = (): Record<string, string> => {

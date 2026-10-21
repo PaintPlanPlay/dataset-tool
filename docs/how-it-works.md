@@ -15,7 +15,7 @@ projects, combines them, and writes the files.
  upstream sources                the dataset repository                 the apps
 ┌──────────────────┐            ┌───────────────────────┐
 │ BSData           │            │ corrections/          │  written by people,
-│ MFM (via BSData) │──┐         │ authored/             │  through the tool
+│ MFM (scraped)    │──┐         │ authored/             │  through the tool
 └──────────────────┘  │         ├───────────────────────┤
                       ├─build──▶│ wh40k-11e/            │  written by the build,
                       │         │ registry/             │  never by hand
@@ -40,7 +40,7 @@ source publishes is written by this project.
 | Source | What it is | Trusted for |
 |---|---|---|
 | [BSData](https://github.com/BSData/wh40k-11e) | the community data files behind army builders | unit profiles, weapons, wargear options, keywords, abilities (by name), unit composition, the weapon an enhancement brings |
-| [Munitorum Field Manual, via BSData](https://github.com/BSData/wh40k-11e-mfm) (MFM) | the points document, transcribed | points and their bands, paid wargear, leader and support attachments, which detachments exist, their detachment points, force dispositions, which enhancements exist and their points |
+| [Munitorum Field Manual](https://mfm.warhammer-community.com/en) (© Games Workshop), scraped by Paint Plan Play with [BSData's MFM scraper](https://github.com/BSData/wh40k-11e-mfm) (MIT) into [PaintPlanPlay/wh40k-11e-mfm](https://github.com/PaintPlanPlay/wh40k-11e-mfm) (MFM) | the points document, scraped four times a day | points and their bands, paid wargear, leader and support attachments, which detachments exist, their detachment points, force dispositions, which enhancements exist and their points |
 | this project | — | which detachment rules and stratagems exist, their CP, phases, timing and targets, enhancement restrictions, what a rule does (Modifiers, descriptions), battle sizes, ally rules, default targets, the sample list |
 
 The detachment rules, stratagems and enhancement restrictions were first seeded

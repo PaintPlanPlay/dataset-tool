@@ -25,7 +25,7 @@ of it, and the tool **builds** the dataset from them:
 
 ```
 BSData ─────────┐
-MFM (via BSData)┴──▶  Dataset Tool  ──▶  a pull request  ──▶  a release
+MFM (scraped)   ┴──▶  Dataset Tool  ──▶  a pull request  ──▶  a release
                        (builds it)       (reviewed by a human)  (apps read it)
         ▲
         └── plus what this project writes itself: corrections and contributions
@@ -90,7 +90,7 @@ with the next release.
 
 | Source | Trusted for |
 |---|---|
-| [Munitorum Field Manual, via BSData](https://github.com/BSData/wh40k-11e-mfm) | points, requisition brackets, paid wargear, leader/support attachments, detachment points, force dispositions, enhancements |
+| [Munitorum Field Manual](https://mfm.warhammer-community.com/en) (© Games Workshop), scraped by Paint Plan Play with [BSData's MFM scraper](https://github.com/BSData/wh40k-11e-mfm) (MIT) into [PaintPlanPlay/wh40k-11e-mfm](https://github.com/PaintPlanPlay/wh40k-11e-mfm) | points, requisition brackets, paid wargear, leader/support attachments, detachment points, force dispositions, enhancements |
 | [BSData](https://github.com/BSData/wh40k-11e) | unit profiles, weapons, wargear options, keywords, the weapon an enhancement brings |
 | this project | which detachment rules and stratagems exist, their CP, timing and targets, enhancement restrictions (first seeded from [40kdc-data](https://github.com/wn-mitch/40kdc-data)), what a rule does (Modifiers and one-line descriptions), battle sizes, ally rules |
 

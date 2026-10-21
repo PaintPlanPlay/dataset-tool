@@ -140,11 +140,11 @@ try {
   check('plus aucune proposition d\'analyse à accepter', (await post('/api/proposals/accept', { target: 'u-boyz::ability:Mob Fixture' })).status === 404);
 
   const draft = await get<{ repository: string; url: string }>(`/api/upstream-draft?path=${encodeURIComponent(path)}`);
-  const pr = await post<{ path: string }>('/api/corrections/upstream-pr', { path, url: 'https://github.com/BSData/wh40k-11e-mfm/pull/12' });
+  const pr = await post<{ path: string }>('/api/corrections/upstream-pr', { path, url: 'https://github.com/BSData/wh40k-11e/pull/12' });
   const saved = JSON.parse(readFileSync(join(dir, path), 'utf8')) as { upstreamPr?: string };
   check(
-    'retour amont : issue préremplie chez la bonne source, PR enregistrée sur la Correction',
-    draft.body.url.startsWith('https://github.com/BSData/wh40k-11e-mfm/issues/new?') && pr.status === 200 && saved.upstreamPr === 'https://github.com/BSData/wh40k-11e-mfm/pull/12',
+    'retour amont : une Correction du MFM ne se signale à personne (le projet relève le MFM), un lien reste enregistrable',
+    draft.status === 400 && pr.status === 200 && saved.upstreamPr === 'https://github.com/BSData/wh40k-11e/pull/12',
   );
 
   /*

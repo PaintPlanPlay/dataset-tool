@@ -1,5 +1,5 @@
 /**
- * Munitorum Field Manual, tel que suivi par `BSData/wh40k-11e-mfm`.
+ * Munitorum Field Manual, tel que le projet le relève (`PaintPlanPlay/wh40k-11e-mfm`, fork du scraper de BSData).
  *
  * Le MFM fait autorité sur tout ce qu'il publie : points par tranche
  * d'effectif et seuils de réquisition, équipement payant, rattachements

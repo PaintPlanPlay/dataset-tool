@@ -26,7 +26,7 @@ keep the meaning the game gives them.
 | **Game system** | a wargame at a given edition: `wh40k-11e`. Everything is filed under it |
 | **Keyword filter** | three lists of keywords — all of, any of, none of — that pick units |
 | **Manifest** | `manifest.json`: which release the apps should read, for each dataslate |
-| **MFM** | the Munitorum Field Manual, as transcribed by BSData. Trusted for points and everything it lists |
+| **MFM** | the Munitorum Field Manual, as Paint Plan Play scrapes it from Games Workshop's site (`PaintPlanPlay/wh40k-11e-mfm`, a fork of BSData's scraper). Trusted for points and everything it lists |
 | **Modifier** | one change a rule makes: a key, a value, a target, conditions |
 | **Option** (of a rule) | one exclusive choice of a rule that offers several, with its own Modifiers |
 | **Orphaned** | a correction whose target no longer exists |
@@ -48,7 +48,7 @@ keep the meaning the game gives them.
 | **Target** (of a stratagem) | the units it can be used on, as a keyword filter |
 | **Unsimulated key** | a Modifier key the simulation does not play |
 | **Unreleased change** | a difference between the release the apps read today (the one the manifest points to) and what your copy of the tool would publish now. The dashboard lists them |
-| **Upstream source** | one of the two projects the dataset is built from: BSData and the MFM |
+| **Upstream source** | one of the two sources the dataset is built from: BSData and the MFM |
 | **Default Wargear** | what one model of a given type carries before any wargear option is taken ("This model is equipped with") |
 | **Wargear alternative** | one of the choices a wargear option offers: the weapons a model taking it gets, its cost link, the abilities it brings |
 | **Wargear cost** | the link from a wargear alternative to the MFM line that bills it |

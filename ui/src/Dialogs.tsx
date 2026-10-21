@@ -138,7 +138,7 @@ export function CorrectionsDialog({ sheet, onOpen, onChanged, onClose }: { sheet
                   upstream PR
                 </a>
               ) : (
-                c.kind === 'correction' && (
+                c.kind === 'correction' && c.source !== 'mfm' && (
                   <>
                     <button type="button" className="link" onClick={() => void propose(c)} title="Open a prefilled issue with the Upstream Source, so it fixes itself">
                       tell {c.source}

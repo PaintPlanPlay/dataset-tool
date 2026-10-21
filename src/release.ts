@@ -40,7 +40,7 @@ export function compareMfm(a: string, b: string): number {
 
 /**
  * La Dataslate à proposer. Le MFM des Upstream Sources la désigne, sauf quand
- * le mainteneur a pris de l'avance sur BSData — un nouveau MFM saisi à la main
+ * le mainteneur a pris de l'avance sur le relevé — un nouveau MFM saisi à la main
  * en Corrections — : la Dataslate courante, plus récente, reste alors proposée
  * jusqu'à ce que la source la rattrape.
  */
