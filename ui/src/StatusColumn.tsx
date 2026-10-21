@@ -6,6 +6,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { api, type ButtonName, type ButtonState, type JobReport, type Overview, type PendingChange, type Unreleased } from './api.ts';
+import { failureReasons, foldLine, isError } from './joblog.ts';
 import { toast } from './Toast.tsx';
 
 const LABEL: Record<ButtonName, string> = {
@@ -51,10 +52,13 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
     /** La notification de la tâche en cours : elle tourne, puis dit comment la tâche a fini. */
     let jobToast: number | undefined;
     let lastLine = '';
+    /** Tout le journal de la tâche en cours : la raison d'un échec peut précéder ses dernières lignes. */
+    let seen: string[] = [];
     const tick = async () => {
       try {
         const r = await api.jobs(since.current);
         if (stop) return;
+        seen = r.next < since.current ? r.lines : [...seen, ...r.lines];
         if (r.next < since.current) setLines(r.lines);
         else if (r.lines.length) setLines((l) => [...l, ...r.lines]);
         since.current = r.next;
@@ -65,9 +69,13 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
         if (now && !wasRunning) jobToast = toast.busy(`${label}…`, jobToast);
         if (wasRunning && !now && r.job) {
           if (r.job.state === 'ok') toast.ok(`${label}: done`, lastLine || undefined, jobToast);
-          else toast.error(`${label}: failed`, lastLine ? `${lastLine} — the log is in the left column` : 'The log is in the left column', jobToast);
+          else {
+            const why = failureReasons(seen)[0];
+            toast.error(`${label}: failed`, why ? `${why} — the full log is in the left column` : 'The log is in the left column', jobToast);
+          }
           jobToast = undefined;
           lastLine = '';
+          seen = [];
         }
         if (wasRunning && !now) {
           /*
@@ -234,10 +242,35 @@ export function StatusColumn({ overview, error, pending, onChanged, onUndo, onOp
           <h2>
             {LABEL[report.job.name as ButtonName] ?? report.job.name} <span className={`job-state ${report.job.state}`}>{report.job.state}</span>
           </h2>
-          <pre className="log">{lines.join('\n') || '…'}</pre>
+          {report.job.state === 'failed' && failureReasons(lines).length > 0 && (
+            <div className="job-failure" role="alert">
+              <strong>Why it failed</strong>
+              <ul>
+                {failureReasons(lines).map((l, i) => (
+                  <li key={i}>{l.replace(/^✘\s*/, '')}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="log">{lines.length ? lines.map((l, i) => <LogLine key={i} line={l} />) : '…'}</div>
         </section>
       )}
     </aside>
+  );
+}
+
+/** Une ligne du journal : rouge si c'est une erreur, repliée si elle n'en finit pas. */
+function LogLine({ line }: { line: string }) {
+  const { head, rest } = foldLine(line);
+  const cls = isError(line) ? 'log-line error' : 'log-line';
+  if (!rest) return <div className={cls}>{line}</div>;
+  return (
+    <details className={cls}>
+      <summary>
+        {head}… <span className="log-more">+{rest.toLocaleString()} characters</span>
+      </summary>
+      {line.slice(head.length)}
+    </details>
   );
 }
 

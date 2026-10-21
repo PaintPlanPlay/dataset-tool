@@ -143,10 +143,27 @@ select:disabled { background: var(--raised); opacity: 1; }
   padding: 8px;
   border-radius: var(--radius);
   background: var(--raised);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   white-space: pre-wrap;
   word-break: break-word;
 }
+.log-line + .log-line { margin-top: 2px; }
+.log-line.error { color: var(--late); font-weight: 600; }
+.log-line summary { cursor: pointer; list-style: none; }
+.log-line summary::-webkit-details-marker { display: none; }
+.log-more { color: var(--muted); font-style: italic; }
+.job-failure {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--late);
+  border-radius: var(--radius);
+  background: var(--raised);
+  font-size: 13px;
+}
+.job-failure strong { color: var(--late); }
+.job-failure ul { margin: 4px 0 0; padding-left: 18px; }
+.job-failure li { word-break: break-word; }
 
 /* ------------------------------------------------------------- la fiche */
 
