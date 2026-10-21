@@ -4,7 +4,7 @@
  * tout le Dataset), et les désaccords entre sources.
  */
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { api, type Candidate, type CorrectionItem, type Reattachable, type SourceConflict } from './api.ts';
+import { api, type Candidate, type CorrectionItem, type Reattachable, type Disagreement } from './api.ts';
 import { toast } from './Toast.tsx';
 
 function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
@@ -297,16 +297,26 @@ export function ReattachDialog({ target, onDone, onClose }: { target: string; on
   );
 }
 
-/** Les désaccords entre sources : la source qui fait autorité l'a emporté, à vous de juger s'il faut corriger. */
+/**
+ * Les désaccords entre sources : la source qui fait autorité l'a emporté, à vous
+ * de juger s'il faut corriger. Ceux qu'une Correction a tranchés (Settled)
+ * viennent en dernier : ce qui reste à juger est en haut.
+ */
 export function DisagreementsDialog({ onOpen, onClose }: { onOpen: (sheet: string) => void; onClose: () => void }) {
-  const [items, setItems] = useState<SourceConflict[] | null>(null);
+  const [items, setItems] = useState<Disagreement[] | null>(null);
   useEffect(() => void api.disagreements().then(setItems), []);
+  const toJudge = items?.filter((c) => !c.settled).length ?? 0;
   return (
-    <Modal title={`Disagreements between sources (${items?.length ?? '…'})`} onClose={onClose} wide>
+    <Modal title={`Disagreements between sources (${items ? `${toJudge} to judge, ${items.length - toJudge} settled` : '…'})`} onClose={onClose} wide>
       <ul className="corrections">
         {items?.map((c, i) => (
-          <li key={i} className="correction">
+          <li key={i} className={`correction${c.settled ? ' settled' : ''}`}>
             <div className="correction-head">
+              {c.settled && (
+                <span className="state" title="A Correction overrides what the authoritative source kept">
+                  settled
+                </span>
+              )}
               <span className="kind">{c.entity}</span>
               {/* Une Enhancement se corrige sur la fiche de son Detachment, que le désaccord ne nomme pas. */}
               {c.entity === 'enhancement' ? (

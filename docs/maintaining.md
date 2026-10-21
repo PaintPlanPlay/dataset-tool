@@ -51,7 +51,7 @@ first. It is the description of the daily update's pull request, and
 | the table at the top | each source, before and after: commit and MFM version | a new MFM version means a new dataslate at the next release |
 | **Changes by Army** | one collapsed section per army, its summary giving its number of changes and what it has to handle; inside, every unit, detachment, stratagem, army rule and Core entry that changed, as a red/green diff — wargear options and rules worded as the apps show them, *(new)* or *(removed)* when the whole entry is. Over GitHub's size limit, the last armies keep only their summary: read them on the dashboard | read it — this is what decides games. Anything surprising: compare with the official document. Check a removal is real and not a rename upstream |
 | **Armies gone / added** | | check it is real and not a rename upstream |
-| **Disagreements between sources** | the trusted source's value was kept, the other is shown | when the loser is right, write a correction |
+| **Disagreements between sources** | the trusted source's value was kept, the other is shown | when the loser is right, write a correction: the disagreement becomes *settled* |
 | **Corrections** | each one, *in conflict* first, then *stale*, then *active*; and the *orphaned* ones | delete the stale; decide the conflicts; fix or delete the orphans |
 | **Contributions to review** | what a contribution names is gone (an ability a wargear alternative brought) | re-target or delete |
 | **Contributions set aside** | refused: off schema, or rules text | fix the entry |

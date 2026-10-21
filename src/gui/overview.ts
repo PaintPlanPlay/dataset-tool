@@ -19,6 +19,7 @@ import { ghReady, jobSpecs, publishRight, rebuildState, type JobField, type Rebu
 import { isRepository, pendingChanges, pendingFingerprint } from './pending.ts';
 import type { Workspace, WorkspaceState } from './workspace.ts';
 import { findUnsimulated } from '../rules.ts';
+import { disagreements } from './provenance.ts';
 
 export interface Probe {
   /** Le dernier commit de chaque Upstream Source, par identifiant de source. Rejette hors ligne. */
@@ -156,7 +157,7 @@ export interface Overview {
    */
   outdated: boolean;
   pullRequest: PullRequest | null;
-  /** Désaccords entre Upstream Sources, où la source qui fait autorité l'a emporté. */
+  /** Désaccords entre Upstream Sources encore à juger : la source d'autorité l'a emporté, et aucune Correction ne les a tranchés (Settled). */
   disagreements: number;
   /** Clés de Modifier que la Simulation ne sait pas jouer. */
   unsimulated: number;
@@ -279,7 +280,7 @@ export async function overview(ws: Workspace, probe: Probe = defaultProbe, built
     rebuild: rebuildState(ws),
     outdated,
     pullRequest: probe.pullRequest(ws.datasetDir),
-    disagreements: ws.current?.conflicts?.length ?? 0,
+    disagreements: ws.current ? disagreements(ws.current, ws.bare).filter((d) => !d.settled).length : 0,
     unsimulated: findUnsimulated(ws.current?.files ?? new Map()).length,
     armies: (index?.armies ?? []).map((a) => ({ id: a.id, name: a.name })).sort((a, b) => a.name.localeCompare(b.name)),
   };

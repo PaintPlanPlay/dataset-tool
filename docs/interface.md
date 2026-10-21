@@ -28,7 +28,7 @@ Each number is a link.
 | Counter | What it lists |
 |---|---|
 | **Corrections** | every correction and contribution of the dataset, with a filter by target, file or reason |
-| **Disagreements** | where two sources disagree and the trusted one won. Nothing is broken: this is a list of places worth a look — sometimes the loser was right, and a correction is due |
+| **Disagreements** | where two sources disagree and the trusted one won, still to judge. Nothing is broken: this is a list of places worth a look — sometimes the loser was right, and a correction is due. A disagreement a correction overrides is **settled**: it no longer counts, and the list shows it last |
 | **Unsimulated keys** | Modifier keys the simulation does not play — a typo to fix on the rule, or something the simulator has yet to learn |
 
 ### Freshness

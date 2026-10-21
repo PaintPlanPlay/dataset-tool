@@ -3,13 +3,12 @@
  * affiche ce qu'elle reçoit et renvoie ce qu'on y fait.
  */
 import type { ButtonName, Overview } from '../../src/gui/overview.ts';
-import type { SearchHit } from '../../src/gui/provenance.ts';
+import type { Disagreement, SearchHit } from '../../src/gui/provenance.ts';
 import type { Job } from '../../src/gui/jobs.ts';
 import type { PendingChange } from '../../src/gui/pending.ts';
 import type { RebuildFailure } from '../../src/gui/api.ts';
 import type { Unreleased } from '../../src/gui/unreleased.ts';
 import type { CorrectionItem, DraftCheck, SavedFile, Sheet, Suggestions } from '../../src/gui/sheets.ts';
-import type { SourceConflict } from '../../src/findings.ts';
 import type { Reattachable } from '../../src/gui/reattach.ts';
 import type { UnsimulatedKey } from '../../src/rules.ts';
 import type { JsonSchema } from './schema.ts';
@@ -24,6 +23,7 @@ export type FindingKind = import('../../src/board.ts').HandleKind | import('../.
 export type { ArmyChanges, EntityChange, FieldChange, Origin, Stage } from '../../src/changes.ts';
 export type { CorrectionItem, DraftCheck, Mark, SavedFile, Sheet, Suggestions } from '../../src/gui/sheets.ts';
 export type { SourceConflict } from '../../src/findings.ts';
+export type { Disagreement } from '../../src/gui/provenance.ts';
 export type { Candidate, Reattachable } from '../../src/gui/reattach.ts';
 
 export class ApiError extends Error {
@@ -71,7 +71,7 @@ export const api = {
   reattachCandidates: (target: string) => call<Reattachable>(`/api/contributions/reattach?target=${encodeURIComponent(target)}`),
   reattach: (from: string, to: string, keep?: 'moved' | 'existing') => post<{ target: string }>('/api/contributions/reattach', { from, to, ...(keep ? { keep } : {}) }),
   suggest: (army: string, unit: string) => call<Suggestions>(`/api/suggest?army=${encodeURIComponent(army)}&unit=${encodeURIComponent(unit)}`),
-  disagreements: () => call<SourceConflict[]>('/api/disagreements'),
+  disagreements: () => call<Disagreement[]>('/api/disagreements'),
   unsimulated: () => call<(UnsimulatedKey & { sheet: string })[]>('/api/unsimulated'),
   recordPr: (path: string, url: string) => post('/api/corrections/upstream-pr', { path, url }),
   upstreamDraft: (path: string) => call<{ repository: string; url: string }>(`/api/upstream-draft?path=${encodeURIComponent(path)}`),

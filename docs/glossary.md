@@ -19,7 +19,7 @@ keep the meaning the game gives them.
 | **Dataset repository** | where the dataset, the corrections and the contributions live: [PaintPlanPlay/dataset](https://github.com/PaintPlanPlay/dataset) |
 | **Dataslate** | a rules period, bounded by a Munitorum Field Manual version. Releases are grouped by dataslate |
 | **Derived** | computed by the build from another value, so not editable: base points from the price grid, range in inches from the range |
-| **Disagreement** | two sources giving different values for the same field. The trusted one wins; the other is reported |
+| **Disagreement** | two sources giving different values for the same field. The trusted one wins; the other is reported until a correction settles it (see *Settled*) |
 | **Drift report** | what a build changes in the published dataset, and what deserves a look before merging |
 | **Eligibility** | the units a detachment rule is for, as a keyword filter |
 | **Frozen** | a dataslate that receives no more releases, because a newer one exists |
@@ -36,6 +36,7 @@ keep the meaning the game gives them.
 | **Registry** | the file that remembers every identifier ever given, so identifiers never change |
 | **Release** | a frozen, tagged state of the dataset repository. The apps only read releases |
 | **Schema** | the exact description of what a dataset file may contain |
+| **Settled** | a disagreement a correction overrides: a human has judged it, whatever value they chose. It stays listed, after the open ones, and reopens if the correction goes |
 | **Sheet** | the form for one entity in the interface: a unit, a detachment, a stratagem, an army rule, Core |
 | **Situation** | a condition the simulation cannot work out, which the player switches on: `waaagh`, `riled-up` |
 | **Snapshot** | a frozen copy of the three sources, each at a known commit. A build reads only that |
