@@ -17,6 +17,7 @@ await import('./ruleform.test.ts');
 await import('./release.test.ts');
 await import('./workflows.test.ts');
 await import('./gui.test.ts');
+await import('./joblog.test.ts');
 await import('./unreleased.test.ts');
 await import('./sheets.test.ts');
 await import('./wargear.test.ts');

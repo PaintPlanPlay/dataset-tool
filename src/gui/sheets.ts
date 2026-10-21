@@ -237,7 +237,8 @@ function fieldChanges(target: string, label: string, fields: Record<string, Sour
   for (const [field, source] of Object.entries(fields)) {
     if (same(draft[field], current[field])) continue;
     const change = bySource.get(source) ?? bySource.set(source, { target, source, patch: {}, upstream: {}, label }).get(source)!;
-    change.patch[field] = draft[field];
+    // L'éditeur efface une liste dont on retire la dernière ligne : JSON omettrait le champ, et le patch partirait vide.
+    change.patch[field] = draft[field] === undefined && Array.isArray(current[field]) ? [] : draft[field];
     change.upstream[field] = (upstream ?? current)[field];
   }
   return [...bySource.values()];

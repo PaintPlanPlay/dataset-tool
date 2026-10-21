@@ -116,6 +116,13 @@ try {
     JSON.stringify(saved.body),
   );
 
+  // L'éditeur efface le champ quand on retire la dernière ligne : JSON l'omettait, et la Correction partait avec `patch: {}`.
+  const bare = clone(twoSources);
+  delete bare.wargear;
+  const unpriced = await save('u-warboss', bare, 'Le MFM ne facture plus le squig.');
+  const cleared = unpriced.body.files.map((f) => readJson<Correction>(f.path)).find((c) => c.target === 'u-warboss' && c.source === 'mfm');
+  check('retirer la dernière ligne wargear écrit une liste vide, jamais un patch vide', unpriced.status === 201 && JSON.stringify(cleared?.patch) === '{"wargear":[]}', JSON.stringify(unpriced.body) + JSON.stringify(cleared));
+
   for (const p of await pending()) await call('/api/pending/undo', { id: p.id });
   const tougher = clone(warboss);
   tougher.models[0].T = 7;
