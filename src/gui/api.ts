@@ -95,27 +95,78 @@ function openPullRequest(dir: string, files: string[], title: string): string {
 
 /**
  * Relire le Dataset après une écriture demande deux reconstructions — une
- * vingtaine de secondes sur le vrai Dataset. On ne fait pas attendre l'appelant
- * pour ça : il reçoit son résultat tout de suite, la relecture se fait derrière,
- * et `/api/refresh` attend celle qui est déjà en cours plutôt que d'en lancer
- * une seconde.
+ * quinzaine de secondes sur le vrai Dataset, dans un fil à part. On ne fait pas
+ * attendre l'appelant pour ça : il reçoit son résultat tout de suite, et la
+ * relecture se fait derrière.
+ *
+ * Une écriture arrivée pendant une relecture n'y est pas : elle en demande une
+ * autre, qui part dès la fin de celle-ci et reprend toutes les écritures
+ * arrivées entre-temps. Les fiches qu'elles touchent attendent la vue
+ * (`rebuilding`) jusqu'à ce qu'une relecture les contienne.
  */
-let enCours: Promise<void> | null = null;
-
-export function refreshing(ws: Workspace): Promise<void> {
-  enCours ??= ws
-    .refresh()
-    .catch(() => undefined)
-    .finally(() => {
-      enCours = null;
-    });
-  return enCours;
+interface Rebuild {
+  running: Promise<void> | null;
+  /** Une écriture attend une relecture qui n'a pas encore commencé. */
+  again: boolean;
+  /** Les fiches touchées par ces écritures. */
+  queued: Set<string>;
+  /** Les fiches que la relecture en cours va contenir. */
+  building: Set<string>;
 }
+
+const rebuilds = new WeakMap<Workspace, Rebuild>();
+
+function rebuildOf(ws: Workspace): Rebuild {
+  let r = rebuilds.get(ws);
+  if (!r) rebuilds.set(ws, (r = { running: null, again: false, queued: new Set(), building: new Set() }));
+  return r;
+}
+
+function run(ws: Workspace, r: Rebuild): Promise<void> {
+  r.running ??= (async () => {
+    try {
+      while (r.again) {
+        r.again = false;
+        r.building = r.queued;
+        r.queued = new Set();
+        try {
+          await ws.refresh();
+        } catch {
+          // La vue reste la dernière qui a réussi.
+        } finally {
+          r.building = new Set();
+        }
+      }
+    } finally {
+      r.running = null;
+    }
+  })();
+  return r.running;
+}
+
+/** Après une écriture : une relecture qui la contienne, avec les fiches qu'elle touche. */
+export function rebuild(ws: Workspace, sheets: string[] = []): Promise<void> {
+  const r = rebuildOf(ws);
+  for (const s of sheets) r.queued.add(s);
+  r.again = true;
+  return run(ws, r);
+}
+
+/** Attendre que la vue contienne toutes les écritures — ou, s'il n'y en a aucune en attente, la relire. */
+export function refreshing(ws: Workspace): Promise<void> {
+  const r = rebuildOf(ws);
+  if (r.running) return r.running;
+  r.again = true;
+  return run(ws, r);
+}
+
+/** La fiche attend-elle une relecture qui contienne une écriture faite sur elle ? */
+export const isRebuilding = (ws: Workspace, sheet: string) => rebuildOf(ws).queued.has(sheet) || rebuildOf(ws).building.has(sheet);
 
 async function finish(ws: Workspace, path: string, title: string, openPr: boolean | undefined): Promise<WriteResult> {
   const result: WriteResult = { path, prCommands: prCommands([path], title) };
   if (openPr) result.pullRequest = openPullRequest(ws.datasetDir, [path], title);
-  void refreshing(ws);
+  void rebuild(ws);
   return result;
 }
 

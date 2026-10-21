@@ -24,7 +24,7 @@ import { normalizeModel, normalizeProfile } from '../corrections/normalize.ts';
 import { toJson } from '../dataset.ts';
 import { findRulesText, inspectString } from '../notext.ts';
 import { modifiersIn } from '../rules.ts';
-import { ApiError, datasetOf, refreshing } from './api.ts';
+import { ApiError, datasetOf, isRebuilding, rebuild } from './api.ts';
 import { inspect, type DatasetView, type Inspection, type Origin } from './provenance.ts';
 import { sheetOfTarget } from './targets.ts';
 import type { Workspace } from './workspace.ts';
@@ -94,6 +94,8 @@ export interface Sheet extends Inspection {
   marks: Mark[];
   /** Pour une Unit : ses lignes `wargear` du MFM qu'aucune Wargear Alternative ne facture, et ses liens manuels qui ne visent plus rien. */
   wargear: WargearFinding[];
+  /** Une écriture faite sur la fiche attend encore la relecture : la valeur montrée est celle d'avant. */
+  rebuilding: boolean;
 }
 
 /** Une liste vide vaut une liste absente : l'interface montre `[]` là où le Dataset ne dit rien. */
@@ -174,7 +176,7 @@ export function sheetOf(ws: Workspace, target: string): Sheet {
   }
 
   const wargear = found.kind === 'unit' ? (view.wargear ?? []).filter((f) => f.unitId === found.target) : [];
-  return { ...found, sources: SECTION_SOURCES[found.kind], marks, wargear };
+  return { ...found, sources: SECTION_SOURCES[found.kind], marks, wargear, rebuilding: isRebuilding(ws, found.target) };
 }
 
 // ------------------------------------------------------------------ valider
@@ -681,7 +683,7 @@ export async function saveSheet(ws: Workspace, input: SaveInput): Promise<{ file
       writeFileSync(abs, w.content);
     }
   }
-  void refreshing(ws);
+  void rebuild(ws, [found.target]);
   return { files: writes.map((w) => ({ path: w.path, kind: w.kind, action: w.content === null ? 'deleted' : 'written' })) };
 }
 
@@ -802,9 +804,11 @@ export function listCorrections(ws: Workspace, sheet = '', q = ''): CorrectionIt
  * proposée comme les autres, annulable jusque-là.
  */
 export function deleteCorrection(ws: Workspace, input: { path?: string; target?: string }): void {
+  let target = input.target ?? '';
   if (input.path && input.path.startsWith(`${correctionsDir(ws.gameSystem)}/`) && !input.path.includes('..')) {
     const abs = join(ws.datasetDir, input.path);
     if (!existsSync(abs)) throw new ApiError(404, `${input.path} not found`);
+    target = (JSON.parse(readFileSync(abs, 'utf8')) as { target: string }).target;
     rmSync(abs);
   } else if (input.target) {
     const effects = readEffects(ws);
@@ -812,7 +816,7 @@ export function deleteCorrection(ws: Workspace, input: { path?: string; target?:
     if (next.length === effects.length) throw new ApiError(404, `no Contribution for ${input.target}`);
     writeContributions(ws, next);
   } else throw new ApiError(400, 'a Correction path or a Contribution target is expected');
-  void refreshing(ws);
+  void rebuild(ws, [sheetOfTarget(target)]);
 }
 
 // ------------------------------------------------------------ autocomplétion

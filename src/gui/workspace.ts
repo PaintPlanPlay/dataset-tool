@@ -14,6 +14,7 @@
  */
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { Worker } from 'node:worker_threads';
 import { build } from '../build.ts';
 import { readAuthored } from '../authored.ts';
 import { readCorrections } from '../corrections/files.ts';
@@ -75,19 +76,9 @@ export async function openWorkspace(options: WorkspaceOptions): Promise<Workspac
       const published = existsSync(join(options.datasetDir, gameSystem, 'index.json'));
 
       if (dataset && snapshot) {
-        // Deux constructions : avec les Corrections, et sans, pour dire ce qu'elles changent.
-        const common = {
-          snapshot: openSnapshot(options.snapshotDir),
-          gameSystem,
-          ids: readRegistry(options.datasetDir, gameSystem),
-          authored: readAuthored(options.datasetDir, gameSystem),
-        };
-        const [current, bare] = await Promise.all([
-          build({ ...common, corrections: readCorrections(options.datasetDir, gameSystem) }),
-          build({ ...common, corrections: [] }),
-        ]);
-        ws.current = current;
-        ws.bare = bare;
+        const views = await viewsInWorker({ datasetDir: options.datasetDir, snapshotDir: options.snapshotDir, gameSystem });
+        ws.current = views.current;
+        ws.bare = views.bare;
       } else if (published) {
         // Sans instantané : on lit ce qui est publié, sans savoir d'où ça vient.
         ws.current = { gameSystem, files: readDatasetFiles(options.datasetDir, gameSystem), corrections: [], unmatched: [] };
@@ -104,4 +95,38 @@ export async function openWorkspace(options: WorkspaceOptions): Promise<Workspac
 
   await ws.refresh();
   return ws;
+}
+
+export interface ViewsRequest {
+  datasetDir: string;
+  snapshotDir: string;
+  gameSystem: string;
+}
+
+export interface Views {
+  current: DatasetView;
+  bare: DatasetView;
+}
+
+/** Deux constructions : avec les Corrections, et sans, pour dire ce qu'elles changent. */
+export async function buildViews(request: ViewsRequest): Promise<Views> {
+  const { datasetDir, snapshotDir, gameSystem } = request;
+  const common = {
+    snapshot: openSnapshot(snapshotDir),
+    gameSystem,
+    ids: readRegistry(datasetDir, gameSystem),
+    authored: readAuthored(datasetDir, gameSystem),
+  };
+  const [current, bare] = await Promise.all([build({ ...common, corrections: readCorrections(datasetDir, gameSystem) }), build({ ...common, corrections: [] })]);
+  return { current, bare };
+}
+
+/** Les mêmes constructions, dans un fil à part : le serveur continue de répondre pendant ce temps. */
+function viewsInWorker(request: ViewsRequest): Promise<Views> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./views.worker.ts', import.meta.url), { workerData: request });
+    worker.once('message', (m: { views?: Views; error?: string }) => (m.views ? resolve(m.views) : reject(new Error(m.error))));
+    worker.once('error', reject);
+    worker.once('exit', (code) => reject(new Error(`the build stopped (exit code ${code})`)));
+  });
 }

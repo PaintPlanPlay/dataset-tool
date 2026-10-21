@@ -142,6 +142,43 @@ try {
     draft.body.url.startsWith('https://github.com/BSData/wh40k-11e-mfm/issues/new?') && pr.status === 200 && saved.upstreamPr === 'https://github.com/BSData/wh40k-11e-mfm/pull/12',
   );
 
+  /*
+   * Enchaîner les fiches sans attendre la relecture (issue #410) : la fiche
+   * qu'on vient d'enregistrer dit qu'elle attend la vue, les autres non, et
+   * deux enregistrements rapprochés finissent tous deux dans la vue suivante.
+   */
+  section('Interface locale : enregistrer sans attendre');
+  const boyzAgain = structuredClone(repriced);
+  boyzAgain.pricing[0].costs[0].points = 77;
+  const bossAgain = structuredClone(bossValue);
+  bossAgain.abilities.find((a) => a.name === 'Da Boss Fixture')!.summary = '+1 to hit in melee.';
+  const first = await post('/api/sheet/save', { target: 'u-boyz', draft: boyzAgain, reason: 'Coût de test, encore.' });
+  const second = await post('/api/sheet/save', { target: 'u-warboss', draft: bossAgain, reason: 'Résumé de test, encore.' });
+  const boyzWaiting = (await get<Sheet>('/api/sheet?target=u-boyz')).body;
+  const bossWaiting = (await get<Sheet>('/api/sheet?target=u-warboss')).body;
+  const nobzWaiting = (await get<Sheet>('/api/sheet?target=u-meganobz')).body;
+  check(
+    "juste après l'enregistrement, ses fiches attendent la vue ; une autre fiche non",
+    first.status === 201 && second.status === 201 && boyzWaiting.rebuilding === true && bossWaiting.rebuilding === true && nobzWaiting.rebuilding === false,
+    `${boyzWaiting.rebuilding} ${bossWaiting.rebuilding} ${nobzWaiting.rebuilding}`,
+  );
+  // Ce que fait l'interface : relire la fiche jusqu'à ce qu'elle n'attende plus, sans réclamer de relecture.
+  const settledSheet = async (target: string) => {
+    for (const end = Date.now() + 30_000; ; await new Promise((r) => setTimeout(r, 50))) {
+      const sheet = (await get<Sheet>(`/api/sheet?target=${target}`)).body;
+      if (!sheet.rebuilding || Date.now() > end) return sheet;
+    }
+  };
+  const boyzRebuilt = await settledSheet('u-boyz');
+  const bossRebuilt = await settledSheet('u-warboss');
+  const boyzPoints = (boyzRebuilt.value as typeof boyzValue).pricing[0].costs[0].points;
+  const bossSummary = (bossRebuilt.value as typeof bossValue).abilities.find((a) => a.name === 'Da Boss Fixture')?.summary;
+  check(
+    "deux enregistrements rapprochés sont tous deux dans la vue suivante, et leurs fiches ne l'attendent plus",
+    boyzPoints === 77 && bossSummary === '+1 to hit in melee.' && !boyzRebuilt.rebuilding && !bossRebuilt.rebuilding,
+    `${boyzPoints} · ${bossSummary} · ${boyzRebuilt.rebuilding} ${bossRebuilt.rebuilding}`,
+  );
+
   section("Interface locale : démarrage les mains vides");
   const vide = mkdtempSync(join(tmpdir(), 'dataset-vide-'));
   const wsVide = await openWorkspace({ datasetDir: join(vide, 'dataset'), snapshotDir: join(vide, '.snapshot') });

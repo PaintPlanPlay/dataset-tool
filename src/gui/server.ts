@@ -13,7 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { ApiError, datasetOf, recordUpstreamPr, refreshing, startJob, upstreamDraft } from './api.ts';
+import { ApiError, datasetOf, rebuild, recordUpstreamPr, refreshing, startJob, upstreamDraft } from './api.ts';
 import { JobRunner } from './jobs.ts';
 import { defaultProbe, overview, type Probe } from './overview.ts';
 import { removeCaughtUp, unreleased } from './unreleased.ts';
@@ -153,8 +153,7 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
       case 'GET /api/pending':
         return send(res, 200, pendingChanges(ws));
       case 'POST /api/pending/undo':
-        undoPending(ws, String((await readBody(req)).id ?? ''));
-        void refreshing(ws);
+        void rebuild(ws, [undoPending(ws, String((await readBody(req)).id ?? '')).sheet]);
         return send(res, 200, { ok: true });
       case 'GET /api/corrections':
         return send(res, 200, listCorrections(ws, param('sheet'), param('q')));

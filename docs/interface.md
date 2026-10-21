@@ -213,6 +213,12 @@ sheet. Then the tool:
 
 File names are made up for you.
 
+Saving does not wait for the dataset to be rebuilt with your change — about
+fifteen seconds on the real dataset. The rebuild runs in the background: open
+the next sheet and keep going. The sheet you just saved shows *Rebuilding…* and
+stays read-only until the rebuild includes it, then opens again by itself.
+Several saves in a row are gathered into the next rebuild.
+
 Leaving a sheet with unsaved edits asks whether to save, discard or stay.
 
 ### Corrections (n)

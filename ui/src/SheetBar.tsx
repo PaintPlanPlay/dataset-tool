@@ -35,13 +35,15 @@ interface Props {
   onOpen: (hit: SearchHit) => void;
   /** La fiche porte des modifications non enregistrées. */
   dirty: boolean;
+  /** Une écriture sur la fiche attend la relecture du Dataset : elle est en lecture seule. */
+  rebuilding: boolean;
   /** Corrections et Contributions de la fiche ouverte ; `null` sans fiche. */
   corrections: number | null;
   onSave: () => void;
   onCorrections: () => void;
 }
 
-export function SheetBar({ armies, open, onOpen, dirty, corrections, onSave, onCorrections }: Props) {
+export function SheetBar({ armies, open, onOpen, dirty, rebuilding, corrections, onSave, onCorrections }: Props) {
   const [query, setQuery] = useState('');
   const [army, setArmy] = useState(storedFilter);
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -117,6 +119,7 @@ export function SheetBar({ armies, open, onOpen, dirty, corrections, onSave, onC
       <h2 className="sheet-name">
         {open ?? 'No sheet open'}
         {dirty && <span className="badge edited" title="Unsaved edits" />}
+        {rebuilding && <span className="badge rebuilding" title="Rebuilding the Dataset with your change" />}
       </h2>
       {corrections !== null && (
         <div className="sheet-actions">
@@ -126,7 +129,7 @@ export function SheetBar({ armies, open, onOpen, dirty, corrections, onSave, onC
           <button
             type="button"
             className="primary"
-            disabled={!dirty}
+            disabled={!dirty || rebuilding}
             onClick={onSave}
             title="Writes this sheet's change into the Dataset repository. Save & Build, on the left, then rebuilds the Dataset files and checks them before you propose."
           >
