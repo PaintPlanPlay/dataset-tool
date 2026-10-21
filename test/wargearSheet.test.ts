@@ -43,7 +43,8 @@ const call = async <T>(path: string, body?: unknown) => {
   const res = await fetch(new URL(path, gui.url), body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   return { status: res.status, body: (await res.json()) as T };
 };
-const refresh = () => call('/api/refresh', {});
+/** `force` : relire même sans écriture de l'interface, quand le test a changé le disque lui-même. */
+const refresh = (force = false) => call('/api/refresh', { force });
 const sheet = async (target: string) => (await call<Sheet>(`/api/sheet?target=${encodeURIComponent(target)}`)).body;
 const save = (target: string, draft: unknown, reason = 'Test de la fiche d\'équipement.') =>
   call<{ files: { path: string; kind: string }[]; error?: string; findings?: string[] }>('/api/sheet/save', { target, draft, reason });
@@ -164,7 +165,7 @@ try {
     const catalogue = JSON.parse(readFileSync(file, 'utf8'));
     bump(catalogue);
     writeFileSync(file, JSON.stringify(catalogue));
-    await refresh();
+    await refresh(true);
     check('BSData a changé : la Contribution est signalée', state()?.state === 'flagged' && /BSData changed/.test(state()?.note ?? ''), JSON.stringify(state()));
     check('sa phrase porte le repère', (await sheet(WAGON)).marks.some((m) => m.path.startsWith('/wargearOptions/') && m.state === 'flagged'));
     const board = (await call<Unreleased>('/api/unreleased')).body.findings;

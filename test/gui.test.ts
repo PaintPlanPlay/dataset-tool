@@ -142,6 +142,109 @@ try {
     draft.body.url.startsWith('https://github.com/BSData/wh40k-11e-mfm/issues/new?') && pr.status === 200 && saved.upstreamPr === 'https://github.com/BSData/wh40k-11e-mfm/pull/12',
   );
 
+  /*
+   * Enchaîner les fiches sans attendre la relecture (issue #410) : la fiche
+   * qu'on vient d'enregistrer dit qu'elle attend la vue, les autres non, et
+   * deux enregistrements rapprochés finissent tous deux dans la vue suivante.
+   */
+  section('Interface locale : enregistrer sans attendre');
+  const boyzAgain = structuredClone(repriced);
+  boyzAgain.pricing[0].costs[0].points = 77;
+  const bossAgain = structuredClone(bossValue);
+  bossAgain.abilities.find((a) => a.name === 'Da Boss Fixture')!.summary = '+1 to hit in melee.';
+  const first = await post('/api/sheet/save', { target: 'u-boyz', draft: boyzAgain, reason: 'Coût de test, encore.' });
+  const second = await post('/api/sheet/save', { target: 'u-warboss', draft: bossAgain, reason: 'Résumé de test, encore.' });
+  const boyzWaiting = (await get<Sheet>('/api/sheet?target=u-boyz')).body;
+  const bossWaiting = (await get<Sheet>('/api/sheet?target=u-warboss')).body;
+  const nobzWaiting = (await get<Sheet>('/api/sheet?target=u-meganobz')).body;
+  check(
+    "juste après l'enregistrement, ses fiches attendent la vue ; une autre fiche non",
+    first.status === 201 && second.status === 201 && boyzWaiting.rebuilding === true && bossWaiting.rebuilding === true && nobzWaiting.rebuilding === false,
+    `${boyzWaiting.rebuilding} ${bossWaiting.rebuilding} ${nobzWaiting.rebuilding}`,
+  );
+  // Ce que fait l'interface : relire la fiche jusqu'à ce qu'elle n'attende plus, sans réclamer de relecture.
+  const settledSheet = async (target: string) => {
+    for (const end = Date.now() + 30_000; ; await new Promise((r) => setTimeout(r, 50))) {
+      const sheet = (await get<Sheet>(`/api/sheet?target=${target}`)).body;
+      if (!sheet.rebuilding || Date.now() > end) return sheet;
+    }
+  };
+  const boyzRebuilt = await settledSheet('u-boyz');
+  const bossRebuilt = await settledSheet('u-warboss');
+  const boyzPoints = (boyzRebuilt.value as typeof boyzValue).pricing[0].costs[0].points;
+  const bossSummary = (bossRebuilt.value as typeof bossValue).abilities.find((a) => a.name === 'Da Boss Fixture')?.summary;
+  check(
+    "deux enregistrements rapprochés sont tous deux dans la vue suivante, et leurs fiches ne l'attendent plus",
+    boyzPoints === 77 && bossSummary === '+1 to hit in melee.' && !boyzRebuilt.rebuilding && !bossRebuilt.rebuilding,
+    `${boyzPoints} · ${bossSummary} · ${boyzRebuilt.rebuilding} ${bossRebuilt.rebuilding}`,
+  );
+
+  /*
+   * La vue sans Corrections ne dépend pas d'elles (issue #411) : un
+   * enregistrement qui n'écrit que des Corrections ne la reconstruit pas, une
+   * Contribution oui.
+   */
+  section('Interface locale : ne reconstruire que ce qui change');
+  const bareBefore = ws.bare;
+  const boyzThird = structuredClone(boyzAgain);
+  boyzThird.pricing[0].costs[0].points = 66;
+  await post('/api/sheet/save', { target: 'u-boyz', draft: boyzThird, reason: 'Coût de test, troisième.' });
+  const boyzThirdView = await settledSheet('u-boyz');
+  check(
+    'des Corrections seules : la vue avec Corrections les porte, la vue sans est gardée telle quelle',
+    (boyzThirdView.value as typeof boyzValue).pricing[0].costs[0].points === 66 && ws.bare === bareBefore,
+  );
+  const bossThird = structuredClone(bossAgain);
+  bossThird.abilities.find((a) => a.name === 'Da Boss Fixture')!.summary = '+2 to hit in melee.';
+  const bossThirdSaved = await post('/api/sheet/save', { target: 'u-warboss', draft: bossThird, reason: 'Résumé de test, troisième.' });
+  await settledSheet('u-warboss');
+  check('une Contribution : la vue sans Corrections est reconstruite', bossThirdSaved.status === 201 && ws.bare !== bareBefore, JSON.stringify(bossThirdSaved.body));
+
+  /*
+   * Une relecture qui échoue derrière un enregistrement (issue #412) : l'état
+   * le dit et nomme la fiche, la vue reste la dernière qui a réussi, la fiche
+   * ne reste pas en lecture seule, et la relecture suivante qui réussit efface
+   * l'échec.
+   */
+  section('Interface locale : une relecture qui échoue');
+  const broken = join(dir, 'corrections', 'wh40k-11e', 'orks', 'broken.json');
+  // Lisible, mais que la construction ne sait pas appliquer.
+  writeFileSync(broken, JSON.stringify({ target: 'u-meganobz', source: 'mfm', patch: { pricing: 'cassé' }, reason: 'Cassée.' }));
+  const boyzFourth = structuredClone(boyzThird);
+  boyzFourth.pricing[0].costs[0].points = 55;
+  await post('/api/sheet/save', { target: 'u-boyz', draft: boyzFourth, reason: 'Coût de test, quatrième.' });
+  const boyzAfterFailure = await settledSheet('u-boyz');
+  const failed = (await get<Overview>('/api/overview')).body.rebuild;
+  check(
+    "l'échec est dit, avec la fiche et le fichier écrits par l'enregistrement en cause",
+    Boolean(failed.failure?.sheets.includes('u-boyz')) && Boolean(failed.failure?.paths.some((p) => p.endsWith('boyz-unit-mfm.json'))) && Boolean(failed.failure?.error),
+    JSON.stringify(failed),
+  );
+  check(
+    'la vue reste la dernière qui a réussi, et la fiche ne reste pas en lecture seule',
+    (boyzAfterFailure.value as typeof boyzValue).pricing[0].costs[0].points === 66 && !boyzAfterFailure.rebuilding,
+  );
+  const bossFourth = structuredClone(bossThird);
+  bossFourth.abilities.find((a) => a.name === 'Da Boss Fixture')!.summary = '+3 to hit in melee.';
+  await post('/api/sheet/save', { target: 'u-warboss', draft: bossFourth, reason: 'Résumé de test, quatrième.' });
+  await settledSheet('u-warboss');
+  const failedAgain = (await get<Overview>('/api/overview')).body.rebuild;
+  check(
+    "un échec qui suit un échec garde en cause les écritures faites depuis la dernière relecture réussie",
+    ['u-boyz', 'u-warboss'].every((s) => failedAgain.failure?.sheets.includes(s)),
+    JSON.stringify(failedAgain.failure?.sheets),
+  );
+  // Retiré hors de l'interface : il faut demander une relecture.
+  rmSync(broken);
+  await post('/api/refresh', { force: true });
+  const repaired = await get<Overview>('/api/overview');
+  const boyzRepaired = (await get<Sheet>('/api/sheet?target=u-boyz')).body;
+  check(
+    "une relecture qui réussit efface l'échec et porte l'enregistrement",
+    repaired.body.rebuild.failure === null && (boyzRepaired.value as typeof boyzValue).pricing[0].costs[0].points === 55,
+    JSON.stringify(repaired.body.rebuild),
+  );
+
   section("Interface locale : démarrage les mains vides");
   const vide = mkdtempSync(join(tmpdir(), 'dataset-vide-'));
   const wsVide = await openWorkspace({ datasetDir: join(vide, 'dataset'), snapshotDir: join(vide, '.snapshot') });

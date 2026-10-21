@@ -13,7 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { ApiError, datasetOf, recordUpstreamPr, refreshing, startJob, upstreamDraft } from './api.ts';
+import { ApiError, datasetOf, rebuild, rebuildState, recordUpstreamPr, refreshing, startJob, upstreamDraft } from './api.ts';
 import { JobRunner } from './jobs.ts';
 import { defaultProbe, overview, type Probe } from './overview.ts';
 import { removeCaughtUp, unreleased } from './unreleased.ts';
@@ -152,10 +152,11 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
         return send(res, 200, unreleased(ws, { noise: param('all') === '1', probe }));
       case 'GET /api/pending':
         return send(res, 200, pendingChanges(ws));
-      case 'POST /api/pending/undo':
-        undoPending(ws, String((await readBody(req)).id ?? ''));
-        void refreshing(ws);
+      case 'POST /api/pending/undo': {
+        const undone = undoPending(ws, String((await readBody(req)).id ?? ''));
+        void rebuild(ws, { sheets: [undone.sheet], paths: [undone.path] });
         return send(res, 200, { ok: true });
+      }
       case 'GET /api/corrections':
         return send(res, 200, listCorrections(ws, param('sheet'), param('q')));
       case 'POST /api/corrections/remove-caught-up':
@@ -187,10 +188,10 @@ export async function startGui(ws: Workspace, options: GuiOptions | number = {})
       case 'GET /api/upstream-draft':
         return send(res, 200, upstreamDraft(ws, param('path')));
       case 'POST /api/refresh':
-        // Après une tâche ou une écriture : on attend la relecture en cours, ou
-        // on en lance une, mais jamais deux en parallèle.
-        await refreshing(ws);
-        return send(res, 200, { state: ws.state });
+        // Après une écriture : on attend la relecture en cours, ou on en lance
+        // une. Après une tâche qui a changé le disque (`force`) : une de plus.
+        await refreshing(ws, { force: (await readBody(req)).force === true });
+        return send(res, 200, { state: ws.state, rebuild: rebuildState(ws) });
       case 'POST /api/corrections/upstream-pr': {
         const body = await readBody(req);
         return send(res, 200, await recordUpstreamPr(ws, String(body.path ?? ''), String(body.url ?? '')));

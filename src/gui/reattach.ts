@@ -16,8 +16,9 @@ import { authoredEffectProblems, sameWeapons, type AuthoredEffect } from '../aut
 import { alternativeTarget } from '../wargear.ts';
 import { CORE_ROOT, parseTarget } from '../corrections/apply.ts';
 import { homes } from '../home.ts';
-import { ApiError, datasetOf, refreshing } from './api.ts';
+import { ApiError, datasetOf, rebuild } from './api.ts';
 import { readEffects, writeContributions } from './sheets.ts';
+import { sheetOfTarget } from './targets.ts';
 import type { Workspace } from './workspace.ts';
 
 /** Un élément qu'une Contribution peut viser, et comment l'appeler. */
@@ -240,12 +241,12 @@ export function reattachContribution(ws: Workspace, input: ReattachInput): { tar
   const placed = next.find((e) => h.canonical(e.target) === h.canonical(input.to));
   if (!placed) {
     writeContributions(ws, next);
-    void refreshing(ws);
+    void rebuild(ws, { sheets: [sheetOfTarget(input.from), sheetOfTarget(input.to)] });
     return { target: input.to };
   }
   const problems = authoredEffectProblems(placed);
   if (problems.length) throw new ApiError(400, `${input.to}: refused`, problems);
   writeContributions(ws, next);
-  void refreshing(ws);
+  void rebuild(ws, { sheets: [sheetOfTarget(input.from), sheetOfTarget(input.to)] });
   return { target: placed.target };
 }

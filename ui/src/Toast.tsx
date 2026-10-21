@@ -18,6 +18,13 @@ export interface Toast {
   text: string;
   /** Le détail, sur une seconde ligne : les fichiers écrits, la raison d'un refus. */
   detail?: string;
+  /** Un bouton qui agit sur ce que dit la notification, puis la ferme. */
+  action?: ToastAction;
+}
+
+export interface ToastAction {
+  label: string;
+  run: () => void;
 }
 
 const LINGER_MS = 4000;
@@ -31,10 +38,10 @@ const emit = () => {
   for (const l of listeners) l();
 };
 
-function put(kind: ToastKind, text: string, detail?: string, id = nextId++): number {
+function put(kind: ToastKind, text: string, detail?: string, id = nextId++, action?: ToastAction): number {
   clearTimeout(timers.get(id));
   timers.delete(id);
-  const toast: Toast = { id, kind, text, ...(detail ? { detail } : {}) };
+  const toast: Toast = { id, kind, text, ...(detail ? { detail } : {}), ...(action ? { action } : {}) };
   toasts = toasts.some((t) => t.id === id) ? toasts.map((t) => (t.id === id ? toast : t)) : [...toasts, toast];
   if (kind === 'ok' || kind === 'info') timers.set(id, setTimeout(() => dismiss(id), LINGER_MS));
   emit();
@@ -53,7 +60,7 @@ export const toast = {
   busy: (text: string, id?: number) => put('busy', text, undefined, id),
   ok: (text: string, detail?: string, id?: number) => put('ok', text, detail, id),
   info: (text: string, detail?: string, id?: number) => put('info', text, detail, id),
-  error: (text: string, detail?: string, id?: number) => put('error', text, detail, id),
+  error: (text: string, detail?: string, id?: number, action?: ToastAction) => put('error', text, detail, id, action),
   dismiss,
 };
 
@@ -73,6 +80,18 @@ export function Toasts() {
             <span>{t.text}</span>
             {t.detail && <span className="toast-detail">{t.detail}</span>}
           </div>
+          {t.action && (
+            <button
+              type="button"
+              className="toast-action"
+              onClick={() => {
+                dismiss(t.id);
+                t.action!.run();
+              }}
+            >
+              {t.action.label}
+            </button>
+          )}
           {t.kind !== 'busy' && (
             <button type="button" className="toast-close" title="Dismiss" onClick={() => dismiss(t.id)}>
               ×
