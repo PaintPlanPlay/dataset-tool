@@ -54,7 +54,7 @@ What a build contains.
   "gameSystem": { "id": "wh40k-11e", "name": "Warhammer 40,000", "edition": "11th" },
   "sources": [
     { "id": "bsdata", "repository": "BSData/wh40k-11e", "commit": "cc1830f…" },
-    { "id": "mfm", "repository": "BSData/wh40k-11e-mfm", "commit": "8e0e635…", "version": "1.5" }
+    { "id": "mfm", "repository": "PaintPlanPlay/wh40k-11e-mfm", "commit": "8e0e635…", "version": "1.5" }
   ],
   "armies": [
     {

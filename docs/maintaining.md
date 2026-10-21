@@ -188,10 +188,10 @@ release, then the apps that read the new fields.
 ## Telling the sources
 
 Every active correction is a fix the source could make itself. From
-**Corrections**, **tell bsdata / mfm** opens a prefilled issue with that
+**Corrections**, **tell bsdata** opens a prefilled issue with that
 project; record the link of its pull request on the correction. A correction
 with a link reads, in the drift report, `upstream PR: …` — the ones without are
-your to-do list.
+your to-do list. A correction of the MFM has no button: the MFM is scraped by this project, so its correction fixes Games Workshop's page itself (or sides with the official app), and there is no one to tell.
 
 ## Command-line reference
 

@@ -783,14 +783,18 @@ save — a correction that no longer forces anything is removed on its own.
 A correction is a patch on our side. The real fix is for the source to correct
 itself — then every project using it benefits, and our correction can go.
 
-1. In **Corrections (n)**, click **tell bsdata** (or **mfm**). A
+1. In **Corrections (n)**, click **tell bsdata**. A
    prefilled issue opens on that project's GitHub page: the element, the
    current value, the proposed value, and your reason. Submit it.
 2. When the source opens a pull request for it, paste its link in the box next
    to the button and press Enter. The link is kept on the correction
    (`upstreamPr`) and shown in reports.
 
-## Enter a new Munitorum Field Manual before BSData does
+A correction of the MFM has no such button. The MFM is scraped by this project
+four times a day, so a wrong value there is Games Workshop's own (or the official
+app disagrees with it): the correction stays until the page changes.
+
+## Enter a new Munitorum Field Manual before the scrape does
 
 A new MFM is out and its transcription has not followed. You can enter the
 changes yourself, as corrections against the MFM:
@@ -803,7 +807,7 @@ changes yourself, as corrections against the MFM:
 4. Once merged, the maintainer publishes a release and gives the MFM version by
    hand: see [Maintaining the dataset](maintaining.md#when-you-are-ahead-of-the-sources).
 
-A few days later the transcription catches up. The next **Update data** then
+Once the scrape catches up, the next **Update data**
 shows your corrections as **stale**, one by one: delete them. Any that shows
 **in conflict** is a place where you and the transcription disagree — check the
 official document.

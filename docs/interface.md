@@ -230,8 +230,9 @@ Lists what is applied to the open sheet. For each entry: its state, its kind
 (*Correction · mfm*, *Contribution · project*), its reason, the values it
 forces, and its file.
 
-- **tell bsdata / mfm** opens a prefilled issue with that source, so it
-  can fix itself. Paste the link of the pull request the source opens in the
+- **tell bsdata** opens a prefilled issue with BSData, so it
+  can fix itself (a correction of the MFM has none: the MFM is scraped by this
+  project). Paste the link of the pull request the source opens in the
   box next to it: it is recorded on the correction and shown in reports.
 - **Delete** removes the correction. This is itself a pending change —
   proposed and reviewed like any other, and undoable until then.

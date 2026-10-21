@@ -247,17 +247,19 @@ export async function recordUpstreamPr(ws: Workspace, path: string, url: string)
   return finish(ws, path, `Correction ${correction.target}: upstream feedback`, false);
 }
 
-/** Les Upstream Sources à qui une Correction se signale ; une source retirée n'en est plus une. */
+/**
+ * Les Upstream Sources à qui une Correction se signale. Le MFM n'en a pas : le projet
+ * le relève lui-même, et une Correction du MFM corrige Games Workshop, pas le relevé.
+ */
 const UPSTREAM_REPOSITORY: Partial<Record<Correction['source'], string>> = {
   bsdata: 'BSData/wh40k-11e',
-  mfm: 'BSData/wh40k-11e-mfm',
 };
 
 /** Une issue préremplie chez l'Upstream Source, pour qu'elle se corrige à son tour. */
 export function upstreamDraft(ws: Workspace, path: string): { repository: string; url: string } {
   const { correction } = readCorrection(ws, path);
   const repository = UPSTREAM_REPOSITORY[correction.source];
-  if (!repository) throw new ApiError(400, `${correction.source} is no longer an Upstream Source`);
+  if (!repository) throw new ApiError(400, `${correction.source} takes no reports: nothing to tell upstream`);
   const body = [
     `Element: \`${correction.target}\``,
     '',
@@ -544,7 +546,7 @@ export function jobSpecs(
           label: 'MFM version these points follow',
           hint: `The Munitorum Field Manual this Dataset applies${
             proposition ? ` — MFM ${proposition.mfmVersion} as far as the tool knows` : ''
-          }. Entered a newer MFM by hand before BSData did? Put its version here (e.g. 1.5) and name the rules period after it (mfm-1-5).`,
+          }. Entered a newer MFM by hand before the scrape did? Put its version here (e.g. 1.5) and name the rules period after it (mfm-1-5).`,
           value: mfmVersion || proposition?.mfmVersion || '',
         },
         {
