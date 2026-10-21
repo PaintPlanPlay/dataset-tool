@@ -305,9 +305,9 @@ export function ReattachDialog({ target, onDone, onClose }: { target: string; on
 export function DisagreementsDialog({ onOpen, onClose }: { onOpen: (sheet: string) => void; onClose: () => void }) {
   const [items, setItems] = useState<Disagreement[] | null>(null);
   useEffect(() => void api.disagreements().then(setItems), []);
-  const open = items?.filter((c) => !c.settled).length;
+  const toJudge = items?.filter((c) => !c.settled).length ?? 0;
   return (
-    <Modal title={`Disagreements between sources (${items ? `${open} to judge, ${items.length - open!} settled` : '…'})`} onClose={onClose} wide>
+    <Modal title={`Disagreements between sources (${items ? `${toJudge} to judge, ${items.length - toJudge} settled` : '…'})`} onClose={onClose} wide>
       <ul className="corrections">
         {items?.map((c, i) => (
           <li key={i} className={`correction${c.settled ? ' settled' : ''}`}>

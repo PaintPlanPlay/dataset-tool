@@ -36,8 +36,8 @@ keep the meaning the game gives them.
 | **Registry** | the file that remembers every identifier ever given, so identifiers never change |
 | **Release** | a frozen, tagged state of the dataset repository. The apps only read releases |
 | **Schema** | the exact description of what a dataset file may contain |
-| **Sheet** | the form for one entity in the interface: a unit, a detachment, a stratagem, an army rule, Core |
 | **Settled** | a disagreement a correction overrides: a human has judged it, whatever value they chose. It stays listed, after the open ones, and reopens if the correction goes |
+| **Sheet** | the form for one entity in the interface: a unit, a detachment, a stratagem, an army rule, Core |
 | **Situation** | a condition the simulation cannot work out, which the player switches on: `waaagh`, `riled-up` |
 | **Snapshot** | a frozen copy of the three sources, each at a known commit. A build reads only that |
 | **Stale** | a correction the source has caught up with: it can be deleted |

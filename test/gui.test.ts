@@ -16,8 +16,7 @@ import { join } from 'node:path';
 import { defaultReleaseUrl, jobSpecs } from '../src/gui/api.ts';
 import { allowedHost, allowedOrigin, privateAddress, startGui } from '../src/gui/server.ts';
 import type { Overview } from '../src/gui/overview.ts';
-import type { SourceConflict } from '../src/findings.ts';
-import type { SearchHit } from '../src/gui/provenance.ts';
+import type { Disagreement, SearchHit } from '../src/gui/provenance.ts';
 import type { Sheet } from '../src/gui/sheets.ts';
 import { viteUi } from '../src/gui/ui.ts';
 import { openWorkspace } from '../src/gui/workspace.ts';
@@ -101,16 +100,16 @@ try {
   const refused = await post<{ error: string }>('/api/sheet/save', { target: 'u-boyz', draft: repriced, reason: prose });
   check('une raison porteuse de texte de règles est refusée, rien n\'est écrit', refused.status === 400 && !existsSync(join(dir, 'corrections')));
 
+  // Le coût des Boyz : le MFM (75) l'emporte sur BSData (90). Un désaccord ouvert, tant que personne ne l'a tranché.
+  const boyzPointsDisagreement = (list: Disagreement[]) => list.find((c) => c.id === 'u-boyz' && c.field === 'points');
+  const disagreementsBefore = (await get<Disagreement[]>('/api/disagreements')).body;
+  const openBefore = (await get<Overview>('/api/overview')).body.disagreements;
+
   /*
    * Relire le Dataset après une écriture demande deux reconstructions — une
    * vingtaine de secondes sur le vrai Dataset. L'écriture ne doit pas attendre
    * ça : sinon le bouton paraît mort, et le message n'arrive jamais.
    */
-  // Le coût des Boyz : le MFM (75) l'emporte sur BSData (90). Un désaccord ouvert, tant que personne ne l'a tranché.
-  const boyzPointsDisagreement = (list: (SourceConflict & { settled: boolean })[]) => list.find((c) => c.id === 'u-boyz' && c.field === 'points');
-  const disagreementsBefore = (await get<(SourceConflict & { settled: boolean })[]>('/api/disagreements')).body;
-  const openBefore = (await get<Overview>('/api/overview')).body.disagreements;
-
   const debut = Date.now();
   const written = await post<{ files: { path: string }[] }>('/api/sheet/save', { target: 'u-boyz', draft: repriced, reason: 'Coût de test.' });
   const duree = Date.now() - debut;
@@ -155,7 +154,7 @@ try {
    * il redevient ouvert.
    */
   section('Interface locale : désaccords tranchés');
-  const disagreementsAfter = (await get<(SourceConflict & { settled: boolean })[]>('/api/disagreements')).body;
+  const disagreementsAfter = (await get<Disagreement[]>('/api/disagreements')).body;
   const openAfter = (await get<Overview>('/api/overview')).body.disagreements;
   check(
     'avant la Correction, le désaccord est ouvert',
@@ -172,7 +171,7 @@ try {
   );
   await post('/api/corrections/delete', { path });
   await post('/api/refresh', {});
-  const disagreementsReopened = (await get<(SourceConflict & { settled: boolean })[]>('/api/disagreements')).body;
+  const disagreementsReopened = (await get<Disagreement[]>('/api/disagreements')).body;
   check(
     'la Correction retirée, le désaccord redevient ouvert',
     boyzPointsDisagreement(disagreementsReopened)?.settled === false && (await get<Overview>('/api/overview')).body.disagreements === openBefore,
