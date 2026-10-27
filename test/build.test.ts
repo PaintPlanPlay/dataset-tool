@@ -132,6 +132,19 @@ check(
   boyz.maxModels === 21 && boyz.composition?.find((c) => c.name === 'Boss Nob')?.max === 2,
   `${boyz.minModels}-${boyz.maxModels}`,
 );
+const kans = unit(first, 'orks', 'Killa Kans');
+check(
+  'des figurines posées directement sous l\'unité comptent avec leurs bornes (« Killa Kan » 2-4)',
+  kans.minModels === 2 && kans.maxModels === 4,
+  `${kans.minModels}-${kans.maxModels}`,
+);
+check('une figurine facultative (0-1) en remplace une du pack, elle n\'en ajoute pas', kans.maxModels === 4);
+check('le groupe « Enhancements » ne compte pas pour une figurine', kans.maxModels === 4);
+check(
+  'une unité qui est sa seule figurine se compose d\'une figurine, pas de zéro',
+  JSON.stringify(warboss.composition) === JSON.stringify([{ name: 'Warboss', min: 1, max: 1 }]),
+  JSON.stringify(warboss.composition),
+);
 check(
   'armes et mots-clés viennent de BSData',
   boyz.weapons.map((w) => w.name).sort().join(',') === 'Big choppa,Big shoota,Burna,Choppa,Slugga' && boyz.keywords.includes('Battleline'),
