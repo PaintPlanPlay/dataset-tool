@@ -23,6 +23,13 @@ detachments:
       - { name: Follow Me Ladz, points: 25 }
       - { name: Kunnin’ But Brutal, points: 15 }
 units:
+  - name: Killa Kans
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 2, points: 100 }
+          - { models: 4, points: 200 }
   - name: Boyz
     pricing:
       - range: "[1,3]"

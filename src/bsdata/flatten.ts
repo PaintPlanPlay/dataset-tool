@@ -454,6 +454,8 @@ function collect(
     const here = bounds?.max ?? Infinity;
     if (here !== Infinity) cap = Math.min(cap, here);
     if (node.name) slot = { name: node.name, min: bounds?.min ?? 0, max: here === Infinity ? 0 : here };
+    // L'unité qui est elle-même sa seule figurine (un personnage, un véhicule) n'a pas de bornes : elle en compte une.
+    if (slot && depth === 0 && !bounds) slot = { ...slot, min: 1, max: 1 };
     /*
      * Un emplacement facultatif ne fait pas partie de la dotation : plafond
      * annoncé, plancher à zéro. Sans cette distinction, un pack d'Intercessors
@@ -631,6 +633,8 @@ function unitSizes(node: BsNode): { min: number; max: number } {
   let min = 0;
   let max = 0;
   for (const grp of groups) {
+    // Une Enhancement ou une option de Crusade n'est pas une figurine : « Enhancements » (max 1) comptait pour une de plus.
+    if (isForeignGear(grp.name)) continue;
     const cons = grp.constraints ?? [];
     const gMin = cons.find((c) => c.type === 'min' && c.field === 'selections')?.value ?? 0;
     const gMax = cons.find((c) => c.type === 'max' && c.field === 'selections')?.value ?? 0;
@@ -647,11 +651,27 @@ function unitSizes(node: BsNode): { min: number; max: number } {
       const b = boundsOf(modelEntries[0])!;
       min += Math.max(1, b.min);
       max += b.max ?? Math.max(1, b.min);
-    } else if (modelEntries.length) {
+    } else if (modelEntries.length && !modelEntries.every((m) => boundsOf(m)?.min === 0)) {
       // Champion obligatoire : une figurine de plus, quelle que soit la taille.
       min += 1;
       max += 1;
     }
+    // Un groupe dont chaque figurine est facultative (« Skitarii Ranger w/ arc rifle », 0-1) échange des
+    // figurines du pack contre d'autres : il n'en ajoute aucune.
+  }
+  /*
+   * Des figurines posées directement sous l'unité, chacune avec ses bornes :
+   * « Kastelan Robot » 2-4, l'Alpha et les neuf Skitarii Rangers. Les ignorer
+   * laissait ces unités à une seule figurine. Une figurine facultative (0-1,
+   * l'Exarque des Shadow Spectres) en remplace une de son pack : elle n'en
+   * ajoute pas.
+   */
+  for (const entry of node.selectionEntries ?? []) {
+    if (entry.type !== 'model') continue;
+    const b = boundsOf(entry);
+    if (b?.min === 0) continue;
+    min += b ? b.min : 1;
+    max += b ? (b.max ?? Math.max(1, b.min)) : 1;
   }
   return { min: min || 1, max: Math.max(max, min) || 1 };
 }
