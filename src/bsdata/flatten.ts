@@ -651,6 +651,18 @@ function unitSizes(node: BsNode): { min: number; max: number } {
       const b = boundsOf(modelEntries[0])!;
       min += Math.max(1, b.min);
       max += b.max ?? Math.max(1, b.min);
+    } else if (modelEntries.length > 1 && modelEntries.every((m) => boundsOf(m)) && modelEntries.some((m) => boundsOf(m)!.min > 0)) {
+      /*
+       * Un groupe sans borne propre dont chaque figurine porte les siennes : le
+       * sergent 1-1 et les Aggressors 2-5 font un pack de 3 à 6. Une figurine
+       * facultative (0-1) du même groupe en remplace une autre : elle ne compte pas.
+       */
+      for (const m of modelEntries) {
+        const b = boundsOf(m)!;
+        if (b.min === 0) continue;
+        min += b.min;
+        max += b.max ?? b.min;
+      }
     } else if (modelEntries.length && !modelEntries.every((m) => boundsOf(m)?.min === 0)) {
       // Champion obligatoire : une figurine de plus, quelle que soit la taille.
       min += 1;

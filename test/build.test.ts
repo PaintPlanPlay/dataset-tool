@@ -139,6 +139,12 @@ check(
   `${kans.minModels}-${kans.maxModels}`,
 );
 check('une figurine facultative (0-1) en remplace une du pack, elle n\'en ajoute pas', kans.maxModels === 4);
+const burnas = unit(first, 'orks', 'Burna Boyz');
+check(
+  'un groupe sans borne propre compte les bornes de chacune de ses figurines (Spanner 1 + Burna Boyz 4-9)',
+  burnas.minModels === 5 && burnas.maxModels === 10,
+  `${burnas.minModels}-${burnas.maxModels}`,
+);
 check('le groupe « Enhancements » ne compte pas pour une figurine', kans.maxModels === 4);
 check(
   'une unité qui est sa seule figurine se compose d\'une figurine, pas de zéro',
