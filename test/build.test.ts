@@ -162,6 +162,19 @@ check(
   special?.model === 'Boy' && special.alternatives.map((a) => a.id).join() === 'm-boy-shoota,m-boy-burna',
   JSON.stringify(boyz.wargearOptions),
 );
+const lootas = unit(first, 'orks', 'Lootas');
+const swap = (id: string) => lootas.wargearOptions?.find((o) => o.id === id);
+check(
+  'des figurines facultatives posées à côté du pack prennent la place d\'une figurine ordinaire (les Skitarii Rangers)',
+  ['m-loota-shoota', 'm-loota-burna'].every((id) => {
+    const o = swap(id);
+    return o?.model === 'Loota' && o.who.type === 'up-to' && o.who.models === 1 && o.replaces.map((w) => w.weapon).join() === 'ranged|Slugga';
+  }) &&
+    swap('m-loota-shoota')?.alternatives[0].weapons.map((w) => w.weapon).join() === 'ranged|Big shoota' &&
+    swap('m-loota-burna')?.alternatives[0].weapons.map((w) => w.weapon).join() === 'ranged|Burna',
+  JSON.stringify(lootas.wargearOptions),
+);
+check('le pack garde son effectif : les figurines facultatives n\'en ajoutent pas', lootas.minModels === 5 && lootas.maxModels === 5, `${lootas.minModels}-${lootas.maxModels}`);
 check('les groupes d\'options ne sont plus publiés', !('optionGroups' in boyz) && !('defaultLoadout' in boyz) && !('defaultModels' in boyz));
 check('une aptitude figure par son nom', warboss.abilities.map((a) => a.name).join(',') === 'Leader,Da Boss Fixture');
 

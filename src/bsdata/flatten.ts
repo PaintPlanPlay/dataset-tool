@@ -862,6 +862,8 @@ function optionGroupsOf(root: BsNode, byId: Map<string, BsNode>): OptionGroup[] 
      */
     let models = 0;
     let total = 0;
+    /** Des figurines facultatives (0-N) : chacune prend la place d'une figurine ordinaire du pack. */
+    let optional = 0;
     const add = (id: string | undefined, name: string, node: BsNode, bounds: Bounds | null) => {
       if (!id) return;
       const weapons = new Set<string>();
@@ -869,6 +871,7 @@ function optionGroupsOf(root: BsNode, byId: Map<string, BsNode>): OptionGroup[] 
       if (weapons.size === 0) return;
       total += 1;
       if (node.type === 'model') models += 1;
+      if (node.type === 'model' && bounds?.min === 0 && bounds.max !== null) optional += 1;
       const limit = unitLimitOf(node, byId);
       options.push({
         id,
@@ -898,8 +901,29 @@ function optionGroupsOf(root: BsNode, byId: Map<string, BsNode>): OptionGroup[] 
        * les « Special Weapons » des Nobz, un Big Choppa par Unit, deux à dix
        * figurines. L'ancienne forme l'ignorait ; la nouvelle en fait des phrases.
        */
-      if (!(models > 0 && models === total && options.length && options.every((o) => o.unitCap !== undefined))) return undefined;
-      out.push({ id: grp.id, name: (grp.name ?? '').trim(), tree: tree || grp.id, parent, slot, pool: true, minPicks: 0, maxPicks: options.reduce((n, o) => n + (o.maxCarriers || o.unitCap!), 0), pickBrackets: [], options, newOnly: true });
+      /*
+       * Ou un groupe sans plafond de figurines toutes facultatives : les
+       * « Skitarii Rangers Options », un Ranger avec arc rifle, un avec plasma
+       * caliver, un avec arquebus, chacun 0-1, qui prennent la place d'un
+       * Ranger du pack.
+       */
+      const limited = models > 0 && models === total && options.length > 0 && options.every((o) => o.unitCap !== undefined);
+      const swaps = !limited && options.length >= 2 && optional === total;
+      if (!limited && !swaps) return undefined;
+      out.push({
+        id: grp.id,
+        name: (grp.name ?? '').trim(),
+        tree: tree || grp.id,
+        parent,
+        slot,
+        pool: true,
+        minPicks: 0,
+        maxPicks: options.reduce((n, o) => n + (o.maxCarriers || o.unitCap!), 0),
+        pickBrackets: [],
+        options,
+        newOnly: true,
+        ...(swaps ? { swaps: true as const } : {}),
+      });
       return grp.id;
     }
     const hostsNested = models > 0 && models === total && (grp.selectionEntryGroups ?? []).length > 0;
@@ -1256,7 +1280,7 @@ export function flattenCatalogues(catalogues: BsCatalogue[], datasheetIds?: Set<
         // et l'emplacement à une configuration dont d'autres choix puisent les figurines.
         optionGroups: keptGroups
           .filter((g) => !g.newOnly)
-          .map(({ newOnly: _n, ...g }) => ({ ...g, options: g.options.map(({ unitCap: _c, capBrackets: _b, ...o }) => o) })),
+          .map(({ newOnly: _n, swaps: _s, ...g }) => ({ ...g, options: g.options.map(({ unitCap: _c, capBrackets: _b, ...o }) => o) })),
         modelTypes,
         ...wargearOf(translated, modelTypes, weapons),
         defaultLoadout: weapons
