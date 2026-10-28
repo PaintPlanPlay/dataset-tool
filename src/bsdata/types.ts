@@ -107,6 +107,12 @@ export interface OptionGroup {
   options: WeaponOption[];
   /** Un groupe que seule la nouvelle forme lit : l'ancienne ne le publiait pas. */
   newOnly?: true;
+  /**
+   * Des figurines qui prennent la place de figurines ordinaires du pack, posées
+   * à côté d'elles et non avec elles (les « Skitarii Rangers Options ») : leur
+   * base est le Default Wargear de leur type, pas l'une d'entre elles.
+   */
+  swaps?: true;
 }
 
 /**

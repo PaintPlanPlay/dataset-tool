@@ -149,6 +149,8 @@ export function translateWargear(groups: OptionGroup[], types: ModelType[], type
   const baseOf = (g: OptionGroup, type: string): WeaponOption | undefined => {
     for (let pool: OptionGroup | undefined = g; pool; pool = byId.get(pool.parent)) {
       if (!pool.pool) continue;
+      // Des figurines qui en remplacent d'ordinaires (« Skitarii Ranger w/ arc rifle ») : la base est ce que porte une figurine ordinaire du type.
+      if (pool.swaps) return { id: '', name: type, weapons: [...defaultsOf(type)], maxCarriers: 0, isDefault: true };
       const mine = pool.options.filter((o) => configType(pool!, o) === type);
       // Un pool qui puise dans un autre n'a pas de base à lui : elle est dans le pool parent.
       if (pool === g && (mine.length < 2 || byId.get(g.parent)?.pool)) continue;

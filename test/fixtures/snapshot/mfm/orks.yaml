@@ -23,6 +23,12 @@ detachments:
       - { name: Follow Me Ladz, points: 25 }
       - { name: Kunnin’ But Brutal, points: 15 }
 units:
+  - name: Lootas
+    pricing:
+      - range: "[1,)"
+        label: Your Unit Costs
+        costs:
+          - { models: 5, points: 100 }
   - name: Burna Boyz
     pricing:
       - range: "[1,)"
