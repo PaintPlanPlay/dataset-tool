@@ -226,3 +226,14 @@ section('Le Wargear Cost porté par la Wargear Alternative');
   const problems = [...manual.files].filter(([p]) => p.includes('/armies/')).flatMap(([, f]) => validateFile('army', f));
   check('le Dataset reste valide', problems.length === 0, problems.join(' | '));
 }
+
+section('Un choix exclusif que BSData ne marque d\'aucun défaut');
+{
+  // « Unit weapons », min 1 max 1 : Guardian Spear ou Castellan Axe, sans défaut désigné.
+  const wardens = unitOf(plain, 'adeptus-custodes', 'Custodian Wardens');
+  const carried = wardens.modelTypes?.flatMap((t) => t.defaultWargear.map((w) => w.weapon)).join() ?? '';
+  check('la figurine porte la première option, pas les deux', carried === 'melee|Guardian Spear', carried);
+  const option = wardens.wargearOptions?.find((o) => o.replaces.some((r) => r.weapon === 'melee|Guardian Spear'));
+  check('l\'autre la remplace, par une Wargear Option', option?.alternatives.map((a) => a.weapons.map((w) => w.weapon).join('+')).join() === 'melee|Castellan Axe', JSON.stringify(wardens.wargearOptions));
+  check('l\'option garde l\'identifiant BSData de son entrée', optionOf(wardens, 'e-warden-axe') !== undefined);
+}

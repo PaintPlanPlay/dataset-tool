@@ -371,12 +371,12 @@ function boundsOf(node: BsNode): Bounds | null {
 }
 
 /**
- * L'option qu'un groupe désigne par défaut, si elle est bien l'un de ses
+ * L'option qu'un groupe désigne lui-même par défaut, si elle est bien l'un de ses
  * enfants. BSData garde parfois l'identifiant d'une entrée disparue (les
  * Gretchin) : le groupe n'a alors pas de défaut, et tout ce qu'il contient
  * d'obligatoire reste porté d'office.
  */
-function defaultOf(group: BsNode): string | undefined {
+function namedDefaultOf(group: BsNode): string | undefined {
   const id = group.defaultSelectionEntryId;
   if (!id) return undefined;
   const children = [...(group.selectionEntries ?? []), ...(group.selectionEntryGroups ?? []), ...(group.entryLinks ?? [])];
@@ -384,6 +384,25 @@ function defaultOf(group: BsNode): string | undefined {
   // « Replace bolt pistol » dit lui-même ce qu'il remplace : le Bolt pistol est le défaut.
   const replaced = /^replace\s+(.+)$/i.exec((group.name ?? '').trim())?.[1].toLowerCase();
   return replaced ? children.find((c) => (c.name ?? '').trim().toLowerCase() === replaced)?.id : undefined;
+}
+
+/**
+ * Le défaut d'un groupe : celui qu'il désigne, ou, pour un choix exclusif qui
+ * n'en désigne aucun, sa première option. « Unit weapons », min 1 max 1, offre
+ * aux Custodian Wardens une Guardian Spear ou une Castellan Axe : la fiche les
+ * équipe de la première, que l'autre remplace. Sans défaut, les deux restaient
+ * portées d'office — une figurine qui frappait avec ses deux armes à la fois.
+ * Un choix entre figurines (une composition) n'est pas une dotation : il reste
+ * tel quel.
+ */
+function defaultOf(group: BsNode): string | undefined {
+  const named = namedDefaultOf(group);
+  if (named || group.defaultSelectionEntryId || group.type) return named;
+  const bounds = boundsOf(group);
+  if (!bounds || bounds.min !== 1 || bounds.max !== 1) return undefined;
+  const children = [...(group.selectionEntries ?? []), ...(group.selectionEntryGroups ?? []), ...(group.entryLinks ?? [])].filter((c) => !c.hidden);
+  if (children.length < 2 || (group.selectionEntries ?? []).some((c) => c.type === 'model')) return undefined;
+  return children[0].id;
 }
 
 /** Un groupe partagé d'Enhancements : « Enhancements », « Enhancements - Upgrades ». */

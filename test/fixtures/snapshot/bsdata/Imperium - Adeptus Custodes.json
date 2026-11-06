@@ -4,7 +4,8 @@
     "id": "cat-custodes",
     "library": false,
     "entryLinks": [
-      { "id": "l-guard", "name": "Custodian Guard", "targetId": "u-guard", "type": "selectionEntry" }
+      { "id": "l-guard", "name": "Custodian Guard", "targetId": "u-guard", "type": "selectionEntry" },
+      { "id": "l-wardens", "name": "Custodian Wardens", "targetId": "u-wardens", "type": "selectionEntry" }
     ],
     "sharedSelectionEntries": [
       {
@@ -48,6 +49,76 @@
                     "characteristics": [
                       { "name": "Range", "$text": "Melee" }, { "name": "A", "$text": "5" }, { "name": "WS", "$text": "2+" },
                       { "name": "S", "$text": "7" }, { "name": "AP", "$text": "-2" }, { "name": "D", "$text": "2" }, { "name": "Keywords", "$text": "-" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "u-wardens",
+        "name": "Custodian Wardens",
+        "type": "unit",
+        "costs": [{ "name": "pts", "typeId": "pts", "value": 210 }],
+        "categoryLinks": [{ "name": "Infantry" }, { "name": "Custodian Wardens" }, { "name": "Faction: Adeptus Custodes" }],
+        "selectionEntries": [
+          {
+            "id": "m-warden",
+            "name": "Custodian Warden",
+            "type": "model",
+            "constraints": [
+              { "type": "min", "field": "selections", "scope": "parent", "value": 4 },
+              { "type": "max", "field": "selections", "scope": "parent", "value": 5 }
+            ],
+            "profiles": [
+              {
+                "name": "Custodian Warden",
+                "typeName": "Unit",
+                "characteristics": [
+                  { "name": "M", "$text": "6\"" }, { "name": "T", "$text": "6" }, { "name": "Sv", "$text": "2+" },
+                  { "name": "InSv", "$text": "4+" }, { "name": "W", "$text": "3" }, { "name": "LD", "$text": "6+" }, { "name": "OC", "$text": "2" }
+                ]
+              }
+            ],
+            "selectionEntryGroups": [
+              {
+                "id": "g-warden-weapons",
+                "name": "Unit weapons",
+                "constraints": [
+                  { "type": "min", "field": "selections", "scope": "parent", "value": 1 },
+                  { "type": "max", "field": "selections", "scope": "parent", "value": 1 }
+                ],
+                "selectionEntries": [
+                  {
+                    "id": "e-warden-spear",
+                    "name": "Guardian Spear",
+                    "type": "upgrade",
+                    "profiles": [
+                      {
+                        "name": "Guardian Spear",
+                        "typeName": "Melee Weapons",
+                        "characteristics": [
+                          { "name": "Range", "$text": "Melee" }, { "name": "A", "$text": "5" }, { "name": "WS", "$text": "2+" },
+                          { "name": "S", "$text": "7" }, { "name": "AP", "$text": "-2" }, { "name": "D", "$text": "2" }, { "name": "Keywords", "$text": "-" }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "e-warden-axe",
+                    "name": "Castellan Axe",
+                    "type": "upgrade",
+                    "profiles": [
+                      {
+                        "name": "Castellan Axe",
+                        "typeName": "Melee Weapons",
+                        "characteristics": [
+                          { "name": "Range", "$text": "Melee" }, { "name": "A", "$text": "4" }, { "name": "WS", "$text": "2+" },
+                          { "name": "S", "$text": "9" }, { "name": "AP", "$text": "-1" }, { "name": "D", "$text": "3" }, { "name": "Keywords", "$text": "-" }
+                        ]
+                      }
                     ]
                   }
                 ]
